@@ -45,7 +45,7 @@ export default function Post() {
     try {
       // 1. ファイルサイズチェック
       if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-        alert(t.sizeError);
+        alert(t('post.sizeError') || 'File too large');
         setIsSubmitting(false);
         return;
       }
@@ -59,7 +59,7 @@ export default function Post() {
         .maybeSingle();
 
       if (duplicateCheck) {
-        alert(t.duplicateError);
+        alert(t('post.duplicateError') || 'This video was already posted');
         setIsSubmitting(false);
         return;
       }
@@ -74,7 +74,7 @@ export default function Post() {
         .upload(filePath, file);
 
       if (uploadError) {
-        throw new Error(t.uploadError);
+        throw new Error(t('post.uploadError') || 'Upload failed');
       }
 
       const { data: { publicUrl } } = supabase.storage
@@ -106,7 +106,7 @@ export default function Post() {
         });
       }
 
-      alert(t.success);
+      alert(t('post.success') || 'Posted!');
       window.location.href = '/';
       
     } catch (err: any) {
@@ -146,7 +146,7 @@ export default function Post() {
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-3">{t.fileLabel}</label>
+              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-3">{t('post.fileLabel') || 'Video File'}</label>
               <div 
                 className={`w-full border-2 border-dashed ${file ? 'border-cyan-500 bg-cyan-500/5' : 'border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800 hover:border-zinc-500'} rounded-2xl p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-4`}
                 onClick={() => fileInputRef.current?.click()}
@@ -176,7 +176,7 @@ export default function Post() {
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-3">{t.gameLabel}</label>
+              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-3">{t('post.gameLabel') || 'Game Title'}</label>
               <select 
                 className="w-full bg-zinc-900 border border-zinc-800 p-5 rounded-2xl focus:border-cyan-400 outline-none appearance-none font-bold"
                 value={gameTitle}
@@ -205,7 +205,7 @@ export default function Post() {
                 onClick={() => window.location.href = '/'}
                 className="w-full mt-4 text-[10px] font-black text-zinc-600 hover:text-white uppercase tracking-widest transition-colors"
               >
-                {t.cancel}
+                {t('common.cancel') || 'Cancel'}
               </button>
             </div>
           </form>
