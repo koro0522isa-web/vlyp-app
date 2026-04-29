@@ -50,10 +50,10 @@ export const metadata: Metadata = {
     siteName: "VLYP",
     images: [
       {
-        url: "/icon.png",
-        width: 1024,
-        height: 1024,
-        alt: "VLYP Icon",
+        url: "/ogp.png",
+        width: 1200,
+        height: 630,
+        alt: "VLYP - Gaming Short Clips",
       },
     ],
     locale: "ja_JP",
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "VLYP | Gaming Short Clips",
     description: "Share your epic gaming moments on VLYP.",
-    images: ["/icon.png"],
+    images: ["/ogp.png"],
   },
 };
 

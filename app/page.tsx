@@ -17,15 +17,21 @@ import {
   AlertTriangle,
   Check,
   Gift,
+  Trophy,
 } from 'lucide-react';
 import AdSlot from './components/AdSlot';
 import { useLanguage } from './contexts/LanguageContext';
+import confetti from 'canvas-confetti';
 
 export default function Home() {
   const [clips, setClips] = useState<any[]>([]);
   const [ranking, setRanking] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [vlypId, setVlypId] = useState<string>('Player');
+  
+  // デイリーミッションの状態
+  const [dailyViews, setDailyViews] = useState(0);
+  const [isRewarded, setIsRewarded] = useState(false);
   
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -84,6 +90,14 @@ export default function Home() {
       }
 
       await fetchClips(0, currentUser?.id);
+      
+      if (currentUser) {
+        const { data: m } = await supabase.from('daily_user_missions').select('*').eq('user_id', currentUser.id).eq('target_date', new Date().toISOString().split('T')[0]).maybeSingle();
+        if (m) {
+          setDailyViews(m.views_count);
+          setIsRewarded(m.is_rewarded);
+        }
+      }
 
       const { data: topClips } = await supabase
         .from('clips')
@@ -165,7 +179,14 @@ export default function Home() {
           setActiveVideoId(id);
           if (!viewedVideos.current.has(id)) {
             viewedVideos.current.add(id);
+            // 通常の再生数カウント
             supabase.rpc('increment_view_count', { p_clip_id: id, p_user_id: user?.id || null });
+            // デイリーミッション用の視聴カウント
+            if (user) {
+              supabase.rpc('increment_daily_views').then(() => {
+                setDailyViews(prev => prev + 1);
+              });
+            }
           }
         }
       });
@@ -173,6 +194,21 @@ export default function Home() {
     document.querySelectorAll('.video-section').forEach((s) => observer.observe(s));
     return () => observer.disconnect();
   }, [clips, user]);
+
+  const claimReward = async () => {
+    if (!user || isRewarded || dailyViews < 10) return;
+    const { data } = await supabase.rpc('claim_daily_reward');
+    if (data?.success) {
+      setIsRewarded(true);
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#22d3ee', '#818cf8', '#fbbf24']
+      });
+      alert(data.message);
+    }
+  };
 
   const handleLike = async (clipId: number, clipOwnerId: string) => {
     if (!user) return alert("ログインが必要です");
@@ -213,7 +249,17 @@ export default function Home() {
     const { data, error } = await supabase.rpc('send_gift', { p_sender: user.id, p_receiver: clip.user_id, p_clip_id: clip.id, p_amount: amount });
     if (error || !data) {
       if (window.confirm("コインが不足しています。チャージ画面へ移動しますか？")) window.location.href = '/coins';
-    } else alert(`${amount} コインを投げ銭しました！🎉`);
+    } else {
+      // 派手な演出
+      confetti({
+        particleCount: 200,
+        spread: 160,
+        origin: { y: 0.7 },
+        colors: ['#facc15', '#fde047', '#ffffff'],
+        shapes: ['star'],
+      });
+      alert(`${amount} コインを投げ銭しました！🎉`);
+    }
   };
 
   const handleShare = async (clip: any) => {
@@ -288,6 +334,38 @@ export default function Home() {
         {isLoading && <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-blue-500 w-10 h-10" /></div>}
       </main>
       <aside className="w-80 lg:w-96 border-l border-white/5 bg-[#09090B] p-10 hidden xl:flex flex-col flex-shrink-0">
+        {/* Daily Mission */}
+        {user && (
+          <div className="mb-12 bg-gradient-to-br from-blue-600/20 to-purple-600/10 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <Trophy className="w-5 h-5 text-yellow-400" />
+              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Daily Mission</h2>
+            </div>
+            <p className="text-sm font-bold text-zinc-300 mb-4">10動画視聴で1コインGET!</p>
+            <div className="relative h-2 w-full bg-white/5 rounded-full overflow-hidden mb-4">
+              <div 
+                className="absolute inset-y-0 left-0 bg-blue-500 transition-all duration-1000" 
+                style={{ width: `${Math.min(100, (dailyViews / 10) * 100)}%` }}
+              />
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black text-zinc-500 uppercase">{dailyViews} / 10</span>
+              {dailyViews >= 10 && !isRewarded ? (
+                <button 
+                  onClick={claimReward}
+                  className="bg-yellow-400 text-black px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter hover:scale-105 transition-all shadow-[0_0_15px_rgba(250,204,21,0.3)]"
+                >
+                  Claim Reward
+                </button>
+              ) : isRewarded ? (
+                <span className="text-[10px] font-black text-emerald-400 uppercase flex items-center gap-1">
+                  <Check className="w-3 h-3" /> Completed
+                </span>
+              ) : null}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center gap-3 mb-10"><Flame className="w-5 h-5 text-orange-500" /><h2 className="text-xs font-black uppercase tracking-widest text-zinc-100">Trending</h2></div>
         <div className="space-y-8">
           {ranking.map((item, index) => (
