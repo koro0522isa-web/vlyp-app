@@ -22,6 +22,8 @@ import {
 import AdSlot from './components/AdSlot';
 import { useLanguage } from './contexts/LanguageContext';
 import confetti from 'canvas-confetti';
+import { motion } from 'framer-motion';
+import TikTokPlayer from './components/TikTokPlayer';
 
 export default function Home() {
   const [clips, setClips] = useState<any[]>([]);
@@ -317,35 +319,33 @@ export default function Home() {
           <button onClick={() => setFeedMode('all')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'all' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>FOR YOU</button>
           <button onClick={() => setFeedMode('following')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'following' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>FOLLOWING</button>
         </div>
-        {clips.map((clip, index) => {
-          const videoId = getYouTubeId(clip.url || clip.video_url);
-          return (
-            <React.Fragment key={clip.id}>
-              <section data-clip-id={clip.id} className="video-section h-screen w-full snap-start flex items-center justify-center p-2 lg:p-6 pb-28 lg:pb-6 relative">
-                <div className="relative h-full aspect-[9/16] bg-zinc-900 rounded-[3rem] overflow-hidden border border-white/10 shadow-2xl">
-                  {videoId ? (
-                    <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${videoId}?autoplay=${activeVideoId === clip.id ? 1 : 0}&mute=0&controls=1&modestbranding=1&rel=0`} allow="autoplay; encrypted-media" allowFullScreen></iframe>
-                  ) : (clip.video_url || clip.url) ? (
-                    <video className="w-full h-full object-cover" src={clip.video_url || clip.url} autoPlay={activeVideoId === clip.id} loop playsInline controls={activeVideoId === clip.id} />
-                  ) : <div className="w-full h-full flex flex-col items-center justify-center text-zinc-600 gap-2"><Loader2 className="animate-spin w-8 h-8 opacity-20" /><p className="text-[10px] font-bold uppercase">Loading...</p></div>}
-                  <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none"></div>
-                  <div className="absolute bottom-0 left-0 right-20 p-8 pointer-events-none">
-                    {clip.game_title && <div className="flex items-center gap-2 mb-3"><div className="bg-blue-500/20 border border-blue-500/30 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-2 pointer-events-auto"><Gamepad2 className="w-3 h-3 text-blue-400" /><span className="text-[10px] font-bold text-blue-300 uppercase tracking-widest">{clip.game_title}</span></div></div>}
-                    <h2 className="text-2xl font-black text-white mb-2 leading-tight line-clamp-2 italic uppercase">{renderTitle(clip.title)}</h2>
-                    <Link href={`/profile/${clip.user_id}`} className="pointer-events-auto inline-flex items-center gap-2 group"><div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-900 flex items-center justify-center text-[10px] font-black border border-blue-500/30">{(clip.profiles?.display_name || 'P').charAt(0).toUpperCase()}</div><span className="text-sm font-bold text-zinc-400 group-hover:text-blue-400">@{clip.profiles?.display_name || "Player"}</span></Link>
-                  </div>
-                  <div className="absolute right-6 bottom-12 flex flex-col gap-6 z-10">
-                    <div onClick={() => handleLike(clip.id, clip.user_id)} className="cursor-pointer group text-center"><div className={`w-14 h-14 rounded-full flex items-center justify-center border transition-all duration-300 ${userLikes.includes(clip.id) ? 'bg-pink-500/20 border-pink-500 shadow-pink-500/20 shadow-lg' : 'bg-white/5 border-white/10'}`}><Heart className={`${userLikes.includes(clip.id) ? "fill-pink-500 text-pink-500" : "text-white"}`} /></div><p className="text-[10px] font-black mt-2 text-zinc-400 tracking-tighter">{clip.likes || 0}</p></div>
-                    <div onClick={() => openComments(clip.id, clip.user_id)} className="cursor-pointer group text-center"><div className="w-14 h-14 rounded-full flex items-center justify-center border border-white/10 bg-white/5 hover:bg-white/10"><MessageCircle className="w-6 h-6 text-white" /></div><p className="text-[10px] font-black mt-2 text-zinc-400 uppercase tracking-tighter">Chat</p></div>
-                    <div onClick={() => handleShare(clip)} className="cursor-pointer group text-center"><div className={`w-14 h-14 rounded-full flex items-center justify-center border transition-all ${copiedId === clip.id ? 'bg-green-500/20 border-green-500/50' : 'border-white/10 bg-white/5'}`}>{copiedId === clip.id ? <Check className="w-5 h-5 text-green-400" /> : <Share2 className="w-5 h-5 text-white" />}</div><p className="text-[10px] font-black mt-2 uppercase tracking-tighter text-zinc-400">Share</p></div>
-                    <div onClick={() => handleGift(clip)} className="cursor-pointer group text-center"><div className="w-14 h-14 rounded-full flex items-center justify-center border border-yellow-500/20 bg-yellow-500/10"><Gift className="w-6 h-6 text-yellow-400" /></div><p className="text-[10px] font-black mt-2 text-yellow-400 uppercase tracking-tighter">Gift</p></div>
-                  </div>
-                </div>
-              </section>
+        <div className="h-full w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar">
+          {clips.map((clip, index) => (
+            <motion.div 
+              key={clip.id} 
+              id={`clip-${clip.id}`}
+              data-clip-id={clip.id}
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+              className="video-section h-full w-full snap-start relative"
+            >
+              <TikTokPlayer 
+                clip={clip}
+                isActive={activeVideoId === clip.id}
+                userLikes={userLikes}
+                onLike={handleLike}
+                onComment={openComments}
+                onShare={handleShare}
+                onGift={handleGift}
+                renderTitle={renderTitle}
+                isCopied={copiedId === clip.id}
+              />
               {(index + 1) % 5 === 0 && <AdSlot />}
-            </React.Fragment>
-          );
-        })}
+            </motion.div>
+          ))}
+          {hasMore && !isLoading && <div ref={observerTarget} className="w-full h-32 flex items-center justify-center snap-start"><Loader2 className="animate-spin text-blue-500 w-8 h-8" /></div>}
+        </div>
         {hasMore && !isLoading && <div ref={observerTarget} className="w-full h-32 flex items-center justify-center snap-start"><Loader2 className="animate-spin text-blue-500 w-8 h-8" /></div>}
         {isLoading && <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-blue-500 w-10 h-10" /></div>}
       </main>
