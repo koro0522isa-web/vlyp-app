@@ -84,6 +84,7 @@ export default function Sidebar() {
           <div className="flex justify-center gap-3">
             <Link href="/terms" className="text-[8px] font-bold text-zinc-700 hover:text-zinc-500 uppercase tracking-widest transition-colors">Terms</Link>
             <Link href="/privacy" className="text-[8px] font-bold text-zinc-700 hover:text-zinc-500 uppercase tracking-widest transition-colors">Privacy</Link>
+            <Link href="/legal" className="text-[8px] font-bold text-zinc-700 hover:text-zinc-500 uppercase tracking-widest transition-colors">Legal</Link>
           </div>
         </div>
       </div>
