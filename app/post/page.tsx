@@ -21,7 +21,7 @@ async function calculateFileHash(file: File): Promise<string> {
 }
 
 export default function Post() {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -107,10 +107,13 @@ export default function Post() {
       }
 
       alert(t('post.success') || 'Posted!');
-      window.location.href = '/';
+      router.push('/');
       
     } catch (err: any) {
-      alert("Error: " + err.message);
+      console.error('Full upload error:', err);
+      // 詳細なエラーメッセージを表示するように強化
+      const errMsg = err.message || 'Unknown error';
+      alert(`Error: ${errMsg}\n\n${t('post.uploadError')}`);
       setIsSubmitting(false);
     }
   };
@@ -166,12 +169,12 @@ export default function Post() {
                     <p className="text-zinc-500 text-xs">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
                   </div>
                 ) : (
-                  <p className="text-zinc-500 text-sm font-bold">クリックして動画を選択 (MP4, MOV)</p>
+                  <p className="text-zinc-500 text-sm font-bold">{t('post.fileLabel')}</p>
                 )}
               </div>
               <p className="text-[9px] text-zinc-600 font-bold mt-3 ml-2 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-emerald-500/50" />
-                アップロード時に指紋（ハッシュ）をチェックし、無断転載を防止します。
+                {lang === 'JP' ? 'アップロード時に指紋をチェックし、無断転載を防止します。' : 'Protected by VLYP Anti-Piracy system.'}
               </p>
             </div>
 
@@ -195,9 +198,9 @@ export default function Post() {
                 }`}
               >
                 {isSubmitting ? (
-                  <><Loader2 className="w-6 h-6 animate-spin" /> {t('post.uploading') || 'Uploading...'}</>
+                  <><Loader2 className="w-6 h-6 animate-spin" /> ...</>
                 ) : (
-                  t('nav.post')
+                  t('post.uploadBtn')
                 )}
               </button>
               <button 
