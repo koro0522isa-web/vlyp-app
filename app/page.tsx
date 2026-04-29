@@ -52,6 +52,7 @@ export default function Home() {
   const [isCommenting, setIsCommenting] = useState(false);
   const [commentClipId, setCommentClipId] = useState<number | null>(null);
   const [commentClipOwnerId, setCommentClipOwnerId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<any>(null); // { id: number, vlyp_id: string }
   const { t } = useLanguage();
 
   const [likeAnimation, setLikeAnimation] = useState<number | null>(null);
@@ -257,6 +258,15 @@ export default function Home() {
     alert("通報を受け付けました。");
   };
 
+  const handleFollow = async (targetId: string) => {
+    if (!user) return alert("ログインが必要です");
+    if (user.id === targetId) return;
+    
+    const isFollowing = followingIds.includes(targetId);
+    setFollowingIds(prev => isFollowing ? prev.filter(id => id !== targetId) : [...prev, targetId]);
+    await supabase.rpc('toggle_follow', { p_follower_id: user.id, p_following_id: targetId });
+  };
+
   const handleGift = async (clip: any) => {
     if (!user) return alert("ログインが必要です");
     if (user.id === clip.user_id) return alert("自分の動画には投げ銭できません");
@@ -303,10 +313,17 @@ export default function Home() {
   const postComment = async () => {
     if (!user || !newComment.trim() || !commentClipId || !commentClipOwnerId) return;
     setIsCommenting(true);
-    const { data } = await supabase.from('comments').insert({ clip_id: commentClipId, user_id: user.id, vlyp_id: vlypId, content: newComment }).select().single();
+    const { data } = await supabase.from('comments').insert({ 
+      clip_id: commentClipId, 
+      user_id: user.id, 
+      vlyp_id: vlypId, 
+      content: newComment,
+      parent_id: replyingTo?.id || null 
+    }).select().single();
     if (data) {
       setCurrentClipComments(prev => [data, ...prev]);
       setNewComment('');
+      setReplyingTo(null);
     }
     setIsCommenting(false);
   };
@@ -338,8 +355,10 @@ export default function Home() {
                 onComment={openComments}
                 onShare={handleShare}
                 onGift={handleGift}
+                onFollow={handleFollow}
                 renderTitle={renderTitle}
                 isCopied={copiedId === clip.id}
+                isFollowing={followingIds.includes(clip.user_id)}
               />
               {(index + 1) % 5 === 0 && <AdSlot />}
             </motion.div>
@@ -419,22 +438,58 @@ export default function Home() {
         <div className="fixed inset-y-0 right-0 w-full lg:w-[450px] bg-[#09090B]/98 backdrop-blur-3xl border-l border-white/10 z-[100] flex flex-col">
           <div className="p-8 border-b border-white/5 flex items-center justify-between"><h3 className="font-black uppercase tracking-widest text-xs text-blue-400">Live Chat</h3><button onClick={() => setIsCommentOpen(false)} className="p-2 hover:bg-white/10 rounded-full text-zinc-400"><X className="w-6 h-6" /></button></div>
           <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
-            {currentClipComments.map((c) => (
-              <div key={c.id} className="flex gap-4 group">
-                <div className="w-10 h-10 rounded-full bg-zinc-800 flex-shrink-0 flex items-center justify-center font-black border border-white/10 text-[10px] uppercase text-zinc-300">
-                  {c.vlyp_id?.charAt(0)}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-[10px] font-black text-blue-500 uppercase">@{c.vlyp_id}</p>
-                    {/* ここに将来的にバッジ表示を追加可能 */}
+            {currentClipComments.filter(c => !c.parent_id).map((c) => (
+              <div key={c.id} className="space-y-6">
+                <div className="flex gap-4 group">
+                  <div className="w-10 h-10 rounded-full bg-zinc-800 flex-shrink-0 flex items-center justify-center font-black border border-white/10 text-[10px] uppercase text-zinc-300">
+                    {c.vlyp_id?.charAt(0)}
                   </div>
-                  <p className="text-sm text-zinc-300 leading-relaxed font-medium">{c.content}</p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-[10px] font-black text-blue-500 uppercase">@{c.vlyp_id}</p>
+                    </div>
+                    <p className="text-sm text-zinc-300 leading-relaxed font-medium mb-2">{c.content}</p>
+                    <button 
+                      onClick={() => {
+                        setReplyingTo({ id: c.id, vlyp_id: c.vlyp_id });
+                        setNewComment(`@${c.vlyp_id} `);
+                      }}
+                      className="text-[9px] font-black text-zinc-500 uppercase hover:text-blue-400 transition-colors"
+                    >
+                      Reply
+                    </button>
+                  </div>
                 </div>
+                
+                {/* Replies */}
+                {currentClipComments.filter(reply => reply.parent_id === c.id).map(reply => (
+                  <div key={reply.id} className="flex gap-4 ml-12 group">
+                    <div className="w-8 h-8 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black border border-white/5 text-[8px] uppercase text-zinc-500">
+                      {reply.vlyp_id?.charAt(0)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-[9px] font-black text-zinc-400 uppercase">@{reply.vlyp_id}</p>
+                      </div>
+                      <p className="text-sm text-zinc-400 leading-relaxed font-medium">{reply.content}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
-          <div className="p-8 border-t border-white/5 relative flex items-center bg-black/50"><input type="text" placeholder="Type a message..." className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-6 pr-16 text-sm focus:outline-none focus:border-blue-500/50" value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && postComment()} /><button onClick={postComment} className="absolute right-11 p-3 bg-blue-600 rounded-xl text-white">{isCommenting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}</button></div>
+          <div className="p-8 border-t border-white/5 relative flex flex-col gap-4 bg-black/50">
+            {replyingTo && (
+              <div className="flex items-center justify-between bg-blue-500/10 border border-blue-500/20 px-4 py-2 rounded-xl">
+                <p className="text-[10px] font-black text-blue-400 uppercase">Replying to @{replyingTo.vlyp_id}</p>
+                <button onClick={() => setReplyingTo(null)}><X className="w-4 h-4 text-zinc-500" /></button>
+              </div>
+            )}
+            <div className="relative flex items-center">
+              <input type="text" placeholder={replyingTo ? "Write a reply..." : "Type a message..."} className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-6 pr-16 text-sm focus:outline-none focus:border-blue-500/50" value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && postComment()} />
+              <button onClick={postComment} className="absolute right-3 p-3 bg-blue-600 rounded-xl text-white">{isCommenting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}</button>
+            </div>
+          </div>
         </div>
       )}
       <BottomNav />

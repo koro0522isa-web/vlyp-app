@@ -13,8 +13,10 @@ interface TikTokPlayerProps {
   onComment: (id: number, ownerId: string) => void;
   onShare: (clip: any) => void;
   onGift: (clip: any) => void;
+  onFollow: (targetId: string) => void;
   renderTitle: (title: string) => any;
   isCopied: boolean;
+  isFollowing: boolean;
 }
 
 export default function TikTokPlayer({
@@ -94,14 +96,25 @@ export default function TikTokPlayer({
 
       {/* 右側アクションバー (TikTok風) */}
       <div className="absolute right-4 bottom-24 flex flex-col items-center gap-6 z-20">
-        {/* プロフィール画像 */}
+        {/* プロフィール画像 & フォローボタン */}
         <div className="relative mb-2">
-          <div className="w-12 h-12 rounded-full border-2 border-white overflow-hidden bg-zinc-800">
+          <Link href={`/profile/${clip.user_id}`} className="w-12 h-12 rounded-full border-2 border-white overflow-hidden bg-zinc-800 block">
             <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${clip.profiles?.display_name}`} alt="avatar" />
-          </div>
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-pink-500 rounded-full p-0.5 border-2 border-black">
-            <UserPlus className="w-3 h-3 text-white" />
-          </div>
+          </Link>
+          {!isFollowing && (
+            <motion.button 
+              whileTap={{ scale: 0.5 }}
+              onClick={() => onFollow(clip.user_id)}
+              className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-pink-500 rounded-full p-0.5 border-2 border-black hover:bg-pink-400 transition-colors"
+            >
+              <UserPlus className="w-3 h-3 text-white" />
+            </motion.button>
+          )}
+          {isFollowing && (
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-white rounded-full p-0.5 border-2 border-black">
+              <Check className="w-3 h-3 text-black" />
+            </div>
+          )}
         </div>
 
         {/* いいね */}
