@@ -1,8 +1,26 @@
 @import "tailwindcss";
 
+@theme {
+  --color-premium-dark: #09090b;
+  --color-premium-zinc: #18181b;
+  --color-accent-cyan: #06b6d4;
+  --color-accent-pink: #ec4899;
+}
+
 :root {
-  --background: #000000;
+  --background: #ffffff;
+  --foreground: #09090b;
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --border-color: rgba(0, 0, 0, 0.1);
+  --accent: #2563eb;
+}
+
+.dark {
+  --background: #09090b;
   --foreground: #ffffff;
+  --card-bg: rgba(24, 24, 27, 0.8);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --accent: #06b6d4;
 }
 
 body {
@@ -10,85 +28,64 @@ body {
   color: var(--foreground);
   font-family: var(--font-noto), sans-serif;
   overflow: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-  /* ゲーミングネオン（シアン） */
+  /* 究極のガラスモーフィズム */
+  .glass-morphism {
+    backdrop-filter: blur(12px) saturate(180%);
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+  }
+
+  /* プレミアム・ネオンエフェクト */
   .neon-glow {
-    filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.8)) 
-            drop-shadow(0 0 20px rgba(6, 182, 212, 0.4));
+    filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.4)) 
+            drop-shadow(0 0 20px rgba(6, 182, 212, 0.2));
   }
 
-  /* ランキング1位用のゴールドネオン */
-  .neon-gold {
-    filter: drop-shadow(0 0 10px rgba(234, 179, 8, 0.8))
-            drop-shadow(0 0 25px rgba(234, 179, 8, 0.3));
+  .neon-text {
+    text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
   }
 
-  /* 強力なボタンの光 */
-  .btn-glow {
-    box-shadow: 0 0 20px rgba(6, 182, 212, 0.6),
-                inset 0 0 10px rgba(255, 255, 255, 0.2);
+  /* ゲーミング・グラデーション */
+  .gradient-text {
+    background: linear-gradient(to right, #06b6d4, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
-  /* 背景が透けるガラスエフェクト */
-  .glass {
-    backdrop-filter: blur(20px);
-    background-color: rgba(10, 10, 10, 0.7);
-  }
-
-  /* Safe area for mobile bottom nav */
+  /* モバイルセーフエリア */
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 
-/* フォント指定のショートカット */
-.font-oswald { font-family: var(--font-oswald), sans-serif; }
-
-/* Like burst animation */
-@keyframes like-burst {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(2.5);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(3);
-    opacity: 0;
-  }
-}
-
-.animate-like-burst {
-  animation: like-burst 0.6s ease-out forwards;
-}
-
-/* Slide in animation */
-@keyframes slide-in-from-right {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-.animate-in.slide-in-from-right {
-  animation: slide-in-from-right 0.3s ease-out;
-}
-
-/* Fade in animation */
-@keyframes fade-in {
+/* アニメーション */
+@keyframes premium-fade-in {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fade-in {
-  animation: fade-in 0.3s ease-out;
+.animate-premium-in {
+  animation: premium-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* スクロールバーのカスタマイズ (表示する場合) */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
 }

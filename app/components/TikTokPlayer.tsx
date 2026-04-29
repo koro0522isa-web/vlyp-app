@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, MessageCircle, Share2, Gift, Gamepad2, Check, UserPlus } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -98,8 +99,13 @@ export default function TikTokPlayer({
       <div className="absolute right-4 bottom-24 flex flex-col items-center gap-6 z-20">
         {/* プロフィール画像 & フォローボタン */}
         <div className="relative mb-2">
-          <Link href={`/profile/${clip.user_id}`} className="w-12 h-12 rounded-full border-2 border-white overflow-hidden bg-zinc-800 block">
-            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${clip.profiles?.display_name}`} alt="avatar" />
+          <Link href={`/profile/${clip.user_id}`} className="w-12 h-12 rounded-full border-2 border-white overflow-hidden bg-zinc-800 block relative">
+            <Image 
+              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${clip.profiles?.display_name}`} 
+              alt="avatar"
+              fill
+              className="object-cover"
+            />
           </Link>
           {!isFollowing && (
             <motion.button 

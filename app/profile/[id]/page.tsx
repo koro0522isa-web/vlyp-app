@@ -7,7 +7,7 @@ import Link from 'next/link';
 import Sidebar from '@/app/components/Sidebar';
 import BottomNav from '@/app/components/BottomNav';
 import {
-  ArrowLeft, Heart, Eye, Video, UserPlus, UserCheck, Gamepad2, Loader2, X, Users
+  ArrowLeft, Heart, Eye, Video, UserPlus, UserCheck, Gamepad2, Loader2, X, Users, MessageSquare
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -235,19 +235,31 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Follow Button */}
-              {currentUser && currentUser.id !== id && (
-                <button
-                  onClick={handleFollow}
-                  className={`flex items-center gap-2 px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
-                    isFollowing
-                      ? 'bg-white/10 border border-white/20 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400'
-                      : 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/30'
-                  }`}
-                >
-                  {isFollowing ? <><UserCheck className="w-4 h-4" /> Following</> : <><UserPlus className="w-4 h-4" /> Follow</>}
-                </button>
-              )}
+              {/* Action Buttons */}
+              <div className="flex gap-3 justify-center md:justify-start">
+                {currentUser && currentUser.id !== id && (
+                  <>
+                    <button
+                      onClick={handleFollow}
+                      className={`flex items-center gap-2 px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
+                        isFollowing
+                          ? 'bg-white/10 border border-white/20 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400'
+                          : 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/30'
+                      }`}
+                    >
+                      {isFollowing ? <><UserCheck className="w-4 h-4" /> Following</> : <><UserPlus className="w-4 h-4" /> Follow</>}
+                    </button>
+                    
+                    <Link
+                      href={`/messages?u=${id}`}
+                      className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 font-black text-xs uppercase tracking-widest transition-all"
+                    >
+                      <MessageSquare className="w-4 h-4 text-blue-400" />
+                      Message
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 

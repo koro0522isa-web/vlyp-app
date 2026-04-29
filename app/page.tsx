@@ -125,38 +125,53 @@ export default function Home() {
     setIsFetchingMore(true);
 
     try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc('get_feed', {
-        p_limit: LIMIT,
-        p_offset: offset,
-        p_user_id: userId,
-        p_mode: feedMode
-      });
-
-      let newClips = [];
-
-      if (!rpcError && rpcData) {
-        newClips = rpcData.map((clip: any) => ({
-          ...clip,
-          profiles: {
-            display_name: clip.profile_display_name || clip.user_name || 'Player',
-            username: clip.profile_username
+      let finalClips = [];
+      
+      // Phase 3: AIパーソナライズド・フィード
+      if (userId && feedMode === 'all' && offset === 0) {
+        const { data: pref } = await supabase.from('user_preferences').select('preference_vector').eq('user_id', userId).maybeSingle();
+        if (pref?.preference_vector) {
+          const { data: aiClips } = await supabase.rpc('match_clips', {
+            query_embedding: pref.preference_vector,
+            similarity_threshold: 0.2,
+            match_count: LIMIT,
+            excluded_user_id: userId
+          });
+          if (aiClips && aiClips.length > 0) {
+            finalClips = aiClips.map((c: any) => ({
+              ...c,
+              profiles: { display_name: c.profile_display_name || 'Player' }
+            }));
           }
-        }));
-      } else {
-        let query = supabase.from('clips').select('*').neq('status', 'banned').order('created_at', { ascending: false }).range(offset, offset + LIMIT - 1);
-        const { data: clipsData } = await query;
-        if (clipsData) {
-          const { data: allProfiles } = await supabase.from('profiles').select('id, display_name, username');
-          newClips = clipsData.map(clip => ({
-            ...clip,
-            profiles: allProfiles?.find(p => p.id === clip.user_id) || { display_name: 'Player' }
-          }));
         }
       }
 
-      if (newClips.length < LIMIT) setHasMore(false);
-      if (offset === 0) setClips(newClips);
-      else setClips(prev => [...prev, ...newClips]);
+      // 通常の取得 (AIが足りない場合や2ページ目以降)
+      if (finalClips.length < LIMIT) {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_feed', {
+          p_limit: LIMIT,
+          p_offset: offset,
+          p_user_id: userId,
+          p_mode: feedMode
+        });
+
+        if (!rpcError && rpcData) {
+          const rpcClips = rpcData.map((clip: any) => ({
+            ...clip,
+            profiles: {
+              display_name: clip.profile_display_name || clip.user_name || 'Player',
+              username: clip.profile_username
+            }
+          }));
+          const existingIds = new Set(finalClips.map(c => c.id));
+          finalClips = [...finalClips, ...rpcClips.filter((c: any) => !existingIds.has(c.id))];
+        }
+      }
+
+      if (finalClips.length === 0) setHasMore(false);
+      const newBatch = finalClips.slice(0, LIMIT);
+      if (offset === 0) setClips(newBatch);
+      else setClips(prev => [...prev, ...newBatch]);
       setPageOffset(offset + LIMIT);
     } catch (e) {
       console.error("Error fetching clips:", e);
@@ -239,6 +254,41 @@ export default function Home() {
     setUserLikes(prev => isLiked ? prev.filter(id => id !== clipId) : [...prev, clipId]);
     setClips(prev => prev.map(c => c.id === clipId ? { ...c, likes: Math.max(0, (c.likes || 0) + (isLiked ? -1 : 1)) } : c));
     await supabase.rpc('toggle_like', { p_user_id: user.id, p_clip_id: clipId, p_clip_owner_id: clipOwnerId });
+    
+    // AI推奨エンジンの学習: 好みを更新
+    if (!isLiked) {
+      updateUserPreference(clipId);
+    }
+  };
+
+  const updateUserPreference = async (clipId: number) => {
+    if (!user) return;
+    
+    // 1. クリップのベクトルを取得
+    const { data: clip } = await supabase.from('clips').select('embedding').eq('id', clipId).single();
+    if (!clip?.embedding) return;
+
+    // 2. 現在のユーザーの好みベクトルを取得
+    const { data: pref } = await supabase.from('user_preferences').select('preference_vector').eq('user_id', user.id).maybeSingle();
+    
+    let newVector;
+    if (!pref?.preference_vector) {
+      // 初めての場合はそのまま保存
+      newVector = clip.embedding;
+    } else {
+      // 既存のベクトルと混ぜる (移動平均: 既存 0.8 / 新規 0.2)
+      // シンプルな数値計算として実装
+      const current = JSON.parse(pref.preference_vector as any);
+      const target = JSON.parse(clip.embedding as any);
+      newVector = current.map((val: number, i: number) => (val * 0.8) + (target[i] * 0.2));
+    }
+
+    // 3. 更新
+    await supabase.from('user_preferences').upsert({
+      user_id: user.id,
+      preference_vector: newVector,
+      updated_at: new Date().toISOString()
+    });
   };
 
   const renderTitle = (title: string) => {

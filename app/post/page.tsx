@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { UploadCloud, Loader2, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
+import { generateEmbedding } from '../lib/ai';
 
 const GAMES = [
   "VALORANT", "Apex Legends", "League of Legends", "Street Fighter 6", 
@@ -81,16 +82,20 @@ export default function Post() {
         .from('videos')
         .getPublicUrl(filePath);
 
-      // 4. クリップデータの保存
+      // 4. AIによるタイトルベクトルの生成 (推奨エンジン用)
+      const embedding = await generateEmbedding(`${title} ${gameTitle}`);
+
+      // 5. クリップデータの保存
       const { data: clipData, error: insertError } = await supabase.from('clips').insert({
         title,
-        url: null, // YouTube URLは完全廃止
+        url: null, 
         video_url: publicUrl,
         game_title: gameTitle,
         user_id: user.id,
         user_name: user.email?.split('@')[0],
         views: 0,
-        likes: 0
+        likes: 0,
+        embedding: embedding
       }).select().single();
 
       if (insertError) {

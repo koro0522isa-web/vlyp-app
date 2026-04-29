@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Oswald, Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
-import { PHProvider } from "./providers"; // PostHog用のプロバイダー
+import { PHProvider } from "./providers";
+import { WebVitals } from "./components/WebVitals";
 
 // フォント設定
 const oswald = Oswald({ 
@@ -16,7 +17,7 @@ const noto = Noto_Sans_JP({
 
 // モバイル表示・テーマカラー設定
 export const viewport: Viewport = {
-  themeColor: "#2563eb",
+  themeColor: "#09090b",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -98,20 +99,9 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        
-        {/* ============================================================
-            GOOGLE ADSENSE (広告) 設定エリア
-            1. 以下の script のコメントアウトを外してください。
-            2. client=ca-pub-XXXXXXXXXXXXXXXX の部分をあなたのIDに書き換えてください。
-           ============================================================ */}
-        {/* <script 
-          async 
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" 
-          crossOrigin="anonymous"
-        ></script> */}
-        
       </head>
       <body className={`${oswald.variable} ${noto.variable} antialiased font-sans`}>
+        <WebVitals />
         <PHProvider>
           {children}
         </PHProvider>
