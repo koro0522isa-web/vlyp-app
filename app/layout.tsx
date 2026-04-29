@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     template: "%s | VLYP"
   },
   description: "Share your epic gaming moments. VLYP is the ultimate platform for high-quality game clips, tips, and highlights.",
-  keywords: ["Gaming", "Clips", "Apex Legends", "Valorant", "Overwatch", "Highlights", "Pro Play", "VLYP", "Shorts"],
+  keywords: ["VLYP", "Game Clip", "Gaming Clips", "Game Highlights", "Apex Legends", "Valorant", "Video Platform", "Gaming Community"],
   manifest: "/manifest.json",
   authors: [{ name: "VLYP Team" }],
   
@@ -44,8 +44,8 @@ export const metadata: Metadata = {
   },
 
   openGraph: {
-    title: "VLYP | Gaming Short Clips",
-    description: "Witness the best gaming moments on VLYP.",
+    title: "VLYP | Next-Gen Gaming Clips Platform",
+    description: "The best place to share and discover epic gaming moments. High-quality game clips from across the world.",
     url: "/",
     siteName: "VLYP",
     images: [
@@ -72,11 +72,32 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // 構造化データ (Google用)
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "VLYP",
+    "alternateName": ["VLYP Game Clips"],
+    "url": process.env.NEXT_PUBLIC_SITE_URL || 'https://vlyp.vercel.app',
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": `${process.env.NEXT_PUBLIC_SITE_URL || 'https://vlyp.vercel.app'}/search?q={search_term_string}`
+      },
+      "query-input": "required name=search_term_string"
+    }
+  };
+
   return (
     <html lang="ja">
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         
         {/* ============================================================
             GOOGLE ADSENSE (広告) 設定エリア
