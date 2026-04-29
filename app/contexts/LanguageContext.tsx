@@ -26,7 +26,9 @@ const translations = {
     "post.sizeError": "ファイルサイズが大きすぎます (最大 50MB)",
     "post.duplicateError": "この動画は既に投稿されています。",
     "studio.title": "クリエイター・スタジオ", "studio.myContent": "自分のコンテンツ", "studio.status": "状態", "studio.date": "投稿日",
-    "studio.published": "公開中", "studio.pending": "審査中", "studio.noClips": "まだ動画がありません。最初の動画を投稿しましょう！"
+    "studio.published": "公開中", "studio.pending": "審査中", "studio.noClips": "まだ動画がありません。最初の動画を投稿しましょう！",
+    "mission.title": "デイリーミッション", "mission.goal": "10動画視聴で1コインGET!", "mission.claim": "報酬を受け取る", "mission.completed": "完了",
+    "mission.rewarded": "1コイン獲得しました！", "studio.topSupporters": "トップ・サポーター"
   },
   EN: {
     "nav.home": "Home", "nav.search": "Search", "nav.post": "Post", "nav.activity": "Activity",
@@ -43,7 +45,9 @@ const translations = {
     "post.sizeError": "File too large (Max 50MB)",
     "post.duplicateError": "This video has already been posted.",
     "studio.title": "Creator Studio", "studio.myContent": "My Content", "studio.status": "Status", "studio.date": "Date",
-    "studio.published": "Published", "studio.pending": "Pending", "studio.noClips": "No clips yet. Start publishing!"
+    "studio.published": "Published", "studio.pending": "Pending", "studio.noClips": "No clips yet. Start publishing!",
+    "mission.title": "Daily Mission", "mission.goal": "Watch 10 videos to get 1 Coin!", "mission.claim": "Claim Reward", "mission.completed": "Completed",
+    "mission.rewarded": "1 Coin rewarded!", "studio.topSupporters": "Top Supporters"
   },
   KR: {
     "nav.home": "홈", "nav.search": "검색", "nav.post": "게시", "nav.activity": "알림",
@@ -60,7 +64,9 @@ const translations = {
     "post.sizeError": "파일이 너무 큽니다 (최대 50MB)",
     "post.duplicateError": "이미 게시된 동영상입니다.",
     "studio.title": "크리에이터 스튜디오", "studio.myContent": "내 콘텐츠", "studio.status": "상태", "studio.date": "날짜",
-    "studio.published": "게시됨", "studio.pending": "대기 중", "studio.noClips": "아직 클립이 없습니다. 게시를 시작해 보세요!"
+    "studio.published": "게시됨", "studio.pending": "대기 중", "studio.noClips": "아직 클립이 없습니다. 게시를 시작해 보세요!",
+    "mission.title": "데일리 미션", "mission.goal": "동영상 10개 시청하고 1코인 받기!", "mission.claim": "보상 받기", "mission.completed": "완료됨",
+    "mission.rewarded": "1코인을 획득했습니다!", "studio.topSupporters": "최고 서포터"
   },
   CN: {
     "nav.home": "首页", "nav.search": "搜索", "nav.post": "发布", "nav.activity": "动态",
@@ -76,8 +82,10 @@ const translations = {
     "post.sizeLimitMsg": "最大 50MB（捕捉你最燃的瞬间！）",
     "post.sizeError": "文件太大（最大 50MB）",
     "post.duplicateError": "该视频已发布。",
-    "studio.title": "创作者中心", "studio.myContent": "我的内容", "studio.status": "状态", "studio.date": "日期",
-    "studio.published": "已发布", "studio.pending": "审核中", "studio.noClips": "还没有视频，开始发布吧！"
+    "studio.title": "創作者中心", "studio.myContent": "我的内容", "studio.status": "状态", "studio.date": "日期",
+    "studio.published": "已发布", "studio.pending": "审核中", "studio.noClips": "还没有视频，开始发布吧！",
+    "mission.title": "每日任务", "mission.goal": "观看10个视频即可获得1个金币！", "mission.claim": "领取奖励", "mission.completed": "已完成",
+    "mission.rewarded": "恭喜！获得1个金幣！", "studio.topSupporters": "顶级支持者"
   }
 };
 

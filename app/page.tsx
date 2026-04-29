@@ -222,7 +222,7 @@ export default function Home() {
         origin: { y: 0.6 },
         colors: ['#22d3ee', '#818cf8', '#fbbf24']
       });
-      alert(data.message);
+      alert(t('mission.rewarded') || data.message);
     }
   };
 
@@ -355,9 +355,9 @@ export default function Home() {
           <div className="mb-12 bg-gradient-to-br from-blue-600/20 to-purple-600/10 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl">
             <div className="flex items-center gap-3 mb-4">
               <Trophy className="w-5 h-5 text-yellow-400" />
-              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Daily Mission</h2>
+              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white">{t('mission.title')}</h2>
             </div>
-            <p className="text-sm font-bold text-zinc-300 mb-4">10動画視聴で1コインGET!</p>
+            <p className="text-sm font-bold text-zinc-300 mb-4">{t('mission.goal')}</p>
             <div className="relative h-2 w-full bg-white/5 rounded-full overflow-hidden mb-4">
               <div 
                 className="absolute inset-y-0 left-0 bg-blue-500 transition-all duration-1000" 
@@ -371,11 +371,11 @@ export default function Home() {
                   onClick={claimReward}
                   className="bg-yellow-400 text-black px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter hover:scale-105 transition-all shadow-[0_0_15px_rgba(250,204,21,0.3)]"
                 >
-                  Claim Reward
+                  {t('mission.claim')}
                 </button>
               ) : isRewarded ? (
                 <span className="text-[10px] font-black text-emerald-400 uppercase flex items-center gap-1">
-                  <Check className="w-3 h-3" /> Completed
+                  <Check className="w-3 h-3" /> {t('mission.completed')}
                 </span>
               ) : null}
             </div>
@@ -397,7 +397,7 @@ export default function Home() {
           <div className="mt-auto pt-10 border-t border-white/5">
             <div className="flex items-center gap-3 mb-8">
               <Trophy className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Top Supporters</h2>
+              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">{t('studio.topSupporters')}</h2>
             </div>
             <div className="space-y-6">
               {topSupporters.map((s, i) => (
