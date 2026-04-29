@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-type Language = 'JP' | 'EN';
+type Language = 'JP' | 'EN' | 'KR' | 'CN';
 
 interface LanguageContextType {
   lang: Language;
@@ -10,53 +10,42 @@ interface LanguageContextType {
   t: (key: string) => string;
 }
 
-// Simple translation dictionary
 const translations = {
   JP: {
-    "nav.home": "ホーム",
-    "nav.search": "検索",
-    "nav.post": "投稿",
-    "nav.activity": "通知",
-    "nav.profile": "マイページ",
-    "nav.studio": "スタジオ",
-    "nav.settings": "設定",
-    "nav.logout": "ログアウト",
-    "feed.following": "フォロー中",
-    "feed.foryou": "おすすめ",
-    "action.like": "いいね",
-    "action.chat": "チャット",
-    "action.share": "シェア",
-    "action.gift": "ギフト",
-    "action.report": "通報",
-    "post.title": "動画を投稿する",
-    "studio.views": "総再生数",
-    "studio.likes": "総いいね",
-    "studio.revenue": "収益ダッシュボード",
-    "settings.title": "設定",
-    "settings.save": "保存する"
+    "nav.home": "ホーム", "nav.search": "検索", "nav.post": "投稿", "nav.activity": "通知",
+    "nav.profile": "マイページ", "nav.studio": "スタジオ", "nav.settings": "設定", "nav.logout": "ログアウト",
+    "feed.following": "フォロー中", "feed.foryou": "おすすめ",
+    "action.like": "いいね", "action.chat": "チャット", "action.share": "シェア", "action.gift": "ギフト", "action.report": "通報",
+    "post.title": "動画を投稿する", "studio.views": "総再生数", "studio.likes": "総いいね", "studio.revenue": "収益ダッシュボード",
+    "settings.title": "設定", "settings.save": "保存する",
+    "legal.terms": "利用規約", "legal.privacy": "プライバシーポリシー", "legal.notice": "特定商取引法に基づく表記"
   },
   EN: {
-    "nav.home": "Home",
-    "nav.search": "Search",
-    "nav.post": "Post",
-    "nav.activity": "Activity",
-    "nav.profile": "Profile",
-    "nav.studio": "Studio",
-    "nav.settings": "Settings",
-    "nav.logout": "Logout",
-    "feed.following": "Following",
-    "feed.foryou": "For You",
-    "action.like": "Like",
-    "action.chat": "Chat",
-    "action.share": "Share",
-    "action.gift": "Gift",
-    "action.report": "Report",
-    "post.title": "Publish Clip",
-    "studio.views": "Total Views",
-    "studio.likes": "Total Likes",
-    "studio.revenue": "Revenue Dashboard",
-    "settings.title": "Settings",
-    "settings.save": "Save Changes"
+    "nav.home": "Home", "nav.search": "Search", "nav.post": "Post", "nav.activity": "Activity",
+    "nav.profile": "Profile", "nav.studio": "Studio", "nav.settings": "Settings", "nav.logout": "Logout",
+    "feed.following": "Following", "feed.foryou": "For You",
+    "action.like": "Like", "action.chat": "Chat", "action.share": "Share", "action.gift": "Gift", "action.report": "Report",
+    "post.title": "Publish Clip", "studio.views": "Total Views", "studio.likes": "Total Likes", "studio.revenue": "Revenue Dashboard",
+    "settings.title": "Settings", "settings.save": "Save Changes",
+    "legal.terms": "Terms of Service", "legal.privacy": "Privacy Policy", "legal.notice": "Legal Notice"
+  },
+  KR: {
+    "nav.home": "홈", "nav.search": "검색", "nav.post": "게시", "nav.activity": "알림",
+    "nav.profile": "마이페이지", "nav.studio": "스튜디오", "nav.settings": "설정", "nav.logout": "로그아웃",
+    "feed.following": "팔로잉", "feed.foryou": "추천",
+    "action.like": "좋아요", "action.chat": "채팅", "action.share": "공유", "action.gift": "선물", "action.report": "신고",
+    "post.title": "클립 게시", "studio.views": "총 조회수", "studio.likes": "총 좋아요", "studio.revenue": "수익 대시보드",
+    "settings.title": "설정", "settings.save": "변경사항 저장",
+    "legal.terms": "이용약관", "legal.privacy": "개인정보처리방침", "legal.notice": "특정상거래법 표기"
+  },
+  CN: {
+    "nav.home": "首页", "nav.search": "搜索", "nav.post": "发布", "nav.activity": "动态",
+    "nav.profile": "个人主页", "nav.studio": "创作者中心", "nav.settings": "设置", "nav.logout": "退出登录",
+    "feed.following": "关注", "feed.foryou": "推荐",
+    "action.like": "赞", "action.chat": "评论", "action.share": "分享", "action.gift": "打赏", "action.report": "举报",
+    "post.title": "发布视频", "studio.views": "总浏览量", "studio.likes": "总获赞", "studio.revenue": "收益中心",
+    "settings.title": "设置", "settings.save": "保存修改",
+    "legal.terms": "服务条款", "legal.privacy": "隐私政策", "legal.notice": "法律声明"
   }
 };
 
@@ -71,11 +60,14 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
 
   useEffect(() => {
     const saved = localStorage.getItem('vlyp_lang') as Language;
-    if (saved === 'EN' || saved === 'JP') {
+    if (saved === 'EN' || saved === 'JP' || saved === 'KR' || saved === 'CN') {
       setLangState(saved);
     } else {
-      const browserLang = navigator.language.startsWith('ja') ? 'JP' : 'EN';
-      setLangState(browserLang);
+      const browserLang = navigator.language;
+      if (browserLang.startsWith('ja')) setLangState('JP');
+      else if (browserLang.startsWith('ko')) setLangState('KR');
+      else if (browserLang.startsWith('zh')) setLangState('CN');
+      else setLangState('EN');
     }
   }, []);
 

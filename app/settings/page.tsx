@@ -125,13 +125,14 @@ export default function SettingsPage() {
                     if (!file || !user) return;
                     setSaving(true);
                     const fileExt = file.name.split('.').pop();
-                    const fileName = `${user.id}_${Math.random()}.${fileExt}`;
+                    const fileName = `${Date.now()}.${fileExt}`;
+                    const filePath = `${user.id}/${fileName}`;
                     
-                    const { error } = await supabase.storage.from('avatars').upload(fileName, file);
+                    const { error } = await supabase.storage.from('avatars').upload(filePath, file);
                     if (error) {
                       alert("アップロード失敗: " + error.message);
                     } else {
-                      const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
+                      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
                       setAvatarUrl(data.publicUrl);
                     }
                     setSaving(false);
@@ -214,10 +215,10 @@ export default function SettingsPage() {
                 <Globe className="w-5 h-5 text-blue-500" />
                 <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-300">Language / 言語</h2>
               </div>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setLang('JP')}
-                  className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
+                  className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
                     lang === 'JP' ? 'bg-white/10 border-blue-500/50 text-blue-400' : 'bg-black/50 border-white/10 text-zinc-600 hover:text-zinc-400'
                   }`}
                 >
@@ -225,11 +226,27 @@ export default function SettingsPage() {
                 </button>
                 <button
                   onClick={() => setLang('EN')}
-                  className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
+                  className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
                     lang === 'EN' ? 'bg-white/10 border-blue-500/50 text-blue-400' : 'bg-black/50 border-white/10 text-zinc-600 hover:text-zinc-400'
                   }`}
                 >
                   English (EN)
+                </button>
+                <button
+                  onClick={() => setLang('KR')}
+                  className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
+                    lang === 'KR' ? 'bg-white/10 border-blue-500/50 text-blue-400' : 'bg-black/50 border-white/10 text-zinc-600 hover:text-zinc-400'
+                  }`}
+                >
+                  한국어 (KR)
+                </button>
+                <button
+                  onClick={() => setLang('CN')}
+                  className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
+                    lang === 'CN' ? 'bg-white/10 border-blue-500/50 text-blue-400' : 'bg-black/50 border-white/10 text-zinc-600 hover:text-zinc-400'
+                  }`}
+                >
+                  中文 (CN)
                 </button>
               </div>
             </div>
