@@ -337,32 +337,46 @@ export default function Home() {
           <button onClick={() => setFeedMode('following')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'following' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>FOLLOWING</button>
         </div>
         <div className="h-full w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar">
-          {clips.map((clip, index) => (
-            <motion.div 
-              key={clip.id} 
-              id={`clip-${clip.id}`}
-              data-clip-id={clip.id}
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ duration: 0.5 }}
-              className="video-section h-full w-full snap-start relative"
-            >
-              <TikTokPlayer 
-                clip={clip}
-                isActive={activeVideoId === clip.id}
-                userLikes={userLikes}
-                onLike={handleLike}
-                onComment={openComments}
-                onShare={handleShare}
-                onGift={handleGift}
-                onFollow={handleFollow}
-                renderTitle={renderTitle}
-                isCopied={copiedId === clip.id}
-                isFollowing={followingIds.includes(clip.user_id)}
-              />
-              {(index + 1) % 5 === 0 && <AdSlot />}
-            </motion.div>
-          ))}
+          {clips.map((clip, index) => {
+            const isNearActive = Math.abs(index - clips.findIndex(c => c.id === activeVideoId)) <= 2;
+            return (
+              <motion.div 
+                key={clip.id} 
+                id={`clip-${clip.id}`}
+                data-clip-id={clip.id}
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                className="video-section h-full w-full snap-start relative"
+              >
+                {/* 
+                   パフォーマンス最適化: 
+                   現在のアクティブ動画、およびその前後2つまでの動画のみをレンダリング対象にし、
+                   それ以外はメモリ節約のために非表示にします。
+                */}
+                {isNearActive ? (
+                  <TikTokPlayer 
+                    clip={clip}
+                    isActive={activeVideoId === clip.id}
+                    userLikes={userLikes}
+                    onLike={handleLike}
+                    onComment={openComments}
+                    onShare={handleShare}
+                    onGift={handleGift}
+                    onFollow={handleFollow}
+                    renderTitle={renderTitle}
+                    isCopied={copiedId === clip.id}
+                    isFollowing={followingIds.includes(clip.user_id)}
+                  />
+                ) : (
+                  <div className="h-full w-full bg-black flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-zinc-800" />
+                  </div>
+                )}
+                {(index + 1) % 5 === 0 && <AdSlot />}
+              </motion.div>
+            );
+          })}
           {hasMore && !isLoading && <div ref={observerTarget} className="w-full h-32 flex items-center justify-center snap-start"><Loader2 className="animate-spin text-blue-500 w-8 h-8" /></div>}
         </div>
         {hasMore && !isLoading && <div ref={observerTarget} className="w-full h-32 flex items-center justify-center snap-start"><Loader2 className="animate-spin text-blue-500 w-8 h-8" /></div>}
