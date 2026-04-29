@@ -54,6 +54,9 @@ export default function Home() {
 
   const [likeAnimation, setLikeAnimation] = useState<number | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  
+  // 支援者ランキング
+  const [topSupporters, setTopSupporters] = useState<any[]>([]);
 
   const viewedVideos = useRef<Set<number>>(new Set());
   const observerTarget = useRef<HTMLDivElement>(null);
@@ -194,6 +197,19 @@ export default function Home() {
     document.querySelectorAll('.video-section').forEach((s) => observer.observe(s));
     return () => observer.disconnect();
   }, [clips, user]);
+
+  // アクティブなクリップの所有者のトップサポーターを取得
+  useEffect(() => {
+    if (activeVideoId) {
+      const clip = clips.find(c => c.id === activeVideoId);
+      if (clip) {
+        supabase.rpc('get_top_supporters', { p_creator_id: clip.user_id, p_limit: 3 })
+          .then(({ data }) => {
+            if (data) setTopSupporters(data);
+          });
+      }
+    }
+  }, [activeVideoId, clips]);
 
   const claimReward = async () => {
     if (!user || isRewarded || dailyViews < 10) return;
@@ -367,7 +383,7 @@ export default function Home() {
         )}
 
         <div className="flex items-center gap-3 mb-10"><Flame className="w-5 h-5 text-orange-500" /><h2 className="text-xs font-black uppercase tracking-widest text-zinc-100">Trending</h2></div>
-        <div className="space-y-8">
+        <div className="space-y-8 mb-12">
           {ranking.map((item, index) => (
             <Link key={item.id} href={`/profile/${item.user_id}`} className="flex gap-5 items-center group cursor-pointer">
               <span className="text-3xl font-black italic text-zinc-800 group-hover:text-blue-500">{index + 1}</span>
@@ -375,11 +391,49 @@ export default function Home() {
             </Link>
           ))}
         </div>
+
+        {/* Top Supporters of Current Creator */}
+        {topSupporters.length > 0 && (
+          <div className="mt-auto pt-10 border-t border-white/5">
+            <div className="flex items-center gap-3 mb-8">
+              <Trophy className="w-5 h-5 text-emerald-400" />
+              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Top Supporters</h2>
+            </div>
+            <div className="space-y-6">
+              {topSupporters.map((s, i) => (
+                <div key={s.supporter_id} className="flex items-center gap-4 group">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border ${i === 0 ? 'bg-yellow-500/20 border-yellow-500 text-yellow-500' : i === 1 ? 'bg-zinc-300/20 border-zinc-300 text-zinc-300' : 'bg-orange-600/20 border-orange-600 text-orange-500'}`}>
+                    {i === 0 ? '1' : i === 1 ? '2' : '3'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black text-zinc-200 truncate uppercase">@{s.display_name}</p>
+                    <p className="text-[9px] font-bold text-zinc-600 uppercase">{s.total_amount} Coins</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </aside>
       {isCommentOpen && (
         <div className="fixed inset-y-0 right-0 w-full lg:w-[450px] bg-[#09090B]/98 backdrop-blur-3xl border-l border-white/10 z-[100] flex flex-col">
           <div className="p-8 border-b border-white/5 flex items-center justify-between"><h3 className="font-black uppercase tracking-widest text-xs text-blue-400">Live Chat</h3><button onClick={() => setIsCommentOpen(false)} className="p-2 hover:bg-white/10 rounded-full text-zinc-400"><X className="w-6 h-6" /></button></div>
-          <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">{currentClipComments.map((c) => (<div key={c.id} className="flex gap-4 group"><div className="w-10 h-10 rounded-full bg-zinc-800 flex-shrink-0 flex items-center justify-center font-black border border-white/10 text-[10px] uppercase text-zinc-300">{c.vlyp_id?.charAt(0)}</div><div className="flex-1"><p className="text-[10px] font-black text-blue-500 uppercase mb-1">@{c.vlyp_id}</p><p className="text-sm text-zinc-300 leading-relaxed font-medium">{c.content}</p></div></div>))}</div>
+          <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
+            {currentClipComments.map((c) => (
+              <div key={c.id} className="flex gap-4 group">
+                <div className="w-10 h-10 rounded-full bg-zinc-800 flex-shrink-0 flex items-center justify-center font-black border border-white/10 text-[10px] uppercase text-zinc-300">
+                  {c.vlyp_id?.charAt(0)}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-[10px] font-black text-blue-500 uppercase">@{c.vlyp_id}</p>
+                    {/* ここに将来的にバッジ表示を追加可能 */}
+                  </div>
+                  <p className="text-sm text-zinc-300 leading-relaxed font-medium">{c.content}</p>
+                </div>
+              </div>
+            ))}
+          </div>
           <div className="p-8 border-t border-white/5 relative flex items-center bg-black/50"><input type="text" placeholder="Type a message..." className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-6 pr-16 text-sm focus:outline-none focus:border-blue-500/50" value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && postComment()} /><button onClick={postComment} className="absolute right-11 p-3 bg-blue-600 rounded-xl text-white">{isCommenting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}</button></div>
         </div>
       )}
