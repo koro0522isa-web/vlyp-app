@@ -25,20 +25,19 @@ export const viewport: Viewport = {
 
 // SEO & PWA メタデータ
 export const metadata: Metadata = {
-  // 警告対策: 本番URLかlocalhostかを自動判別
   metadataBase: new URL(
-    process.env.NODE_ENV === 'production' 
-      ? 'https://your-project.vercel.app' // 自分のVercelドメインが確定したらここを書き換えてください
-      : 'http://localhost:3000'
+    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   ),
 
-  title: "VLYP | Gaming Short Clips",
-  description: "ゲームの神プレイや爆笑クリップをシェアしよう。VLYPはゲーマーのための次世代ショート動画プラットフォームです。",
-  keywords: ["ゲーム", "クリップ", "Apex", "Valorant", "ショート動画", "VLYP", "神プレイ"],
+  title: {
+    default: "VLYP | Next-Gen Gaming Clips",
+    template: "%s | VLYP"
+  },
+  description: "Share your epic gaming moments. VLYP is the ultimate platform for high-quality game clips, tips, and highlights.",
+  keywords: ["Gaming", "Clips", "Apex Legends", "Valorant", "Overwatch", "Highlights", "Pro Play", "VLYP", "Shorts"],
   manifest: "/manifest.json",
   authors: [{ name: "VLYP Team" }],
   
-  // ★重要：アイコン設定
   icons: {
     icon: "/icon.svg",
     apple: "/icon.svg", 
@@ -46,10 +45,9 @@ export const metadata: Metadata = {
 
   openGraph: {
     title: "VLYP | Gaming Short Clips",
-    description: "最高の瞬間をシェアしよう。",
-    url: "https://vlyp.vercel.app", // 公開URLが決まったら書き換えてください
+    description: "Witness the best gaming moments on VLYP.",
+    url: "/",
     siteName: "VLYP",
-    // ★重要：OGP画像も一旦icon.pngで代用（404対策）
     images: [
       {
         url: "/icon.png",
@@ -62,9 +60,9 @@ export const metadata: Metadata = {
     type: "website",
   },
   twitter: {
-    card: "summary", // 画像が正方形なので summary に変更
+    card: "summary_large_image",
     title: "VLYP | Gaming Short Clips",
-    description: "最高の瞬間をシェアしよう。",
+    description: "Share your epic gaming moments on VLYP.",
     images: ["/icon.png"],
   },
 };
@@ -79,10 +77,19 @@ export default function RootLayout({
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        {/* Google AdSense: あなたのパブリッシャーIDが確定したら、以下のコメントアウトを外して src を書き換えてください */}
-        {/* <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossOrigin="anonymous"></script> */}
+        
+        {/* ============================================================
+            GOOGLE ADSENSE (広告) 設定エリア
+            1. 以下の script のコメントアウトを外してください。
+            2. client=ca-pub-XXXXXXXXXXXXXXXX の部分をあなたのIDに書き換えてください。
+           ============================================================ */}
+        {/* <script 
+          async 
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" 
+          crossOrigin="anonymous"
+        ></script> */}
+        
       </head>
-      {/* PostHogプロバイダーでアプリ全体を囲む */}
       <body className={`${oswald.variable} ${noto.variable} antialiased font-sans`}>
         <PHProvider>
           {children}
