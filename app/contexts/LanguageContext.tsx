@@ -22,8 +22,11 @@ const translations = {
     "post.titleLabel": "タイトル", "post.fileLabel": "動画ファイルを選択 (MP4/WebM)", "post.gameLabel": "ゲームタイトル",
     "post.uploadBtn": "投稿", "common.cancel": "キャンセル",
     "post.uploadError": "アップロードに失敗しました。設定を確認してください。",
-    "post.sizeError": "ファイルサイズが大きすぎます (最大 200MB)",
-    "post.duplicateError": "この動画は既に投稿されています。"
+    "post.sizeLimitMsg": "最大 50MB まで（最高に熱い瞬間を切り取ろう！）",
+    "post.sizeError": "ファイルサイズが大きすぎます (最大 50MB)",
+    "post.duplicateError": "この動画は既に投稿されています。",
+    "studio.title": "クリエイター・スタジオ", "studio.myContent": "自分のコンテンツ", "studio.status": "状態", "studio.date": "投稿日",
+    "studio.published": "公開中", "studio.pending": "審査中", "studio.noClips": "まだ動画がありません。最初の動画を投稿しましょう！"
   },
   EN: {
     "nav.home": "Home", "nav.search": "Search", "nav.post": "Post", "nav.activity": "Activity",
@@ -36,8 +39,11 @@ const translations = {
     "post.titleLabel": "Title", "post.fileLabel": "Select Video (MP4/WebM)", "post.gameLabel": "Game Title",
     "post.uploadBtn": "Publish", "common.cancel": "Cancel",
     "post.uploadError": "Upload failed. Check your settings.",
-    "post.sizeError": "File too large (Max 200MB)",
-    "post.duplicateError": "This video has already been posted."
+    "post.sizeLimitMsg": "Max 50MB (Capture your hottest moments!)",
+    "post.sizeError": "File too large (Max 50MB)",
+    "post.duplicateError": "This video has already been posted.",
+    "studio.title": "Creator Studio", "studio.myContent": "My Content", "studio.status": "Status", "studio.date": "Date",
+    "studio.published": "Published", "studio.pending": "Pending", "studio.noClips": "No clips yet. Start publishing!"
   },
   KR: {
     "nav.home": "홈", "nav.search": "검색", "nav.post": "게시", "nav.activity": "알림",
@@ -50,8 +56,11 @@ const translations = {
     "post.titleLabel": "제목", "post.fileLabel": "비디오 선택 (MP4/WebM)", "post.gameLabel": "게임 제목",
     "post.uploadBtn": "게시하기", "common.cancel": "취소",
     "post.uploadError": "업로드 실패. 설정을 확인하세요.",
-    "post.sizeError": "파일이 너무 큽니다 (최대 200MB)",
-    "post.duplicateError": "이미 게시된 동영상입니다."
+    "post.sizeLimitMsg": "최대 50MB까지 (가장 뜨거운 순간을 포착하세요!)",
+    "post.sizeError": "파일이 너무 큽니다 (최대 50MB)",
+    "post.duplicateError": "이미 게시된 동영상입니다.",
+    "studio.title": "크리에이터 스튜디오", "studio.myContent": "내 콘텐츠", "studio.status": "상태", "studio.date": "날짜",
+    "studio.published": "게시됨", "studio.pending": "대기 중", "studio.noClips": "아직 클립이 없습니다. 게시를 시작해 보세요!"
   },
   CN: {
     "nav.home": "首页", "nav.search": "搜索", "nav.post": "发布", "nav.activity": "动态",
@@ -64,8 +73,11 @@ const translations = {
     "post.titleLabel": "标题", "post.fileLabel": "选择视频 (MP4/WebM)", "post.gameLabel": "游戏标题",
     "post.uploadBtn": "发布", "common.cancel": "取消",
     "post.uploadError": "上传失败，请检查设置。",
-    "post.sizeError": "文件太大（最大 200MB）",
-    "post.duplicateError": "该视频已发布。"
+    "post.sizeLimitMsg": "最大 50MB（捕捉你最燃的瞬间！）",
+    "post.sizeError": "文件太大（最大 50MB）",
+    "post.duplicateError": "该视频已发布。",
+    "studio.title": "创作者中心", "studio.myContent": "我的内容", "studio.status": "状态", "studio.date": "日期",
+    "studio.published": "已发布", "studio.pending": "审核中", "studio.noClips": "还没有视频，开始发布吧！"
   }
 };
 

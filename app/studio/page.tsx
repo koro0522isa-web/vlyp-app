@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import Sidebar from '@/app/components/Sidebar';
 import BottomNav from '@/app/components/BottomNav';
+import { useLanguage } from '../contexts/LanguageContext';
 import {
   BarChart3,
   Play,
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 
 export default function Studio() {
+  const { t } = useLanguage();
   const [myClips, setMyClips] = useState<any[]>([]);
   const [stats, setStats] = useState({ views: 0, likes: 0, count: 0 });
   const [user, setUser] = useState<any>(null);
@@ -89,10 +91,10 @@ export default function Studio() {
             <Link href="/" className="p-2 hover:bg-white/5 rounded-full transition-colors">
               <ArrowLeft className="w-6 h-6" />
             </Link>
-            <h1 className="text-3xl font-black italic tracking-tighter uppercase">Creator Studio</h1>
+            <h1 className="text-3xl font-black italic tracking-tighter uppercase">{t('studio.title')}</h1>
           </div>
           <Link href="/post" className="bg-blue-600 hover:bg-blue-500 px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
-            <Video className="w-4 h-4" /> NEW POST
+            <Video className="w-4 h-4" /> {t('nav.post')}
           </Link>
         </div>
 
@@ -100,10 +102,10 @@ export default function Studio() {
 
           {/* --- Stats Overview --- */}
           <div className="lg:col-span-1 space-y-4">
-            <StatCard icon={<Eye className="text-blue-400" />} label="Total Views" value={stats.views.toLocaleString()} />
-            <StatCard icon={<Heart className="text-pink-400" />} label="Total Likes" value={stats.likes.toLocaleString()} />
+            <StatCard icon={<Eye className="text-blue-400" />} label={t('studio.views')} value={stats.views.toLocaleString()} />
+            <StatCard icon={<Heart className="text-pink-400" />} label={t('studio.likes')} value={stats.likes.toLocaleString()} />
             <Link href="/studio/revenue" className="block">
-              <StatCard icon={<DollarSign className="text-emerald-400" />} label="Revenue Dashboard" value="Details" sub="Manage earnings & gifts" />
+              <StatCard icon={<DollarSign className="text-emerald-400" />} label={t('studio.revenue')} value="Details" sub="Manage earnings & gifts" />
             </Link>
           </div>
 
@@ -112,7 +114,7 @@ export default function Studio() {
             <div className="bg-zinc-900/50 border border-white/5 rounded-3xl overflow-hidden backdrop-blur-md">
               <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
                 <h2 className="font-bold flex items-center gap-2 uppercase tracking-widest text-xs text-zinc-400">
-                  <BarChart3 className="w-4 h-4" /> Your Clips
+                  <BarChart3 className="w-4 h-4" /> {t('studio.myContent')}
                 </h2>
                 <Link href="/studio/content" className="text-[10px] font-black text-blue-500 uppercase tracking-widest hover:text-blue-400 transition-colors">
                   Manage All →
@@ -169,7 +171,7 @@ export default function Studio() {
                   );
                 }) : (
                   <div className="p-20 text-center text-zinc-600 font-bold uppercase tracking-widest text-sm">
-                    No content uploaded yet
+                    {t('studio.noClips')}
                   </div>
                 )}
               </div>

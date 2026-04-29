@@ -10,7 +10,7 @@ const GAMES = [
   "Overwatch 2", "Minecraft", "Fortnite", "Call of Duty", 
   "CS2", "Tekken 8", "Genshin Impact", "Other"
 ];
-const MAX_FILE_SIZE_MB = 200;
+const MAX_FILE_SIZE_MB = 50;
 
 // クライアント側でファイルのSHA-256ハッシュを計算する関数
 async function calculateFileHash(file: File): Promise<string> {
@@ -132,7 +132,7 @@ export default function Post() {
             <h1 className="text-4xl font-black italic text-cyan-400 tracking-tighter uppercase neon-glow mb-2">{t('post.title')}</h1>
             <p className="text-zinc-500 text-xs font-bold tracking-widest uppercase flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              Protected by VLYP Anti-Piracy
+              {t('post.sizeLimitMsg')}
             </p>
           </header>
 
