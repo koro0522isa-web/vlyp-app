@@ -6,14 +6,17 @@
  */
 export default function Legal() {
   const sections = [
-    { h: "販売業者 / Operator", p: "VLYP 運営事務局 (VLYP Admin Office)" },
-    { h: "代表者 / Representative", p: "請求があったら遅滞なく開示します / Provided upon request" },
-    { h: "所在地 / Address", p: "請求があったら遅滞なく開示します / Provided upon request" },
-    { h: "お問い合わせ先 / Contact", p: "vlypgameclip@gmail.com" },
-    { h: "販売価格 / Price", p: "購入手続きの際に画面に表示される価格（税込） / As displayed at checkout" },
-    { h: "代金の支払時期 / Payment", p: "チェックアウト時（即時） / Immediate at checkout" },
-    { h: "商品の引渡時期 / Delivery", p: "決済完了後、即座に付与 / Immediate after payment" },
-    { h: "返品・キャンセル / Refunds", p: "デジタルコンテンツのため返品不可 / Non-refundable" }
+    { h: "法人名または氏名", p: "ここに会社名または個人のお名前を入力" },
+    { h: "代表者", p: "ここに代表者名を入力" },
+    { h: "所在地", p: "ここに事業所の住所を入力（バーチャルオフィス可）" },
+    { h: "電話番号", p: "ここに電話番号を入力（050番号なども可）" },
+    { h: "メールアドレス", p: "vlypgameclip@gmail.com" },
+    { h: "販売価格", p: "VLYP Proプラン: 月額 $9.99" },
+    { h: "追加手数料", p: "サービスを利用するためのインターネット通信料はお客様のご負担となります。" },
+    { h: "受け付け可能な決済手段", p: "クレジットカード (Visa, MasterCard, American Express, JCB等)" },
+    { h: "決済期間", p: "クレジットカード決済：ただちに処理されます。" },
+    { h: "商品の引渡時期", p: "決済完了後、即座にPro機能（AI編集、制限解除）がアカウントに適用されます。" },
+    { h: "交換および返品", p: "デジタルコンテンツという商品の性質上、決済完了後のキャンセル、返品、返金はお受けできません。" }
   ];
 
   return (
