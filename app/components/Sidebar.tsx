@@ -11,7 +11,9 @@ import {
   Search,
   ShieldCheck,
   User,
-  MessageSquare
+  MessageSquare,
+  Crown,
+  Coins
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -19,6 +21,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
   const [vlypId, setVlypId] = useState<string>('Player');
+  const [isPro, setIsPro] = useState(false);
+  const [coins, setCoins] = useState(0);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -28,10 +32,18 @@ export default function Sidebar() {
       if (currentUser) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('display_name, username, vlyp_id')
+          .select('display_name, username, vlyp_id, is_pro')
           .eq('id', currentUser.id)
           .maybeSingle();
         setVlypId(profile?.display_name || profile?.username || profile?.vlyp_id || 'Player');
+        setIsPro(profile?.is_pro || false);
+
+        const { data: wallet } = await supabase
+          .from('wallets')
+          .select('coins')
+          .eq('user_id', currentUser.id)
+          .maybeSingle();
+        setCoins(wallet?.coins || 0);
       }
     };
     fetchUser();
@@ -78,9 +90,25 @@ export default function Sidebar() {
             </div>
           </Link>
         )}
-        <Link href={user ? '/post' : '/login'} className="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98]">
-          {user ? t('nav.post') : 'Login'}
-        </Link>
+        <div className="flex gap-2">
+          <Link href={user ? '/post' : '/login'} className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98]">
+            {user ? t('nav.post') : 'Login'}
+          </Link>
+          {user && (
+            <Link href="/coins" className="w-12 py-4 bg-yellow-500/10 hover:bg-yellow-500/20 rounded-2xl border border-yellow-500/20 flex flex-col items-center justify-center transition-all hover:scale-[1.02]">
+              <Coins className="w-4 h-4 text-yellow-500 mb-1" />
+              <span className="text-[8px] font-black text-yellow-500">{coins}</span>
+            </Link>
+          )}
+        </div>
+        
+        {user && !isPro && (
+          <button className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-black text-[10px] uppercase tracking-widest text-white flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform shadow-[0_0_15px_rgba(236,72,153,0.3)]">
+            <Crown className="w-4 h-4" />
+            Upgrade to Pro
+          </button>
+        )}
+        
         <div className="pt-2 text-center flex flex-col gap-3">
           <Link href="/legal" className="text-xs font-black text-zinc-400 hover:text-cyan-400 uppercase tracking-widest transition-colors">Legal & Pricing</Link>
           <div className="flex justify-center gap-4">
