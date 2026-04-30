@@ -1,12 +1,8 @@
 "use client";
-import { ArrowLeft, ShieldAlert } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '../contexts/LanguageContext';
 
-/**
- * VLYP 特定商取引法に基づく表記 (v2.0)
- * Stripe審査対応・プライバシー保護版
- */
 export default function Legal() {
   const router = useRouter();
   const { lang } = useLanguage();
@@ -48,23 +44,16 @@ export default function Legal() {
         <ArrowLeft className="w-4 h-4" /> Back to Home
       </button>
 
-      <div className="max-w-3xl mx-auto animate-premium-in">
-        <div className="flex items-center gap-4 mb-12">
-          <ShieldAlert className="w-12 h-12 text-cyan-400 neon-glow" />
-          <h1 className="text-5xl font-black italic text-white tracking-tighter uppercase">{current.title}</h1>
-        </div>
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-4xl font-black italic text-cyan-400 tracking-tighter uppercase mb-12">{current.title}</h1>
         
-        <div className="grid gap-6">
+        <div className="space-y-8">
           {current.sections.map((s, i) => (
-            <div key={i} className="p-8 rounded-3xl bg-zinc-900/50 border border-white/5 glass-morphism hover:border-cyan-400/30 transition-all duration-300">
-              <h2 className="text-[10px] font-black text-cyan-400 mb-2 uppercase tracking-[0.3em]">{s.h}</h2>
-              <p className="text-xl font-bold text-zinc-100">{s.p}</p>
+            <div key={i} className="border-b border-zinc-800 pb-6">
+              <h2 className="text-[10px] font-black text-zinc-500 mb-2 uppercase tracking-[0.3em]">{s.h}</h2>
+              <p className="text-lg font-bold text-zinc-200">{s.p}</p>
             </div>
           ))}
-        </div>
-
-        <div className="mt-12 p-8 rounded-3xl border border-dashed border-zinc-800 text-center text-zinc-600 text-[10px] font-black uppercase tracking-widest">
-          Copyright &copy; 2026 VLYP Project. All Rights Reserved.
         </div>
       </div>
     </div>
