@@ -140,7 +140,8 @@ export default function Post() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 md:p-12 flex items-center justify-center font-sans relative">
+    <div className="h-screen w-full bg-black text-white p-6 md:p-12 overflow-y-auto font-sans relative">
+      <div className="min-h-full flex items-center justify-center py-10">
       <div className="absolute top-8 left-8">
         <button onClick={() => router.push('/')} className="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all border border-white/5">
           <ArrowLeft className="w-5 h-5" />
@@ -267,6 +268,7 @@ export default function Post() {
             </div>
           </form>
         </div>
+      </div>
       </div>
     </div>
   );

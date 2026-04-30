@@ -173,11 +173,10 @@ export default function TikTokPlayer({
         {/* プロフィール画像 & フォローボタン */}
         <div className="relative mb-2">
           <Link href={`/profile/${clip.user_id}`} className="w-12 h-12 rounded-full border-2 border-white overflow-hidden bg-zinc-800 block relative">
-            <Image 
-              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${clip.profiles?.display_name}`} 
+            <img 
+              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${clip.profiles?.display_name || clip.user_id}`} 
               alt="avatar"
-              fill
-              className="object-cover"
+              className="w-full h-full object-cover"
             />
           </Link>
           {!isFollowing && (
