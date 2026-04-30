@@ -63,9 +63,9 @@ export default function Sidebar() {
       } else {
         throw new Error(data.error || 'Checkout failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('決済画面への移動に失敗しました。');
+      alert(`エラー: ${error.message}`);
     }
   };
 

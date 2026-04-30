@@ -81,7 +81,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: session.url });
   } catch (error: any) {
     console.error('Stripe checkout error:', error);
-    // エラー詳細を返さず、一貫したメッセージを返すことで不正な探索を防ぎます
-    return NextResponse.json({ error: '決済セッションの作成に失敗しました。時間をおいて再度お試しください。' }, { status: 500 });
+    return NextResponse.json({ error: error.message || '決済セッションの作成に失敗しました。' }, { status: 500 });
   }
 }
