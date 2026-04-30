@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
 import Link from 'next/link';
 import Sidebar from './components/Sidebar';
@@ -13,7 +13,7 @@ import confetti from 'canvas-confetti';
 import { motion } from 'framer-motion';
 import TikTokPlayer from './components/TikTokPlayer';
 
-export default function Home() {
+function HomeContent() {
   const [clips, setClips] = useState<any[]>([]);
   const [ranking, setRanking] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -620,5 +620,17 @@ export default function Home() {
       )}
       <BottomNav />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-black">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }
