@@ -60,7 +60,7 @@ export function useVideoProcessor() {
     ]);
 
     const data = await ffmpeg.readFile('output.mp4');
-    return new Blob([data], { type: 'video/mp4' });
+    return new Blob([data as any], { type: 'video/mp4' });
   };
 
   /**
@@ -76,7 +76,7 @@ export function useVideoProcessor() {
     await ffmpeg.exec(['-i', 'input.mp4', '-vcodec', 'libx264', '-crf', '28', 'compressed.mp4']);
 
     const data = await ffmpeg.readFile('compressed.mp4');
-    return new Blob([data], { type: 'video/mp4' });
+    return new Blob([data as any], { type: 'video/mp4' });
   };
 
   return {
