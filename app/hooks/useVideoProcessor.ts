@@ -7,9 +7,15 @@ import { fetchFile, toBlobURL } from '@ffmpeg/util';
 export function useVideoProcessor() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
-  const ffmpegRef = useRef(new FFmpeg());
+  const ffmpegRef = useRef<FFmpeg | null>(null);
 
   const load = async () => {
+    if (typeof window === 'undefined') return;
+    
+    if (!ffmpegRef.current) {
+      ffmpegRef.current = new FFmpeg();
+    }
+    
     const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd';
     const ffmpeg = ffmpegRef.current;
     
@@ -35,6 +41,7 @@ export function useVideoProcessor() {
   const mixVideoWithBgm = async (videoFile: File, bgmUrl: string) => {
     if (!isLoaded) await load();
     const ffmpeg = ffmpegRef.current;
+    if (!ffmpeg) throw new Error('FFmpeg not initialized');
 
     // ファイルを仮想ファイルシステムに書き込む
     await ffmpeg.writeFile('input_video.mp4', await fetchFile(videoFile));
@@ -69,6 +76,7 @@ export function useVideoProcessor() {
   const compressVideo = async (videoFile: File) => {
     if (!isLoaded) await load();
     const ffmpeg = ffmpegRef.current;
+    if (!ffmpeg) throw new Error('FFmpeg not initialized');
 
     await ffmpeg.writeFile('input.mp4', await fetchFile(videoFile));
     
