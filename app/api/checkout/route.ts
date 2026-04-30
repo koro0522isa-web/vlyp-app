@@ -17,8 +17,38 @@ export async function POST(req: Request) {
   try {
     const { packId, userId } = await req.json();
 
-    if (!packId || !userId || !COIN_PACKS[packId]) {
+    if (!packId || !userId) {
       return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });
+    }
+
+    if (packId === 'pro') {
+      const priceId = process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID;
+      if (!priceId) {
+        return NextResponse.json({ error: 'Pro price ID not configured' }, { status: 500 });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/post?success=true`,
+        cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/post?canceled=true`,
+        metadata: {
+          userId: userId,
+          packId: 'pro',
+        },
+      });
+
+      return NextResponse.json({ url: session.url });
+    }
+
+    if (!COIN_PACKS[packId]) {
+      return NextResponse.json({ error: 'Invalid packId' }, { status: 400 });
     }
 
     const selectedPack = COIN_PACKS[packId];

@@ -33,9 +33,32 @@ export async function POST(req: Request) {
     const session = event.data.object as Stripe.Checkout.Session;
     
     const userId = session.metadata?.userId;
+    const packId = session.metadata?.packId;
     const coins = parseInt(session.metadata?.coins || '0');
     
-    if (userId && coins > 0) {
+    if (userId && packId === 'pro') {
+      try {
+        // ユーザーをProにアップグレード
+        await supabaseAdmin
+          .from('profiles')
+          .update({ is_pro: true })
+          .eq('id', userId);
+
+        // Stripeの支払い情報を記録
+        await supabaseAdmin.from('stripe_purchases').insert({
+          id: session.id,
+          user_id: userId,
+          amount: session.amount_total,
+          coins: 0,
+          status: 'completed',
+        });
+
+        console.log(`Successfully upgraded user ${userId} to Pro`);
+      } catch (dbError) {
+        console.error('Database update failed:', dbError);
+        return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
+      }
+    } else if (userId && coins > 0) {
       try {
         // Stripeの支払い情報を記録
         await supabaseAdmin.from('stripe_purchases').insert({

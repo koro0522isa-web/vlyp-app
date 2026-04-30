@@ -67,6 +67,26 @@ export default function Post() {
     });
   }, []);
 
+  const handleProUpgrade = async () => {
+    if (!user) return;
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packId: 'pro', userId: user.id }),
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Checkout failed');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('決済画面への移動に失敗しました。');
+    }
+  };
+
   const handlePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || isSubmitting || !file) return;
@@ -246,7 +266,7 @@ export default function Post() {
                   )}
                 </div>
                 {!isPro && (
-                  <button type="button" className="text-[10px] bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:scale-105 transition-transform">
+                  <button type="button" onClick={handleProUpgrade} className="text-[10px] bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:scale-105 transition-transform">
                     Upgrade
                   </button>
                 )}

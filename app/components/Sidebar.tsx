@@ -49,6 +49,26 @@ export default function Sidebar() {
     fetchUser();
   }, []);
 
+  const handleProUpgrade = async () => {
+    if (!user) return;
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packId: 'pro', userId: user.id }),
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Checkout failed');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('決済画面への移動に失敗しました。');
+    }
+  };
+
   const { t } = useLanguage();
 
   const navItems = [
@@ -103,7 +123,7 @@ export default function Sidebar() {
         </div>
         
         {user && !isPro && (
-          <button className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-black text-[10px] uppercase tracking-widest text-white flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform shadow-[0_0_15px_rgba(236,72,153,0.3)]">
+          <button onClick={handleProUpgrade} className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-black text-[10px] uppercase tracking-widest text-white flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform shadow-[0_0_15px_rgba(236,72,153,0.3)]">
             <Crown className="w-4 h-4" />
             Upgrade to Pro
           </button>
