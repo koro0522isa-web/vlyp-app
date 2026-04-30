@@ -180,7 +180,7 @@ export default function Home() {
       if (offset === 0) {
         if (targetedClip) {
           // 指定されたクリップを先頭に追加し、重複を除去
-          setClips([targetedClip, ...newBatch.filter(c => c.id !== targetedClip.id)]);
+          setClips([targetedClip, ...newBatch.filter((c: any) => c.id !== targetedClip.id)]);
           setActiveVideoId(targetedClip.id);
         } else {
           setClips(newBatch);
