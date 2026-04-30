@@ -49,7 +49,7 @@ export default function Terms() {
   const current = content[lang] || content.EN;
 
   return (
-    <div className="min-h-screen bg-black text-white p-8 md:p-24 font-sans">
+    <div className="h-screen overflow-y-auto bg-black text-white p-8 md:p-24 font-sans">
       <button onClick={() => router.push('/')} className="mb-12 flex items-center gap-2 text-zinc-500 hover:text-white transition-colors uppercase text-xs font-black tracking-widest">
         <ArrowLeft className="w-4 h-4" /> Back to Home
       </button>

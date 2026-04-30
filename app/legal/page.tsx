@@ -21,7 +21,8 @@ export default function Legal() {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      height: '100vh',
+      overflowY: 'auto',
       backgroundColor: 'black',
       color: 'white',
       padding: '40px',
