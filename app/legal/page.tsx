@@ -11,22 +11,24 @@ export default function Legal() {
     JP: {
       title: "特定商取引法に基づく表記",
       sections: [
-        { h: "販売業者", p: "VLYP プロジェクトチーム" },
-        { h: "お問い合わせ先", p: "support@vlyp.example.com (審査用：ご自身のメールアドレスに変更してください)" },
+        { h: "販売業者", p: "VLYP 運営事務局" },
+        { h: "代表者 / 所在地", p: "消費者庁の定める特定商取引法に基づき、請求があった場合には遅滞なく開示いたします。開示を希望される方は上記メールアドレスまでご連絡ください。" },
+        { h: "お問い合わせ先", p: "vlypgameclip@gmail.com" },
         { h: "販売価格", p: "購入手続きの際に画面に表示されます。消費税が含まれた金額です。" },
-        { h: "代金の支払時期", p: "クレジットカード、または選択された決済方法による決済時に直ちにお支払いいただきます。" },
+        { h: "代金の支払時期", p: "決済時に直ちにお支払いいただきます。" },
         { h: "商品の引渡時期", p: "決済完了後、直ちにアカウントにコインが付与されます。" },
-        { h: "返品・キャンセルについて", p: "デジタルコンテンツの性質上、購入後の返品・キャンセル・返金には応じられません。" }
+        { h: "返品・キャンセルについて", p: "デジタルコンテンツの性質上、返品・返金には応じられません。" }
       ]
     },
     EN: {
-      title: "Legal Notice (Act on Specified Commercial Transactions)",
+      title: "Legal Notice",
       sections: [
-        { h: "Operator", p: "VLYP Project Team" },
-        { h: "Contact", p: "support@vlyp.example.com" },
-        { h: "Price", p: "Displayed during checkout, including consumption tax." },
+        { h: "Operator", p: "VLYP Admin Office" },
+        { h: "Name / Address", p: "In accordance with the Act on Specified Commercial Transactions, information will be provided without delay upon request. Please contact the email address above." },
+        { h: "Contact", p: "vlypgameclip@gmail.com" },
+        { h: "Price", p: "Displayed during checkout, including tax." },
         { h: "Payment Timing", p: "Immediate at the time of checkout." },
-        { h: "Delivery", p: "Coins are credited immediately after payment confirmation." },
+        { h: "Delivery", p: "Coins are credited immediately after payment." },
         { h: "Refunds", p: "Non-refundable due to the nature of digital content." }
       ]
     }

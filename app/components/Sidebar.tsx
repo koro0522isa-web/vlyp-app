@@ -86,7 +86,7 @@ export default function Sidebar() {
             <Link href="/terms" className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors">Terms</Link>
             <Link href="/privacy" className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors">Privacy</Link>
           </div>
-          <a href="mailto:support@vlyp.example.com" className="text-[10px] font-black text-blue-500 hover:text-blue-400 uppercase tracking-widest transition-colors mt-2">Support / Contact</a>
+          <a href="mailto:vlypgameclip@gmail.com" className="text-[10px] font-black text-blue-500 hover:text-blue-400 uppercase tracking-widest transition-colors mt-2">Support / vlypgameclip@gmail.com</a>
         </div>
       </div>
     </aside>
