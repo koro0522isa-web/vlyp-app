@@ -123,7 +123,6 @@ export default function TikTokPlayer({
         playsInline
         muted={isMuted}
         preload="auto"
-        crossOrigin="anonymous"
       />
 
       {/* Pause/Play indicator */}
