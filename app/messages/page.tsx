@@ -192,7 +192,8 @@ function MessagesContent() {
     const { data, error } = await supabase
       .from('messages')
       .select('*')
-      .or(`and(sender_id.eq.${userId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${userId})`)
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+      .or(`sender_id.eq.${partnerId},receiver_id.eq.${partnerId}`)
       .order('created_at', { ascending: true })
       .limit(200);
 
@@ -311,10 +312,36 @@ function MessagesContent() {
       <div className="flex-1 flex h-full overflow-hidden">
         {/* Chat List */}
         <div className={`w-full md:w-80 lg:w-96 border-r border-white/5 flex flex-col flex-shrink-0 ${selectedPartner ? 'hidden md:flex' : 'flex'}`}>
-          <div className="p-6 border-b border-white/5">
+          <div className="p-6 border-b border-white/5 space-y-4">
             <h1 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3">
               <MessageSquare className="w-5 h-5 text-blue-400" /> Messages
             </h1>
+            
+            {/* User Search Bar */}
+            <div className="relative">
+              <input 
+                type="text"
+                placeholder="Search players to chat..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-xs font-bold focus:border-blue-500/50 outline-none transition-all"
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter') {
+                    const val = (e.target as HTMLInputElement).value;
+                    if (!val) return;
+                    const { data } = await supabase
+                      .from('profiles')
+                      .select('id, display_name, username, avatar_url')
+                      .or(`display_name.ilike.%${val}%,username.ilike.%${val}%`)
+                      .limit(1)
+                      .maybeSingle();
+                    if (data) {
+                      selectPartner(data);
+                      (e.target as HTMLInputElement).value = '';
+                    }
+                  }
+                }}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] text-zinc-600 font-black uppercase">Enter</span>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto no-scrollbar">

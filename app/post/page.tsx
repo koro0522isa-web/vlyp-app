@@ -261,10 +261,27 @@ function PostContent() {
                   >
                     <input type="file" ref={fileInputRef} accept="video/*" required className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
                     {file ? (
-                      <div className="relative z-10">
-                        <Check className="w-12 h-12 text-blue-500 mx-auto mb-2" />
-                        <p className="text-blue-400 font-bold text-sm truncate max-w-[200px]">{file.name}</p>
-                        <p className="text-zinc-500 text-[10px]">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                      <div className="absolute inset-0 z-10">
+                        <video 
+                          src={URL.createObjectURL(file)} 
+                          className="w-full h-full object-cover opacity-80" 
+                          autoPlay 
+                          muted 
+                          loop 
+                          style={{
+                            filter: 
+                              selectedFilter === 'grayscale' ? 'grayscale(1)' :
+                              selectedFilter === 'sepia' ? 'sepia(1)' :
+                              selectedFilter === 'cyberpunk' ? 'contrast(1.2) brightness(1.1) saturate(1.5) hue-rotate(290deg)' :
+                              selectedFilter === 'vintage' ? 'sepia(0.5) contrast(0.8) brightness(0.9) blur(0.2px)' :
+                              selectedFilter === 'warm' ? 'sepia(0.3) saturate(1.3) hue-rotate(-10deg)' : 'none'
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center">
+                          <Check className="w-12 h-12 text-blue-500 mb-2" />
+                          <p className="text-white font-black text-sm uppercase tracking-widest">{file.name}</p>
+                          <p className="text-zinc-400 text-[10px] uppercase font-bold">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                        </div>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-3">

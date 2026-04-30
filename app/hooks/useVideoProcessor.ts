@@ -99,7 +99,7 @@ export function useVideoProcessor() {
     if (videoFilter !== 'copy') {
       filterComplex += `[0:v]${videoFilter}[v1];`;
     } else {
-      filterComplex += `[0:v]copy[v1];`;
+      filterComplex += `[0:v]null[v1];`;
     }
 
     // 2. オーディオストリームの準備
