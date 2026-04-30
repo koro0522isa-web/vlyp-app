@@ -1,5 +1,4 @@
 "use client";
-import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -40,8 +39,8 @@ export default function Legal() {
 
   return (
     <div className="min-h-screen bg-black text-white p-8 md:p-24 font-sans">
-      <button onClick={() => router.push('/')} className="mb-12 flex items-center gap-2 text-zinc-500 hover:text-white transition-colors uppercase text-xs font-black tracking-widest">
-        <ArrowLeft className="w-4 h-4" /> Back to Home
+      <button onClick={() => router.push('/')} className="mb-12 text-zinc-500 hover:text-white transition-colors uppercase text-[10px] font-black tracking-widest">
+        ← Back to Home
       </button>
 
       <div className="max-w-3xl mx-auto">
