@@ -46,6 +46,8 @@ export function useVideoProcessor() {
       filter?: VideoFilter,
       startTime?: number,
       duration?: number,
+      bgmStartTime?: number,
+      bgmDuration?: number,
       volumeVideo?: number,
       volumeBgm?: number,
       volumeNarration?: number
