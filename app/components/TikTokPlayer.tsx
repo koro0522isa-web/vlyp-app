@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, MessageCircle, Share2, Gift, Gamepad2, Check, UserPlus } from 'lucide-react';
@@ -28,8 +29,10 @@ export default function TikTokPlayer({
   onComment,
   onShare,
   onGift,
+  onFollow,
   renderTitle,
-  isCopied
+  isCopied,
+  isFollowing
 }: TikTokPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [showHeart, setShowHeart] = useState(false);

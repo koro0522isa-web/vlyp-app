@@ -39,6 +39,7 @@ export default function Sidebar() {
 
   const { t } = useLanguage();
 
+  const navItems = [
     { icon: <HomeIcon />, label: t('nav.home'), href: '/' },
     { icon: <Search />, label: t('nav.search'), href: '/search' },
     { icon: <MessageSquare />, label: 'Messages', href: '/messages' },

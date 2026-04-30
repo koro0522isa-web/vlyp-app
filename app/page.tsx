@@ -163,7 +163,7 @@ export default function Home() {
               username: clip.profile_username
             }
           }));
-          const existingIds = new Set(finalClips.map(c => c.id));
+          const existingIds = new Set(finalClips.map((c: any) => c.id));
           finalClips = [...finalClips, ...rpcClips.filter((c: any) => !existingIds.has(c.id))];
         }
       }

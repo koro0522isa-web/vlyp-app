@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { Shield, Check, X, Loader2, Play } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 
