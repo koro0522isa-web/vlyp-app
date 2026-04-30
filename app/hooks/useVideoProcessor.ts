@@ -1,18 +1,16 @@
-"use client";
-
 import { useState, useRef } from 'react';
-import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
 export function useVideoProcessor() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
-  const ffmpegRef = useRef<FFmpeg | null>(null);
+  const ffmpegRef = useRef<any>(null);
 
   const load = async () => {
     if (typeof window === 'undefined') return;
     
     if (!ffmpegRef.current) {
+      const { FFmpeg } = await import('@ffmpeg/ffmpeg');
       ffmpegRef.current = new FFmpeg();
     }
     
@@ -36,29 +34,43 @@ export function useVideoProcessor() {
   };
 
   /**
-   * 動画とBGMをミックスする (Pro機能)
+   * 動画とBGM、さらにナレーションをミックスする (Pro機能)
    */
-  const mixVideoWithBgm = async (videoFile: File, bgmUrl: string) => {
+  const mixVideoWithBgm = async (videoFile: File, bgmUrl: string, narrationUrl?: string) => {
     if (!isLoaded) await load();
     const ffmpeg = ffmpegRef.current;
     if (!ffmpeg) throw new Error('FFmpeg not initialized');
 
     // ファイルを仮想ファイルシステムに書き込む
     await ffmpeg.writeFile('input_video.mp4', await fetchFile(videoFile));
-    await ffmpeg.writeFile('input_bgm.mp3', await fetchFile(bgmUrl));
+    
+    const inputs = ['-i', 'input_video.mp4'];
+    let filterComplex = '[0:a]volume=0.3[a1]';
+    let mixInputs = '[a1]';
+    let inputCount = 1;
 
-    // FFmpegコマンドを実行:
-    // -i input_video.mp4: 動画入力
-    // -i input_bgm.mp3: 音楽入力
-    // -filter_complex: 音声をいい感じにミックス (動画音 0.2, BGM 0.8)
-    // -c:v copy: 映像は再エンコードせずそのまま (爆速)
-    // -map 0:v: 0番目(動画)の映像を使う
-    // -map [a]: ミックスした音声を使う
-    // -shortest: 短い方のファイル(通常は動画)に合わせる
+    if (bgmUrl) {
+      await ffmpeg.writeFile('input_bgm.mp3', await fetchFile(bgmUrl));
+      inputs.push('-i', 'input_bgm.mp3');
+      filterComplex += `;[${inputCount}:a]volume=0.6[a2]`;
+      mixInputs += '[a2]';
+      inputCount++;
+    }
+
+    if (narrationUrl) {
+      await ffmpeg.writeFile('input_narration.mp3', await fetchFile(narrationUrl));
+      inputs.push('-i', 'input_narration.mp3');
+      filterComplex += `;[${inputCount}:a]volume=1.2[a3]`;
+      mixInputs += '[a3]';
+      inputCount++;
+    }
+
+    filterComplex += `;${mixInputs}amix=inputs=${inputCount}:duration=first[a]`;
+
+    // FFmpegコマンドを実行
     await ffmpeg.exec([
-      '-i', 'input_video.mp4',
-      '-i', 'input_bgm.mp3',
-      '-filter_complex', '[0:a]volume=0.3[a1];[1:a]volume=0.8[a2];[a1][a2]amix=inputs=2:duration=first[a]',
+      ...inputs,
+      '-filter_complex', filterComplex,
       '-map', '0:v',
       '-map', '[a]',
       '-c:v', 'copy',

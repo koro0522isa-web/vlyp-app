@@ -1,10 +1,10 @@
 "use client";
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { supabase } from '../../lib/supabase';
-import { UploadCloud, Loader2, ShieldCheck, ArrowLeft, Crown, Sparkles, Lock } from 'lucide-react';
+import { UploadCloud, Loader2, ShieldCheck, ArrowLeft, Crown, Sparkles, Lock, Mic } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
-import { generateEmbedding } from '../lib/ai';
+import { generateEmbedding, generateVoiceover } from '../lib/ai';
 import { useVideoProcessor } from '../hooks/useVideoProcessor';
 
 const GAMES = [
@@ -22,7 +22,7 @@ async function calculateFileHash(file: File): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-export default function Post() {
+function PostContent() {
   const { lang, t } = useLanguage();
   const router = useRouter();
   const [title, setTitle] = useState('');
@@ -40,6 +40,8 @@ export default function Post() {
   const [monthlyUploads, setMonthlyUploads] = useState(0);
   const [useAI, setUseAI] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [voiceoverText, setVoiceoverText] = useState('');
+  const [selectedVoice, setSelectedVoice] = useState<'male' | 'female'>('female');
   const { mixVideoWithBgm, progress: processingProgress } = useVideoProcessor();
 
   useEffect(() => {
@@ -105,20 +107,28 @@ export default function Post() {
 
       let fileToUpload = file;
 
-      // 1. Pro機能: BGMミックス (FFmpeg.wasm)
-      if (isPro && selectedBgm) {
-        const bgm = bgms.find(b => b.id === selectedBgm);
-        if (bgm) {
-          setIsProcessing(true);
-          try {
-            const mixedBlob = await mixVideoWithBgm(file, bgm.url);
-            fileToUpload = new File([mixedBlob], `processed_${file.name}`, { type: 'video/mp4' });
-          } catch (mixErr) {
-            console.error('BGM Mixing failed:', mixErr);
-            alert('BGMの合成に失敗しました。元の動画でアップロードを継続します。');
-          } finally {
-            setIsProcessing(false);
+      // 1. Pro機能: BGM & Voiceoverミックス
+      if (isPro && (selectedBgm || voiceoverText)) {
+        setIsProcessing(true);
+        try {
+          const bgm = selectedBgm ? bgms.find(b => b.id === selectedBgm) : null;
+          
+          // ナレーション音声の生成
+          let narrationBlob = null;
+          if (voiceoverText) {
+            narrationBlob = await generateVoiceover(voiceoverText, selectedVoice);
           }
+          
+          const narrationUrl = narrationBlob ? URL.createObjectURL(narrationBlob) : undefined;
+          const mixedBlob = await mixVideoWithBgm(file, bgm?.url || '', narrationUrl);
+          fileToUpload = new File([mixedBlob], `processed_${file.name}`, { type: 'video/mp4' });
+          
+          if (narrationUrl) URL.revokeObjectURL(narrationUrl);
+        } catch (mixErr) {
+          console.error('Processing failed:', mixErr);
+          alert('動画の加工に失敗しました。元の動画でアップロードを継続します。');
+        } finally {
+          setIsProcessing(false);
         }
       }
 
@@ -305,10 +315,36 @@ export default function Post() {
                   </div>
                 </div>
                 {isPro ? (
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" checked={useAI} onChange={() => setUseAI(!useAI)} />
-                    <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
-                  </label>
+                  <div className="space-y-4">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" checked={useAI} onChange={() => setUseAI(!useAI)} />
+                      <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                    </label>
+
+                    <div className="pt-4 border-t border-white/5">
+                      <label className="block text-[10px] font-black text-pink-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <Mic className="w-3 h-3" /> AI Voiceover (Pro Only)
+                      </label>
+                      <textarea 
+                        className="w-full bg-white/5 border border-zinc-800 p-3 rounded-xl focus:border-pink-500 outline-none text-xs text-zinc-300 min-h-[60px]"
+                        placeholder="Enter text for AI to read over your video..."
+                        value={voiceoverText}
+                        onChange={(e) => setVoiceoverText(e.target.value)}
+                      />
+                      <div className="flex gap-2 mt-2">
+                        {['female', 'male'].map((v: any) => (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => setSelectedVoice(v)}
+                            className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${selectedVoice === v ? 'bg-pink-500 text-white' : 'bg-zinc-800 text-zinc-500'}`}
+                          >
+                            {v}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div className="flex items-center gap-1 text-zinc-600 text-xs font-bold uppercase tracking-widest">
                     <Lock className="w-3 h-3" /> PRO
@@ -401,5 +437,17 @@ export default function Post() {
       </div>
       </div>
     </div>
+  );
+}
+
+export default function Post() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-black">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
+      </div>
+    }>
+      <PostContent />
+    </Suspense>
   );
 }
