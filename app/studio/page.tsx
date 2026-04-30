@@ -108,8 +108,8 @@ export default function Studio() {
 
           {/* Quick Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatBox icon={<Eye className="text-blue-500" />} label="Total Views" value={stats.views.toLocaleString()} trend="+12%" />
-            <StatBox icon={<Heart className="text-pink-500" />} label="Total Likes" value={stats.likes.toLocaleString()} trend="+5%" />
+            <StatBox icon={<Eye className="text-blue-500" />} label="Total Views" value={stats.views.toLocaleString()} trend="Live" />
+            <StatBox icon={<Heart className="text-pink-500" />} label="Total Likes" value={stats.likes.toLocaleString()} trend="Live" />
             <StatBox icon={<Zap className="text-yellow-500" />} label="Clip Count" value={stats.count.toString()} trend="Active" />
             <StatBox 
               icon={<Crown className="text-purple-500" />} 

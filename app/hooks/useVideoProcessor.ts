@@ -61,10 +61,12 @@ export function useVideoProcessor() {
       filter = 'none',
       startTime = 0,
       duration,
+      bgmStartTime = 0,
+      bgmDuration,
       volumeVideo = 1.0,
       volumeBgm = 0.5,
       volumeNarration = 1.5
-    } = options;
+    } = options as any;
 
     // ファイルを書き込み
     await ffmpeg.writeFile('input_video.mp4', await fetchFile(videoFile));
@@ -77,10 +79,28 @@ export function useVideoProcessor() {
     if (duration) inputArgs.push('-t', duration.toString());
 
     const inputs = [...inputArgs];
-    let filterComplex = `[0:a]volume=${volumeVideo}[a1]`;
-    let mixInputs = '[a1]';
-    let inputCount = 1;
+    let filterComplex = '';
+    let mixInputs = '';
+    let audioInputs = 0;
 
+    // 1. ビデオストリームの処理 ([0:v] -> [v1])
+    let videoFilter = '';
+    switch (filter) {
+      case 'grayscale': videoFilter = 'hue=s=0'; break;
+      case 'sepia': videoFilter = 'colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131'; break;
+      case 'cyberpunk': videoFilter = 'eq=contrast=1.2:brightness=0.05:saturation=2,curves=blue="0/0 0.5/0.8 1/1":red="0/0 0.5/0.2 1/1"'; break;
+      case 'vintage': videoFilter = 'curves=all="0/0 0.5/0.46 1/1":red="0/0 0.5/0.55 1/1":blue="0/0 0.5/0.35 1/1"'; break;
+      case 'warm': videoFilter = 'curves=all="0/0 0.5/0.45 1/1",colorbalance=rs=0.2:gs=0.1:bs=-0.2'; break;
+      default: videoFilter = 'copy';
+    }
+
+    if (videoFilter !== 'copy') {
+      filterComplex += `[0:v]${videoFilter}[v1];`;
+    } else {
+      filterComplex += `[0:v]copy[v1];`;
+    }
+
+    // 2. オーディオストリームの準備
     const fetchAudioSafely = async (url: string) => {
       try {
         const res = await fetch(url);
@@ -93,59 +113,52 @@ export function useVideoProcessor() {
       }
     };
 
-    // BGM
+    // 元動画の音声 ([0:a] -> [a0])
+    // 音声がない場合を考慮して、常に無音を追加してミックスするのが安全
+    filterComplex += `[0:a]volume=${volumeVideo}[a0];`;
+    mixInputs += '[a0]';
+    audioInputs++;
+
+    // BGM ([inputCount:a] -> [a1])
     if (bgmUrl) {
       const bgmBlob = await fetchAudioSafely(bgmUrl);
       if (bgmBlob) {
         await ffmpeg.writeFile('input_bgm.mp3', await fetchFile(bgmBlob));
-        inputs.push('-i', 'input_bgm.mp3');
-        filterComplex += `;[${inputCount}:a]volume=${volumeBgm}[a2]`;
-        mixInputs += '[a2]';
-        inputCount++;
+        let bgmArgs = [];
+        if (bgmStartTime > 0) bgmArgs.push('-ss', bgmStartTime.toString());
+        bgmArgs.push('-i', 'input_bgm.mp3');
+        if (bgmDuration) bgmArgs.push('-t', bgmDuration.toString());
+        
+        inputs.push(...bgmArgs);
+        filterComplex += `[${audioInputs}:a]volume=${volumeBgm}[a1];`;
+        mixInputs += '[a1]';
+        audioInputs++;
       }
     }
 
-    // ナレーション
+    // ナレーション ([inputCount:a] -> [a2])
     if (narrationUrl) {
       const narrationBlob = await fetchAudioSafely(narrationUrl);
       if (narrationBlob) {
         await ffmpeg.writeFile('input_narration.mp3', await fetchFile(narrationBlob));
         inputs.push('-i', 'input_narration.mp3');
-        filterComplex += `;[${inputCount}:a]volume=${volumeNarration}[a3]`;
-        mixInputs += '[a3]';
-        inputCount++;
+        filterComplex += `[${audioInputs}:a]volume=${volumeNarration}[a2];`;
+        mixInputs += '[a2]';
+        audioInputs++;
       }
     }
 
     // オーディオミキシング
-    if (inputCount > 1) {
-      filterComplex += `;${mixInputs}amix=inputs=${inputCount}:duration=first[aout]`;
+    if (audioInputs > 1) {
+      filterComplex += `${mixInputs}amix=inputs=${audioInputs}:duration=first[aout]`;
     } else {
-      filterComplex += `;[a1]anull[aout]`;
-    }
-
-    // ビデオフィルタ設定
-    let videoFilter = '';
-    switch (filter) {
-      case 'grayscale': videoFilter = 'hue=s=0'; break;
-      case 'sepia': videoFilter = 'colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131'; break;
-      case 'cyberpunk': videoFilter = 'eq=contrast=1.2:brightness=0.05:saturation=2,curves=blue="0/0 0.5/0.8 1/1":red="0/0 0.5/0.2 1/1"'; break;
-      case 'vintage': videoFilter = 'curves=vintage,noise=alls=5:allf=t+u'; break;
-      case 'warm': videoFilter = 'curves=all="0/0 0.5/0.45 1/1",colorbalance=rs=0.2:gs=0.1:bs=-0.2'; break;
-      default: videoFilter = 'copy';
+      filterComplex += `[a0]anull[aout]`;
     }
 
     const execArgs = [
       ...inputs,
       '-filter_complex', filterComplex,
-      '-map', '0:v',
-    ];
-
-    if (videoFilter !== 'copy') {
-      execArgs.push('-vf', videoFilter);
-    }
-
-    execArgs.push(
+      '-map', '[v1]',
       '-map', '[aout]',
       '-c:v', 'libx264',
       '-c:a', 'aac',
@@ -153,12 +166,12 @@ export function useVideoProcessor() {
       '-crf', '28',           
       '-shortest',
       'output.mp4'
-    );
+    ];
 
     let lastError = '';
     const logCallback = ({ message }: { message: string }) => {
       console.log(message);
-      if (message.toLowerCase().includes('error')) {
+      if (message.toLowerCase().includes('error') || message.toLowerCase().includes('failed')) {
         lastError = message;
       }
     };

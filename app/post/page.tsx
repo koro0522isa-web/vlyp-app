@@ -53,6 +53,8 @@ function PostContent() {
   const [selectedGenre, setSelectedGenre] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<VideoFilter>('none');
   const [startTime, setStartTime] = useState(0);
+  const [bgmStartTime, setBgmStartTime] = useState(0);
+  const [bgmDuration, setBgmDuration] = useState(0);
   
   const [isProcessing, setIsProcessing] = useState(false);
   const { processVideoPro, progress: processingProgress } = useVideoProcessor();
@@ -133,6 +135,8 @@ function PostContent() {
           narrationUrl,
           filter: selectedFilter,
           startTime,
+          bgmStartTime,
+          bgmDuration: bgmDuration > 0 ? bgmDuration : undefined,
           volumeBgm: 0.4,
           volumeVideo: 0.8
         });
@@ -349,6 +353,33 @@ function PostContent() {
                         </button>
                       ))}
                     </div>
+
+                    {selectedGenre && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="space-y-4 pt-4 border-t border-white/5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em]">Music Part (Start Sec)</label>
+                          <input 
+                            type="number" 
+                            className="bg-white/5 border border-white/10 rounded-lg w-16 p-2 text-xs font-bold text-center"
+                            value={bgmStartTime}
+                            onChange={(e) => setBgmStartTime(Number(e.target.value))}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em]">BGM Duration (0 = Full)</label>
+                          <input 
+                            type="number" 
+                            className="bg-white/5 border border-white/10 rounded-lg w-16 p-2 text-xs font-bold text-center"
+                            value={bgmDuration}
+                            onChange={(e) => setBgmDuration(Number(e.target.value))}
+                          />
+                        </div>
+                      </motion.div>
+                    )}
                   </div>
 
                   {/* Video Filters */}
