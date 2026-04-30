@@ -9,12 +9,12 @@ import {
   Clapperboard,
   Settings,
   Search,
-  ShieldCheck,
   User,
   MessageSquare,
   Crown,
   Coins,
-  Swords
+  Swords,
+  Sparkles
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -59,14 +59,9 @@ export default function Sidebar() {
         body: JSON.stringify({ packId: 'pro', userId: user.id }),
       });
       const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error(data.error || 'Checkout failed');
-      }
+      if (data.url) window.location.href = data.url;
     } catch (error: any) {
       console.error(error);
-      alert(`エラー: ${error.message}`);
     }
   };
 
@@ -75,18 +70,51 @@ export default function Sidebar() {
   const navItems = [
     { icon: <HomeIcon />, label: t('nav.home'), href: '/' },
     { icon: <Search />, label: t('nav.search'), href: '/search' },
-    { icon: <Swords />, label: 'Battle', href: '/battle', highlight: true },
+    { icon: <Swords />, label: 'Battle', href: '/battle' },
     { icon: <MessageSquare />, label: 'Messages', href: '/messages' },
-    { icon: <Clapperboard />, label: t('nav.studio'), href: '/studio' },
+    { icon: <Clapperboard />, label: 'Studio & Edit', href: '/studio' },
     { icon: <Settings />, label: t('nav.settings'), href: '/settings' },
   ];
 
   return (
-    <aside className="w-20 lg:w-72 bg-[#09090B] border-r border-white/5 flex flex-col z-40 flex-shrink-0 hidden md:flex">
+    <aside className="w-20 lg:w-72 bg-[#09090B] border-r border-white/5 flex flex-col z-40 flex-shrink-0 hidden md:flex relative overflow-hidden">
+      {/* Pro Subtle Background Glow */}
+      {isPro && (
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 animate-rainbow" />
+      )}
+      
+      <style jsx global>{`
+        @keyframes rainbow {
+          0% { background-position: 0% 50%; }
+          100% { background-position: 100% 50%; }
+        }
+        .animate-rainbow {
+          background-size: 200% 200%;
+          animation: rainbow 3s linear infinite;
+        }
+        .pro-glow-card {
+          position: relative;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 1rem;
+          padding: 1px;
+          overflow: hidden;
+        }
+        .pro-glow-card::before {
+          content: '';
+          position: absolute;
+          inset: -100%;
+          background: conic-gradient(from 0deg, transparent, #3b82f6, #ec4899, transparent);
+          animation: rotate 3s linear infinite;
+        }
+        @keyframes rotate {
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+
       <div className="p-6 lg:p-8">
-        <Link href="/">
-          <h1 className="text-3xl font-black italic tracking-tighter text-blue-500 hidden lg:block">VLYP</h1>
-          <span className="text-2xl font-black italic text-blue-500 lg:hidden block text-center">V</span>
+        <Link href="/" className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-black italic text-2xl shadow-lg shadow-blue-600/30`}>V</div>
+          <h1 className="text-2xl font-black italic tracking-tighter text-white hidden lg:block uppercase">VLYP</h1>
         </Link>
       </div>
 
@@ -94,55 +122,54 @@ export default function Sidebar() {
         {navItems.map((item) => {
           const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
           return (
-            <Link key={item.href} href={item.href} className={`flex items-center gap-5 p-4 rounded-2xl cursor-pointer transition-all duration-200 group ${isActive ? 'bg-blue-600/10 text-blue-400 font-black shadow-[inset_0_0_15px_rgba(37,99,235,0.1)]' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300'}`}>
-              <span className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-blue-400 drop-shadow-[0_0_8px_rgba(37,99,235,0.5)]' : ''}`}>{item.icon}</span>
-              <span className="hidden lg:block text-[10px] uppercase tracking-widest font-black">{item.label}</span>
+            <Link key={item.href} href={item.href} className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-all duration-300 group ${isActive ? 'bg-white/10 text-blue-400 font-black' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300'}`}>
+              <span className={`w-5 h-5 transition-transform duration-300 group-hover:scale-110 ${isActive ? 'text-blue-400' : ''}`}>{item.icon}</span>
+              <span className="hidden lg:block text-[10px] uppercase tracking-[0.2em] font-black">{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-4 lg:p-6 border-t border-white/5 space-y-4">
+      <div className="p-4 lg:p-6 border-t border-white/5 space-y-4 bg-[#0d0d0f]/50 backdrop-blur-xl">
         {user && (
-          <Link href={`/profile/${user.id}`} className="hidden lg:flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all group">
-            <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${isPro ? 'from-purple-600 to-pink-600' : 'from-blue-600 to-blue-900'} flex items-center justify-center text-xs font-black flex-shrink-0 border ${isPro ? 'border-pink-500/50' : 'border-blue-500/30'}`}>{vlypId.charAt(0).toUpperCase()}</div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 overflow-hidden">
-                <p className="text-xs font-black text-zinc-200 truncate group-hover:text-blue-400 transition-colors">@{vlypId}</p>
-                {isPro && (
-                  <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-md text-[7px] font-black text-white leading-none shadow-[0_0_8px_rgba(236,72,153,0.4)]">PRO</span>
-                )}
+          <div className={isPro ? 'pro-glow-card' : ''}>
+            <Link href={`/profile/${user.id}`} className={`relative z-10 flex items-center gap-3 p-3 ${isPro ? 'bg-[#0f0f12]' : 'bg-white/5'} rounded-[0.9rem] border border-white/5 hover:bg-white/10 transition-all group`}>
+              <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${isPro ? 'from-purple-600 to-pink-600 shadow-lg shadow-purple-500/20' : 'from-zinc-700 to-zinc-900'} flex items-center justify-center text-xs font-black flex-shrink-0 border border-white/10`}>
+                {vlypId.charAt(0).toUpperCase()}
               </div>
-              <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">View Profile</p>
-            </div>
-          </Link>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 overflow-hidden">
+                  <p className="text-xs font-black text-zinc-200 truncate group-hover:text-blue-400 transition-colors">@{vlypId}</p>
+                  {isPro && <Sparkles className="w-3 h-3 text-purple-400 animate-pulse" />}
+                </div>
+                <p className="text-[9px] text-zinc-600 font-black uppercase tracking-widest">Pro Profile</p>
+              </div>
+            </Link>
+          </div>
         )}
+
         <div className="flex gap-2">
-          <Link href={user ? '/post' : '/login'} className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98]">
-            {user ? t('nav.post') : 'Login'}
+          <Link href={user ? '/post' : '/login'} className={`flex-1 py-4 ${isPro ? 'bg-gradient-to-r from-purple-600 to-pink-600' : 'bg-blue-600'} rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center shadow-lg hover:scale-[1.02] active:scale-95`}>
+            {user ? (isPro ? 'Pro Post' : 'Post') : 'Login'}
           </Link>
           {user && (
-            <Link href="/coins" className="w-12 py-4 bg-yellow-500/10 hover:bg-yellow-500/20 rounded-2xl border border-yellow-500/20 flex flex-col items-center justify-center transition-all hover:scale-[1.02]">
-              <Coins className="w-4 h-4 text-yellow-500 mb-1" />
+            <Link href="/coins" className="w-12 py-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 flex flex-col items-center justify-center transition-all">
+              <Coins className="w-4 h-4 text-yellow-500 mb-0.5" />
               <span className="text-[8px] font-black text-yellow-500">{coins}</span>
             </Link>
           )}
         </div>
         
         {user && !isPro && (
-          <button onClick={handleProUpgrade} className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-black text-[10px] uppercase tracking-widest text-white flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform shadow-[0_0_15px_rgba(236,72,153,0.3)]">
+          <button onClick={handleProUpgrade} className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-black text-[10px] uppercase tracking-widest text-zinc-400 flex items-center justify-center gap-2 transition-all">
             <Crown className="w-4 h-4" />
             Upgrade to Pro
           </button>
         )}
         
-        <div className="pt-2 text-center flex flex-col gap-3">
-          <Link href="/legal" className="text-xs font-black text-zinc-400 hover:text-cyan-400 uppercase tracking-widest transition-colors">Legal & Pricing</Link>
-          <div className="flex justify-center gap-4">
-            <Link href="/terms" className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors">Terms</Link>
-            <Link href="/privacy" className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors">Privacy</Link>
-          </div>
-          <a href="mailto:vlypgameclip@gmail.com" className="text-[10px] font-black text-blue-500 hover:text-blue-400 uppercase tracking-widest transition-colors mt-2">Support / vlypgameclip@gmail.com</a>
+        <div className="pt-2 text-center flex flex-col gap-2">
+          <Link href="/legal" className="text-[9px] font-black text-zinc-600 hover:text-cyan-400 uppercase tracking-widest transition-colors">Legal & Pricing</Link>
+          <p className="text-[8px] text-zinc-800 font-bold uppercase tracking-widest">© VLYP 2026</p>
         </div>
       </div>
     </aside>

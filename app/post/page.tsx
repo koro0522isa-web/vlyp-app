@@ -1,28 +1,37 @@
 "use client";
-// Force refresh build cache for imports
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { supabase } from '../../lib/supabase';
-import { UploadCloud, Loader2, ShieldCheck, ArrowLeft, Crown, Sparkles, Lock, Mic } from 'lucide-react';
+import { 
+  UploadCloud, Loader2, ShieldCheck, ArrowLeft, Crown, Sparkles, 
+  Lock, Mic, Music, Scissors, Wand2, Palette, Check, Zap
+} from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
 import { generateEmbedding, generateVoiceover } from '../lib/ai';
-import { useVideoProcessor } from '../hooks/useVideoProcessor';
+import { useVideoProcessor, VideoFilter } from '../hooks/useVideoProcessor';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const GAMES = [
   "VALORANT", "Apex Legends", "League of Legends", "Street Fighter 6", 
   "Overwatch 2", "Minecraft", "Fortnite", "Call of Duty", 
   "CS2", "Tekken 8", "Genshin Impact", "Other"
 ];
-const MAX_FILE_SIZE_MB = 50;
 
-// クライアント側でファイルのSHA-256ハッシュを計算する関数
-async function calculateFileHash(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
+const BGM_GENRES = [
+  { id: 'chill', label: 'Chill & Relax', icon: '🌊' },
+  { id: 'epic', label: 'Epic & Hype', icon: '🔥' },
+  { id: 'phonk', label: 'Phonk / Drift', icon: '🏎️' },
+  { id: 'hyperpop', label: 'Hyperpop', icon: '⚡' },
+];
+
+const FILTERS: { id: VideoFilter; label: string; color: string }[] = [
+  { id: 'none', label: 'Original', color: 'bg-zinc-500' },
+  { id: 'cyberpunk', label: 'Cyberpunk', color: 'bg-blue-600' },
+  { id: 'vintage', label: 'Vintage', color: 'bg-orange-800' },
+  { id: 'grayscale', label: 'Noir', color: 'bg-zinc-800' },
+  { id: 'warm', label: 'Warm', color: 'bg-orange-400' },
+];
 
 function PostContent() {
   const { lang, t } = useLanguage();
@@ -33,29 +42,27 @@ function PostContent() {
   const [user, setUser] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bgms, setBgms] = useState<any[]>([]);
-  const [selectedBgm, setSelectedBgm] = useState<string>('');
   const [agreedTerms, setAgreedTerms] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // SaaS State
+  // Pro SaaS State
   const [isPro, setIsPro] = useState(false);
   const [monthlyUploads, setMonthlyUploads] = useState(0);
-  const [useAI, setUseAI] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [voiceoverText, setVoiceoverText] = useState('');
   const [selectedVoice, setSelectedVoice] = useState<'male' | 'female'>('female');
-  const { mixVideoWithBgm, progress: processingProgress } = useVideoProcessor();
+  const [selectedGenre, setSelectedGenre] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState<VideoFilter>('none');
+  const [startTime, setStartTime] = useState(0);
+  
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { processVideoPro, progress: processingProgress } = useVideoProcessor();
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      if (!currentUser) {
-        window.location.href = '/';
-        return;
-      }
+      if (!currentUser) { router.push('/login'); return; }
 
-      // Fetch SaaS profile data
       const { data: profile } = await supabase
         .from('profiles')
         .select('is_pro, monthly_uploads')
@@ -68,7 +75,6 @@ function PostContent() {
       }
     });
     
-    // BGMライブラリの取得
     supabase.from('bgm_library').select('*').then(({ data }) => {
       if (data) setBgms(data);
     });
@@ -76,367 +82,343 @@ function PostContent() {
 
   const handleProUpgrade = async () => {
     if (!user) return;
-    try {
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packId: 'pro', userId: user.id }),
-      });
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error(data.error || 'Checkout failed');
-      }
-    } catch (error: any) {
-      console.error(error);
-      alert(`エラー: ${error.message}`);
-    }
+    const response = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ packId: 'pro', userId: user.id }),
+    });
+    const data = await response.json();
+    if (data.url) window.location.href = data.url;
   };
 
   const handlePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || isSubmitting || !file) return;
+    
+    if (!isPro && monthlyUploads >= 30) {
+      alert('Free users are limited to 30 uploads. Upgrade to Pro!');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // 0. SaaS Limits Check
-      if (!isPro && monthlyUploads >= 30) {
-        alert('You have reached the monthly upload limit for Free users. Please upgrade to Pro!');
-        setIsSubmitting(false);
-        return;
-      }
-
       let fileToUpload = file;
 
-      // 1. Pro機能: BGM & Voiceoverミックス
-      if (isPro && (selectedBgm || voiceoverText)) {
+      // PRO Processing
+      if (isPro && (selectedGenre || voiceoverText || selectedFilter !== 'none' || startTime > 0)) {
         setIsProcessing(true);
-        try {
-          const bgm = selectedBgm ? bgms.find(b => b.id === selectedBgm) : null;
-          
-          // ナレーション音声の生成
-          let narrationBlob = null;
-          if (voiceoverText) {
-            narrationBlob = await generateVoiceover(voiceoverText, selectedVoice);
+        
+        // Find BGM from genre
+        let bgmUrl = '';
+        if (selectedGenre) {
+          const genreBgms = bgms.filter(b => b.genre?.toLowerCase() === selectedGenre || b.tags?.includes(selectedGenre));
+          if (genreBgms.length > 0) {
+            bgmUrl = genreBgms[Math.floor(Math.random() * genreBgms.length)].url;
+          } else if (bgms.length > 0) {
+            bgmUrl = bgms[0].url; // Fallback
           }
-          
-          const narrationUrl = narrationBlob ? URL.createObjectURL(narrationBlob) : undefined;
-          const mixedBlob = await mixVideoWithBgm(file, bgm?.url || '', narrationUrl);
-          fileToUpload = new File([mixedBlob], `processed_${file.name}`, { type: 'video/mp4' });
-          
-          if (narrationUrl) URL.revokeObjectURL(narrationUrl);
-        } catch (mixErr) {
-          console.error('Processing failed:', mixErr);
-          alert('動画の加工に失敗しました。元の動画でアップロードを継続します。');
-        } finally {
-          setIsProcessing(false);
         }
+
+        let narrationUrl = '';
+        if (voiceoverText) {
+          const narrationBlob = await generateVoiceover(voiceoverText, selectedVoice);
+          if (narrationBlob) {
+            narrationUrl = URL.createObjectURL(narrationBlob);
+          }
+        }
+
+        const processedBlob = await processVideoPro(file, {
+          bgmUrl,
+          narrationUrl,
+          filter: selectedFilter,
+          startTime,
+          volumeBgm: 0.4,
+          volumeVideo: 0.8
+        });
+
+        fileToUpload = new File([processedBlob], `vlyp_pro_${file.name}`, { type: 'video/mp4' });
+        if (narrationUrl) URL.revokeObjectURL(narrationUrl);
+        setIsProcessing(false);
       }
 
-      // 2. ファイルサイズチェック
-      if (fileToUpload.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-        alert(t('post.sizeError') || 'File too large');
-        setIsSubmitting(false);
-        return;
-      }
-
-      // 3. 無断転載防止：ファイルハッシュの計算と重複チェック
-      const fileHash = await calculateFileHash(fileToUpload);
-      const { data: duplicateCheck } = await supabase
-        .from('file_hashes')
-        .select('id')
-        .eq('hash', fileHash)
-        .maybeSingle();
-
-      if (duplicateCheck) {
-        alert(t('post.duplicateError') || 'This video was already posted');
-        setIsSubmitting(false);
-        return;
-      }
-
-      // 4. Supabase Storage へアップロード
+      // Upload Logic
       const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('videos')
-        .upload(filePath, fileToUpload);
+      const { error: uploadError } = await supabase.storage.from('videos').upload(filePath, fileToUpload);
+      if (uploadError) throw uploadError;
 
-      if (uploadError) {
-        throw new Error(t('post.uploadError') || 'Upload failed');
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('videos')
-        .getPublicUrl(filePath);
-
-      // 4. AIによるタイトルベクトルの生成 (推奨エンジン用)
+      const { data: { publicUrl } } = supabase.storage.from('videos').getPublicUrl(filePath);
       const embedding = await generateEmbedding(`${title} ${gameTitle}`);
 
-      // 5. Fetch display name from profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('display_name, username')
-        .eq('id', user.id)
-        .maybeSingle();
-      const displayName = profileData?.display_name || profileData?.username || user.email?.split('@')[0] || 'Player';
-
-      // 6. クリップデータの保存
-      const { data: clipData, error: insertError } = await supabase.from('clips').insert({
+      const { error: insertError } = await supabase.from('clips').insert({
         title,
-        url: null, 
         video_url: publicUrl,
         game_title: gameTitle,
         user_id: user.id,
-        user_name: displayName,
-        views: 0,
-        likes: 0,
         embedding: embedding
-      }).select().single();
+      });
 
-      if (insertError) {
-        throw new Error(insertError.message);
-      }
+      if (insertError) throw insertError;
 
-      // 5. ハッシュ値を保存して今後の重複アップロードを防止
-      if (clipData) {
-        await supabase.from('file_hashes').insert({
-          hash: fileHash,
-          clip_id: clipData.id,
-          uploader_id: user.id
-        });
-      }
-
-      alert(t('post.success') || 'Posted!');
+      alert('Clip Published! 🚀');
       router.push('/');
-      
     } catch (err: any) {
-      console.error('Full upload error:', err);
-      // 詳細なエラーメッセージを表示するように強化
-      const errMsg = err.message || 'Unknown error';
-      alert(`Error: ${errMsg}\n\n${t('post.uploadError')}`);
+      console.error(err);
+      alert('Failed to post: ' + err.message);
       setIsSubmitting(false);
+      setIsProcessing(false);
     }
   };
 
   return (
-    <div className="h-screen w-full bg-black text-white p-6 md:p-12 overflow-y-auto font-sans relative">
-      <div className="min-h-full flex items-center justify-center py-10">
-      <div className="absolute top-8 left-8">
-        <button onClick={() => router.push('/')} className="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all border border-white/5">
-          <ArrowLeft className="w-5 h-5" />
+    <div className={`min-h-screen w-full bg-[#09090B] text-white p-4 md:p-10 font-sans transition-all duration-700 ${isPro ? 'bg-pro-gradient' : ''}`}>
+      <style jsx global>{`
+        .bg-pro-gradient {
+          background: radial-gradient(circle at 50% -20%, #1e1b4b 0%, #09090b 100%);
+        }
+        .pro-border {
+          position: relative;
+          border-radius: 3rem;
+          background: rgba(15, 15, 18, 0.8);
+          padding: 2px;
+          overflow: hidden;
+        }
+        .pro-border::before {
+          content: '';
+          position: absolute;
+          inset: -50%;
+          background: conic-gradient(from 0deg, transparent, #3b82f6, #a855f7, #ec4899, #ef4444, #f59e0b, transparent);
+          animation: rotate 4s linear infinite;
+          z-index: -1;
+        }
+        @keyframes rotate {
+          100% { transform: rotate(360deg); }
+        }
+        .glass {
+          background: rgba(255, 255, 255, 0.03);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+      `}</style>
+
+      <div className="max-w-5xl mx-auto">
+        {/* Back Button */}
+        <button onClick={() => router.push('/')} className="mb-8 p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all border border-white/5 flex items-center gap-2 group">
+          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-xs font-black uppercase tracking-widest hidden md:block">Back to Feed</span>
         </button>
-      </div>
 
-      <div className="w-full max-w-2xl bg-zinc-900/30 border border-zinc-800 p-8 md:p-12 rounded-[3rem] glass relative overflow-hidden">
-        <div className="relative z-10">
-          <header className="mb-10">
-            <h1 className="text-4xl font-black italic text-cyan-400 tracking-tighter uppercase neon-glow mb-2">{t('post.title')}</h1>
-            <p className="text-zinc-500 text-xs font-bold tracking-widest uppercase flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              {t('post.sizeLimitMsg')}
-            </p>
-          </header>
-
-          <form onSubmit={handlePost} className="space-y-8">
-            <div>
-              <label className="block text-[10px] font-black text-cyan-400/60 uppercase tracking-[0.2em] mb-3">{t('post.titleLabel') || 'Clip Title'}</label>
-              <input 
-                required
-                className="w-full bg-white/5 border border-zinc-800 p-5 rounded-2xl focus:border-cyan-400 outline-none transition-all text-lg font-bold"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="1v5 Clutch in Radiant!"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-3">{t('post.fileLabel') || 'Video File'}</label>
-              <div 
-                className={`w-full border-2 border-dashed ${file ? 'border-cyan-500 bg-cyan-500/5' : 'border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800 hover:border-zinc-500'} rounded-2xl p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-4`}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input 
-                  type="file"
-                  ref={fileInputRef}
-                  accept="video/mp4,video/quicktime,video/webm"
-                  required
-                  className="hidden"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                />
-                <UploadCloud className={`w-10 h-10 ${file ? 'text-cyan-500' : 'text-zinc-600'}`} />
-                {file ? (
-                  <div>
-                    <p className="text-cyan-400 font-bold text-sm mb-1">{file.name}</p>
-                    <p className="text-zinc-500 text-xs">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
-                  </div>
-                ) : (
-                  <p className="text-zinc-500 text-sm font-bold">{t('post.fileLabel')}</p>
-                )}
-              </div>
-              <p className="text-[9px] text-zinc-600 font-bold mt-3 ml-2 flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-emerald-500/50" />
-                {lang === 'JP' ? 'アップロード時に指紋をチェックし、無断転載を防止します。' : 'Protected by VLYP Anti-Piracy system.'}
-              </p>
-            </div>
-
-            {/* SaaS Tier Status & AI Features */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-1">Your Plan</h3>
-                  {isPro ? (
-                    <div className="flex items-center gap-2 text-pink-500">
-                      <Crown className="w-5 h-5" />
-                      <span className="font-black tracking-widest">VLYP PRO</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-zinc-300">
-                      <span className="font-black tracking-widest">FREE TIER</span>
-                      <span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400">{monthlyUploads} / 30 Uploads</span>
-                    </div>
-                  )}
+        <div className={`grid grid-cols-1 lg:grid-cols-12 gap-8 items-start`}>
+          {/* Main Form */}
+          <div className={`lg:col-span-7 ${isPro ? 'pro-border shadow-2xl shadow-purple-500/10' : 'bg-zinc-900/30 border border-zinc-800 rounded-[3rem] p-8'}`}>
+            <div className={`relative z-10 ${isPro ? 'bg-[#0f0f12] rounded-[2.9rem] p-8' : ''}`}>
+              <header className="mb-10">
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-3xl font-black italic tracking-tighter uppercase">Post Clip</h1>
+                  {isPro && <span className="bg-gradient-to-r from-purple-500 to-pink-500 px-3 py-1 rounded-full text-[10px] font-black text-white flex items-center gap-1 shadow-lg shadow-purple-500/30"><Crown className="w-3 h-3" /> PRO</span>}
                 </div>
-                {!isPro && (
-                  <button type="button" onClick={handleProUpgrade} className="text-[10px] bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:scale-105 transition-transform">
-                    Upgrade
-                  </button>
-                )}
-              </div>
+                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Share your best gaming moments</p>
+              </header>
 
-              <div className={`p-4 rounded-xl border ${isPro ? 'border-pink-500/30 bg-pink-500/5' : 'border-zinc-800 bg-zinc-800/30'} flex justify-between items-center transition-colors`}>
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${isPro ? 'bg-pink-500/20 text-pink-500' : 'bg-zinc-800 text-zinc-500'}`}>
-                    <Sparkles className="w-5 h-5" />
+              <form onSubmit={handlePost} className="space-y-8">
+                {/* Title & Game */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-2">Title</label>
+                    <input 
+                      required
+                      className="w-full bg-white/5 border border-white/5 p-4 rounded-2xl focus:border-blue-500/50 outline-none transition-all font-bold"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Best play of the week..."
+                    />
                   </div>
-                  <div>
-                    <h4 className={`font-black text-sm ${isPro ? 'text-pink-400' : 'text-zinc-400'}`}>AI Auto-Highlight (Beta)</h4>
-                    <p className="text-[10px] text-zinc-500">Automatically cut to the best moments</p>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-2">Game</label>
+                    <select 
+                      className="w-full bg-white/5 border border-white/5 p-4 rounded-2xl focus:border-blue-500/50 outline-none font-bold"
+                      value={gameTitle}
+                      onChange={(e) => setGameTitle(e.target.value)}
+                    >
+                      {GAMES.map(g => <option key={g} value={g} className="bg-[#09090B]">{g}</option>)}
+                    </select>
                   </div>
                 </div>
-                {isPro ? (
-                  <div className="space-y-4">
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" checked={useAI} onChange={() => setUseAI(!useAI)} />
-                      <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
-                    </label>
 
-                    <div className="pt-4 border-t border-white/5">
-                      <label className="block text-[10px] font-black text-pink-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                        <Mic className="w-3 h-3" /> AI Voiceover (Pro Only)
-                      </label>
-                      <textarea 
-                        className="w-full bg-white/5 border border-zinc-800 p-3 rounded-xl focus:border-pink-500 outline-none text-xs text-zinc-300 min-h-[60px]"
-                        placeholder="Enter text for AI to read over your video..."
-                        value={voiceoverText}
-                        onChange={(e) => setVoiceoverText(e.target.value)}
-                      />
-                      <div className="flex gap-2 mt-2">
-                        {['female', 'male'].map((v: any) => (
-                          <button
-                            key={v}
-                            type="button"
-                            onClick={() => setSelectedVoice(v)}
-                            className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${selectedVoice === v ? 'bg-pink-500 text-white' : 'bg-zinc-800 text-zinc-500'}`}
-                          >
-                            {v}
-                          </button>
-                        ))}
+                {/* File Upload */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-2">Video File</label>
+                  <div 
+                    className={`relative w-full aspect-video border-2 border-dashed ${file ? 'border-blue-500 bg-blue-500/5' : 'border-zinc-800 bg-white/5 hover:bg-white/10 hover:border-zinc-600'} rounded-3xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-4 overflow-hidden group`}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <input type="file" ref={fileInputRef} accept="video/*" required className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                    {file ? (
+                      <div className="relative z-10">
+                        <Check className="w-12 h-12 text-blue-500 mx-auto mb-2" />
+                        <p className="text-blue-400 font-bold text-sm truncate max-w-[200px]">{file.name}</p>
+                        <p className="text-zinc-500 text-[10px]">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
                       </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1 text-zinc-600 text-xs font-bold uppercase tracking-widest">
-                    <Lock className="w-3 h-3" /> PRO
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-3">{t('post.gameLabel') || 'Game Title'}</label>
-              <select 
-                className="w-full bg-zinc-900 border border-zinc-800 p-5 rounded-2xl focus:border-cyan-400 outline-none appearance-none font-bold"
-                value={gameTitle}
-                onChange={(e) => setGameTitle(e.target.value)}
-              >
-                {GAMES.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-3">Add Royalty-Free BGM (Optional)</label>
-              <select 
-                className="w-full bg-zinc-900 border border-zinc-800 p-5 rounded-2xl focus:border-cyan-400 outline-none appearance-none font-bold text-zinc-300"
-                value={selectedBgm}
-                onChange={(e) => setSelectedBgm(e.target.value)}
-              >
-                <option value="">No BGM / Already edited</option>
-                {bgms.map(b => <option key={b.id} value={b.id}>{b.title} - {b.artist}</option>)}
-              </select>
-              <p className="text-[9px] text-emerald-500/70 font-bold mt-2 ml-2 italic">※ These tracks are safe for copyright and won't be flagged by AI.</p>
-            </div>
-
-            <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6">
-              <div className="flex items-center gap-3 mb-2 text-red-400">
-                <ShieldCheck className="w-4 h-4" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Copyright Policy</span>
-              </div>
-              <p className="text-[10px] text-zinc-500 leading-relaxed font-bold">
-                {lang === 'JP' ? '動画内で無断の音楽使用がAIによって検知された場合、動画は自動的に非公開になります。' : 'Videos with unauthorized music detected by AI will be automatically set to private.'}
-              </p>
-              <label className="flex items-center gap-3 mt-4 cursor-pointer group">
-                <input 
-                  type="checkbox" 
-                  className="w-5 h-5 rounded bg-zinc-800 border-zinc-700 checked:bg-cyan-400"
-                  checked={agreedTerms}
-                  onChange={(e) => setAgreedTerms(e.target.checked)}
-                />
-                <span className="text-[10px] font-black text-zinc-400 group-hover:text-white transition-colors uppercase tracking-widest">I agree to the copyright terms</span>
-              </label>
-            </div>
-
-
-            <div className="pt-6">
-              <button 
-                type="submit"
-                disabled={isSubmitting || !file || !agreedTerms}
-                className={`w-full py-6 rounded-[2rem] flex justify-center items-center gap-3 font-black text-xl uppercase tracking-tighter transition-all shadow-2xl ${
-                  isSubmitting || !file || !agreedTerms ? 'bg-zinc-800 text-zinc-500' : 'bg-cyan-400 text-black hover:scale-[1.02] shadow-[0_0_20px_rgba(34,211,238,0.4)]'
-                }`}
-              >
-                {isSubmitting || isProcessing ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="flex items-center gap-3">
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                      <span>{isProcessing ? `Processing Video (${Math.round(processingProgress)}%)` : 'Uploading...'}</span>
-                    </div>
-                    {isProcessing && (
-                      <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-cyan-400 transition-all duration-300" 
-                          style={{ width: `${processingProgress}%` }}
-                        />
+                    ) : (
+                      <div className="flex flex-col items-center gap-3">
+                        <UploadCloud className="w-12 h-12 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
+                        <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Click to select video</p>
                       </div>
                     )}
                   </div>
-                ) : (
-                  t('post.uploadBtn')
-                )}
-              </button>
-              <button 
-                type="button"
-                onClick={() => window.location.href = '/'}
-                className="w-full mt-4 text-[10px] font-black text-zinc-600 hover:text-white uppercase tracking-widest transition-colors"
-              >
-                {t('common.cancel') || 'Cancel'}
-              </button>
+                </div>
+
+                {/* Terms */}
+                <div className="bg-white/5 border border-white/5 p-5 rounded-2xl">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      className="w-5 h-5 rounded bg-zinc-800 border-zinc-700 checked:bg-blue-600"
+                      checked={agreedTerms}
+                      onChange={(e) => setAgreedTerms(e.target.checked)}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest group-hover:text-zinc-200 transition-colors">Agree to Copyright Policy</p>
+                      <p className="text-[9px] text-zinc-600 font-bold mt-1">No unauthorized music or duplicate content allowed.</p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Post Button */}
+                <button 
+                  type="submit"
+                  disabled={isSubmitting || !file || !agreedTerms}
+                  className={`w-full py-5 rounded-2xl flex justify-center items-center gap-3 font-black text-lg uppercase tracking-widest transition-all shadow-xl ${
+                    isSubmitting || !file || !agreedTerms ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed' : 'bg-blue-600 text-white hover:scale-[1.02] active:scale-95 shadow-blue-600/30'
+                  }`}
+                >
+                  {isSubmitting || isProcessing ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-3">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>{isProcessing ? 'AI Editing...' : 'Posting...'}</span>
+                      </div>
+                      {isProcessing && <div className="text-[10px] opacity-60">Mixing {Math.round(processingProgress)}%</div>}
+                    </div>
+                  ) : (
+                    <><Zap className="w-5 h-5" /> {t('post.uploadBtn')}</>
+                  )}
+                </button>
+              </form>
             </div>
-          </form>
+          </div>
+
+          {/* Pro Sidebar Controls */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className={`glass rounded-[2.5rem] p-8 border ${isPro ? 'border-purple-500/30 bg-purple-500/5' : 'border-zinc-800'}`}>
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-2">
+                  <Sparkles className={`w-5 h-5 ${isPro ? 'text-purple-400' : 'text-zinc-600'}`} />
+                  <h3 className={`text-xs font-black uppercase tracking-widest ${isPro ? 'text-white' : 'text-zinc-500'}`}>Pro Tools</h3>
+                </div>
+                {!isPro && <Lock className="w-4 h-4 text-zinc-700" />}
+              </div>
+
+              {!isPro ? (
+                <div className="text-center py-6">
+                  <p className="text-xs text-zinc-500 font-bold mb-6">Unlock AI Auto-Editor, Custom Filters, and BGM Injection with VLYP PRO.</p>
+                  <button onClick={handleProUpgrade} className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-purple-600/20 hover:scale-105 transition-transform">
+                    Upgrade to Pro — $9.99/mo
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {/* BGM Genre Selection */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                      <Music className="w-3 h-3" /> Auto Music Insertion
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {BGM_GENRES.map(genre => (
+                        <button
+                          key={genre.id}
+                          type="button"
+                          onClick={() => setSelectedGenre(selectedGenre === genre.id ? '' : genre.id)}
+                          className={`p-4 rounded-2xl border text-left transition-all ${selectedGenre === genre.id ? 'bg-purple-600 border-purple-400 text-white shadow-lg' : 'bg-white/5 border-white/5 text-zinc-400 hover:bg-white/10'}`}
+                        >
+                          <span className="text-xl block mb-1">{genre.icon}</span>
+                          <span className="text-[10px] font-black uppercase truncate">{genre.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Video Filters */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                      <Palette className="w-3 h-3" /> Cinematic Filters
+                    </label>
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                      {FILTERS.map(f => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => setSelectedFilter(f.id)}
+                          className={`flex-shrink-0 w-20 h-24 rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-2 ${selectedFilter === f.id ? 'border-purple-500 bg-purple-500/20' : 'border-transparent bg-white/5'}`}
+                        >
+                          <div className={`w-10 h-10 rounded-full ${f.color} shadow-lg`} />
+                          <span className="text-[8px] font-black uppercase text-center">{f.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* AI Voiceover */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                      <Mic className="w-3 h-3" /> AI Narration
+                    </label>
+                    <textarea 
+                      className="w-full bg-white/5 border border-white/5 p-4 rounded-2xl focus:border-purple-500 outline-none text-xs text-zinc-300 min-h-[80px]"
+                      placeholder="Add a text for the AI to speak..."
+                      value={voiceoverText}
+                      onChange={(e) => setVoiceoverText(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Trimming (Simple) */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                      <Scissors className="w-3 h-3" /> Quick Trim
+                    </label>
+                    <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl">
+                      <span className="text-[10px] font-black text-zinc-500 uppercase">Start (sec)</span>
+                      <input 
+                        type="number"
+                        min="0"
+                        className="w-20 bg-transparent border-b border-white/10 text-center font-black outline-none"
+                        value={startTime}
+                        onChange={(e) => setStartTime(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Plan Info */}
+            <div className="glass rounded-[2.5rem] p-6 border border-zinc-800 flex items-center justify-between">
+              <div>
+                <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Upload Usage</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-black">{monthlyUploads}</span>
+                  <span className="text-xs font-bold text-zinc-600">/ {isPro ? '∞' : '30'}</span>
+                </div>
+              </div>
+              <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center">
+                <Wand2 className={`w-5 h-5 ${isPro ? 'text-purple-400' : 'text-zinc-700'}`} />
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );
@@ -444,11 +426,7 @@ function PostContent() {
 
 export default function Post() {
   return (
-    <Suspense fallback={
-      <div className="flex h-screen items-center justify-center bg-black">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
-      </div>
-    }>
+    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-black"><Loader2 className="w-10 h-10 animate-spin text-blue-500" /></div>}>
       <PostContent />
     </Suspense>
   );
