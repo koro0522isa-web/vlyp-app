@@ -415,14 +415,16 @@ function HomeContent() {
   const postComment = async () => {
     if (!user || !newComment.trim() || !commentClipId || !commentClipOwnerId) return;
     setIsCommenting(true);
-    const { data } = await supabase.from('comments').insert({ 
+    const { data, error } = await supabase.from('comments').insert({ 
       clip_id: commentClipId, 
       user_id: user.id, 
       vlyp_id: vlypId, 
       content: newComment,
       parent_id: replyingTo?.id || null 
     }).select().single();
-    if (data) {
+    if (error) {
+      alert(error.message || 'Failed to post comment. You may have exceeded the rate limit (10 comments/hour).');
+    } else if (data) {
       setCurrentClipComments(prev => [data, ...prev]);
       setNewComment('');
       setReplyingTo(null);

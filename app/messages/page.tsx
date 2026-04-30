@@ -243,7 +243,7 @@ function MessagesContent() {
 
       if (error) {
         console.error('Send message error:', error);
-        setSendError(`送信失敁E ${error.message}`);
+        setSendError(`送信失敗: ${error.message}`);
         // Remove optimistic message on failure
         setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
         setNewMessage(messageContent); // Restore the message text
@@ -274,7 +274,7 @@ function MessagesContent() {
   };
 
   const deleteMessage = async (msgId: string) => {
-    if (!confirm('こ�EメチE��ージを削除しますか�E�E)) return;
+    if (!confirm('このメッセージを削除しますか？')) return;
     await supabase.from('messages').delete().eq('id', msgId);
     setMessages(prev => prev.filter(m => m.id !== msgId));
   };

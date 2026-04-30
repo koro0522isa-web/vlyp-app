@@ -81,22 +81,40 @@ export function useVideoProcessor() {
     let mixInputs = '[a1]';
     let inputCount = 1;
 
+    const fetchAudioSafely = async (url: string) => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) return null;
+        return await res.blob();
+      } catch {
+        return null;
+      }
+    };
+
     // BGM
     if (bgmUrl) {
-      await ffmpeg.writeFile('input_bgm.mp3', await fetchFile(bgmUrl));
-      inputs.push('-i', 'input_bgm.mp3');
-      filterComplex += `;[${inputCount}:a]volume=${volumeBgm}[a2]`;
-      mixInputs += '[a2]';
-      inputCount++;
+      const bgmBlob = await fetchAudioSafely(bgmUrl);
+      if (bgmBlob) {
+        await ffmpeg.writeFile('input_bgm.mp3', await fetchFile(bgmBlob));
+        inputs.push('-i', 'input_bgm.mp3');
+        filterComplex += `;[${inputCount}:a]volume=${volumeBgm}[a2]`;
+        mixInputs += '[a2]';
+        inputCount++;
+      }
     }
 
     // ナレーション
     if (narrationUrl) {
-      await ffmpeg.writeFile('input_narration.mp3', await fetchFile(narrationUrl));
-      inputs.push('-i', 'input_narration.mp3');
-      filterComplex += `;[${inputCount}:a]volume=${volumeNarration}[a3]`;
-      mixInputs += '[a3]';
-      inputCount++;
+      const narrationBlob = await fetchAudioSafely(narrationUrl);
+      if (narrationBlob) {
+        await ffmpeg.writeFile('input_narration.mp3', await fetchFile(narrationBlob));
+        inputs.push('-i', 'input_narration.mp3');
+        filterComplex += `;[${inputCount}:a]volume=${volumeNarration}[a3]`;
+        mixInputs += '[a3]';
+        inputCount++;
+      }
     }
 
     // オーディオミキシング
