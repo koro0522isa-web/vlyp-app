@@ -64,7 +64,32 @@ function MessagesContent() {
       setIsLoading(false);
     };
     init();
-  }, [targetUserId]);
+
+    // リアルタイム購読のセットアップ
+    const channel = supabase
+      .channel('dm-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'direct_messages' },
+        (payload) => {
+          const newMsg = payload.new as Message;
+          // 自分が受信者、かつ現在開いている相手からのメッセージなら追加
+          setMessages(prev => {
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            // 相手からのメッセージ、または自分からのメッセージ（別タブなど）
+            const isRelevant = (newMsg.sender_id === user?.id && newMsg.receiver_id === selectedPartner?.id) ||
+                               (newMsg.sender_id === selectedPartner?.id && newMsg.receiver_id === user?.id);
+            if (isRelevant) return [...prev, newMsg];
+            return prev;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [targetUserId, selectedPartner?.id, user?.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

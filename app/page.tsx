@@ -8,6 +8,7 @@ import BottomNav from './components/BottomNav';
 import { MessageCircle, Heart, Share2, Play, Flame, Trophy, Check, Loader2, Search, X, Link as LinkIcon, Lock, MapPin, ExternalLink, Calendar, Plus, Crown, Star, ChevronLeft, ChevronRight, Video, Send, Gamepad2, AlertTriangle, Gift } from 'lucide-react';
 import AdSlot from './components/AdSlot';
 import { useLanguage } from './contexts/LanguageContext';
+import { useSearchParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
 import { motion } from 'framer-motion';
 import TikTokPlayer from './components/TikTokPlayer';
@@ -27,6 +28,8 @@ export default function Home() {
   const [hasMore, setHasMore] = useState(true);
   const [pageOffset, setPageOffset] = useState(0);
   const LIMIT = 5;
+  const searchParams = useSearchParams();
+  const targetClipId = searchParams.get('clip');
 
   const [activeVideoId, setActiveVideoId] = useState<number | null>(null);
   const [userLikes, setUserLikes] = useState<number[]>([]);
@@ -82,7 +85,18 @@ export default function Home() {
         if (following) setFollowingIds(following.map(f => f.following_id));
       }
 
-      await fetchClips(0, currentUser?.id);
+      // 特定のクリップが指定されている場合、それを最優先で取得
+      let targetedClip = null;
+      if (targetClipId) {
+        const { data: clip } = await supabase
+          .from('clips')
+          .select('*, profiles(display_name, username, is_pro)')
+          .eq('id', targetClipId)
+          .maybeSingle();
+        if (clip) targetedClip = clip;
+      }
+
+      await fetchClips(0, currentUser?.id, targetedClip);
       
       if (currentUser) {
         // Use JST date for daily missions
@@ -109,7 +123,7 @@ export default function Home() {
     }
   };
 
-  const fetchClips = async (offset: number, userId: string | null = user?.id) => {
+  const fetchClips = async (offset: number, userId: string | null = user?.id, targetedClip: any = null) => {
     if (!hasMore && offset !== 0) return;
     setIsFetchingMore(true);
 
@@ -163,7 +177,15 @@ export default function Home() {
 
       if (finalClips.length === 0) setHasMore(false);
       const newBatch = finalClips.slice(0, LIMIT);
-      if (offset === 0) setClips(newBatch);
+      if (offset === 0) {
+        if (targetedClip) {
+          // 指定されたクリップを先頭に追加し、重複を除去
+          setClips([targetedClip, ...newBatch.filter(c => c.id !== targetedClip.id)]);
+          setActiveVideoId(targetedClip.id);
+        } else {
+          setClips(newBatch);
+        }
+      }
       else setClips(prev => [...prev, ...newBatch]);
       setPageOffset(offset + LIMIT);
     } catch (e) {
@@ -352,6 +374,30 @@ export default function Home() {
     const { data } = await supabase.from('comments').select('*').eq('clip_id', clipId).order('created_at', { ascending: false });
     if (data) setCurrentClipComments(data);
   };
+
+  // コメントのリアルタイム購読
+  useEffect(() => {
+    if (!commentClipId || !isCommentOpen) return;
+
+    const channel = supabase
+      .channel(`comments-${commentClipId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'comments', filter: `clip_id=eq.${commentClipId}` },
+        (payload) => {
+          const newComment = payload.new;
+          setCurrentClipComments(prev => {
+            if (prev.some(c => c.id === newComment.id)) return prev;
+            return [newComment, ...prev];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [commentClipId, isCommentOpen]);
 
   const postComment = async () => {
     if (!user || !newComment.trim() || !commentClipId || !commentClipOwnerId) return;

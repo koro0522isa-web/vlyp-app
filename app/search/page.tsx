@@ -301,7 +301,7 @@ function ClipCard({ clip, getYouTubeId }: { clip: any; getYouTubeId: (url: strin
   const vid = getYouTubeId(clip.url || clip.video_url);
 
   return (
-    <Link href={`/profile/${clip.user_id}`} className="group">
+    <Link href={`/?clip=${clip.id}`} className="group">
       <div className="relative aspect-[9/16] bg-zinc-900 rounded-3xl overflow-hidden border border-white/5 hover:border-blue-500/30 transition-all duration-300 shadow-lg hover:shadow-blue-500/5">
         {vid ? (
           <img
