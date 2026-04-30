@@ -22,6 +22,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
   const [vlypId, setVlypId] = useState<string>('Player');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
   const [coins, setCoins] = useState(0);
 
@@ -33,10 +34,11 @@ export default function Sidebar() {
       if (currentUser) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('display_name, username, vlyp_id, is_pro')
+          .select('display_name, username, vlyp_id, is_pro, avatar_url')
           .eq('id', currentUser.id)
           .maybeSingle();
         setVlypId(profile?.display_name || profile?.username || profile?.vlyp_id || 'Player');
+        setAvatarUrl(profile?.avatar_url || null);
         setIsPro(profile?.is_pro || false);
 
         const { data: wallet } = await supabase
@@ -134,8 +136,12 @@ export default function Sidebar() {
         {user && (
           <div className={isPro ? 'pro-glow-card' : ''}>
             <Link href={`/profile/${user.id}`} className={`relative z-10 flex items-center gap-3 p-3 ${isPro ? 'bg-[#0f0f12]' : 'bg-white/5'} rounded-[0.9rem] border border-white/5 hover:bg-white/10 transition-all group`}>
-              <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${isPro ? 'from-purple-600 to-pink-600 shadow-lg shadow-purple-500/20' : 'from-zinc-700 to-zinc-900'} flex items-center justify-center text-xs font-black flex-shrink-0 border border-white/10`}>
-                {vlypId.charAt(0).toUpperCase()}
+              <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${isPro ? 'from-purple-600 to-pink-600 shadow-lg shadow-purple-500/20' : 'from-zinc-700 to-zinc-900'} flex items-center justify-center text-xs font-black flex-shrink-0 border border-white/10 overflow-hidden`}>
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  vlypId.charAt(0).toUpperCase()
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 overflow-hidden">

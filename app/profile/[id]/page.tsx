@@ -190,8 +190,12 @@ export default function ProfilePage() {
 
             <div className="flex flex-col md:flex-row items-center md:items-start gap-8 relative">
               {/* Avatar */}
-              <div className="w-28 h-28 rounded-full bg-gradient-to-br from-blue-600 to-blue-900 flex items-center justify-center text-4xl font-black border-4 border-blue-500/30 shadow-2xl shadow-blue-500/20 flex-shrink-0">
-                {profile?.display_name?.charAt(0)?.toUpperCase() || '?'}
+              <div className="w-28 h-28 rounded-full bg-gradient-to-br from-blue-600 to-blue-900 flex items-center justify-center text-4xl font-black border-4 border-blue-500/30 shadow-2xl shadow-blue-500/20 flex-shrink-0 overflow-hidden">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  profile?.display_name?.charAt(0)?.toUpperCase() || '?'
+                )}
               </div>
 
               <div className="flex-1 text-center md:text-left">
