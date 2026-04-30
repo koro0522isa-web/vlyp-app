@@ -8,8 +8,8 @@ export default function Legal() {
   const sections = [
     { h: "法人名または氏名", p: "VLYP 運営事務局 (村田 偉咲)" },
     { h: "代表者", p: "村田 偉咲" },
-    { h: "所在地", p: "福島県郡山市桑野4丁目7-19" },
-    { h: "電話番号", p: "080-5551-0924" },
+    { h: "所在地", p: "請求がありましたら、遅滞なく電磁的記録にて開示します。" },
+    { h: "電話番号", p: "請求がありましたら、遅滞なく電磁的記録にて開示します。" },
     { h: "メールアドレス", p: "vlypgameclip@gmail.com" },
     { h: "販売価格", p: "VLYP Proプラン: 月額 $9.99" },
     { h: "追加手数料", p: "サービスを利用するためのインターネット通信料はお客様のご負担となります。" },
@@ -39,6 +39,10 @@ export default function Legal() {
               <p style={{ fontSize: '18px', fontWeight: 'bold' }}>{s.p}</p>
             </div>
           ))}
+        </div>
+
+        <div style={{ marginTop: '24px', fontSize: '12px', color: '#999', lineHeight: '1.6' }}>
+          ※当方は個人事業主であり、特定商取引法第11条ただし書の規定に基づき、住所および電話番号の表記を省略しております。ご請求をいただいた場合、遅滞なく開示いたします。
         </div>
 
         <div style={{ marginTop: '40px' }}>
