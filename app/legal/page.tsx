@@ -8,7 +8,7 @@ export default function Legal() {
   const sections = [
     { h: "法人名または氏名", p: "VLYP 運営事務局 (村田 偉咲)" },
     { h: "代表者", p: "村田 偉咲" },
-    { h: "所在地", p: "福島県郡山市桑野4-17" },
+    { h: "所在地", p: "福島県郡山市桑野4丁目7-19" },
     { h: "電話番号", p: "080-5551-0924" },
     { h: "メールアドレス", p: "vlypgameclip@gmail.com" },
     { h: "販売価格", p: "VLYP Proプラン: 月額 $9.99" },
