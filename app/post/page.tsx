@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { UploadCloud, Loader2, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { UploadCloud, Loader2, ShieldCheck, ArrowLeft, Crown, Sparkles, Lock } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
 import { generateEmbedding } from '../lib/ai';
@@ -33,11 +33,32 @@ export default function Post() {
   const [selectedBgm, setSelectedBgm] = useState<string>('');
   const [agreedTerms, setAgreedTerms] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // SaaS State
+  const [isPro, setIsPro] = useState(false);
+  const [monthlyUploads, setMonthlyUploads] = useState(0);
+  const [useAI, setUseAI] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (!session) window.location.href = '/';
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (!currentUser) {
+        window.location.href = '/';
+        return;
+      }
+
+      // Fetch SaaS profile data
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_pro, monthly_uploads')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+      
+      if (profile) {
+        setIsPro(profile.is_pro || false);
+        setMonthlyUploads(profile.monthly_uploads || 0);
+      }
     });
     
     // BGMライブラリの取得
@@ -52,6 +73,13 @@ export default function Post() {
     setIsSubmitting(true);
 
     try {
+      // 0. SaaS Limits Check
+      if (!isPro && monthlyUploads >= 30) {
+        alert('You have reached the monthly upload limit for Free users. Please upgrade to Pro!');
+        setIsSubmitting(false);
+        return;
+      }
+
       // 1. ファイルサイズチェック
       if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
         alert(t('post.sizeError') || 'File too large');
@@ -198,6 +226,53 @@ export default function Post() {
                 <ShieldCheck className="w-3 h-3 text-emerald-500/50" />
                 {lang === 'JP' ? 'アップロード時に指紋をチェックし、無断転載を防止します。' : 'Protected by VLYP Anti-Piracy system.'}
               </p>
+            </div>
+
+            {/* SaaS Tier Status & AI Features */}
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-1">Your Plan</h3>
+                  {isPro ? (
+                    <div className="flex items-center gap-2 text-pink-500">
+                      <Crown className="w-5 h-5" />
+                      <span className="font-black tracking-widest">VLYP PRO</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-zinc-300">
+                      <span className="font-black tracking-widest">FREE TIER</span>
+                      <span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400">{monthlyUploads} / 30 Uploads</span>
+                    </div>
+                  )}
+                </div>
+                {!isPro && (
+                  <button type="button" className="text-[10px] bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:scale-105 transition-transform">
+                    Upgrade
+                  </button>
+                )}
+              </div>
+
+              <div className={`p-4 rounded-xl border ${isPro ? 'border-pink-500/30 bg-pink-500/5' : 'border-zinc-800 bg-zinc-800/30'} flex justify-between items-center transition-colors`}>
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${isPro ? 'bg-pink-500/20 text-pink-500' : 'bg-zinc-800 text-zinc-500'}`}>
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className={`font-black text-sm ${isPro ? 'text-pink-400' : 'text-zinc-400'}`}>AI Auto-Highlight (Beta)</h4>
+                    <p className="text-[10px] text-zinc-500">Automatically cut to the best moments</p>
+                  </div>
+                </div>
+                {isPro ? (
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" checked={useAI} onChange={() => setUseAI(!useAI)} />
+                    <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                  </label>
+                ) : (
+                  <div className="flex items-center gap-1 text-zinc-600 text-xs font-bold uppercase tracking-widest">
+                    <Lock className="w-3 h-3" /> PRO
+                  </div>
+                )}
+              </div>
             </div>
 
             <div>
