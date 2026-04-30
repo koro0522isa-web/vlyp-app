@@ -153,7 +153,7 @@ export default function Home() {
         const { data: rpcData, error: rpcError } = await supabase.rpc('get_feed', {
           p_limit: LIMIT,
           p_offset: offset,
-          p_user_id: userId,
+          p_user_id: userId || null,
           p_mode: feedMode
         });
 
