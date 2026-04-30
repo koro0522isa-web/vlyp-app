@@ -76,7 +76,7 @@ export default function Legal() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-zinc-100 font-sans">
+    <div className="h-screen overflow-y-auto bg-[#09090B] text-zinc-100 font-sans">
       {/* Header */}
       <div className="max-w-4xl mx-auto px-6 md:px-12 py-12">
         <Link 
