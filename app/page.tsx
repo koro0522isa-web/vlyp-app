@@ -141,11 +141,17 @@ function HomeContent() {
             excluded_user_id: userId
           });
           if (aiClips && aiClips.length > 0) {
+            const userIds = [...new Set(aiClips.map((c: any) => c.user_id))];
+            const { data: profiles } = await supabase.from('profiles').select('id, avatar_url').in('id', userIds);
+            const avatarMap: any = {};
+            if (profiles) profiles.forEach((p: any) => avatarMap[p.id] = p.avatar_url);
+
             finalClips = aiClips.map((c: any) => ({
               ...c,
               profiles: { 
                 display_name: c.profile_display_name || 'Player',
-                is_pro: c.is_pro || false
+                is_pro: c.is_pro || false,
+                avatar_url: avatarMap[c.user_id] || null
               }
             }));
           }
@@ -162,12 +168,19 @@ function HomeContent() {
         });
 
         if (!rpcError && rpcData) {
+          // Fetch avatar_urls separately since get_feed RPC doesn't return them
+          const userIds = [...new Set(rpcData.map((c: any) => c.user_id))];
+          const { data: profiles } = await supabase.from('profiles').select('id, avatar_url').in('id', userIds);
+          const avatarMap: any = {};
+          if (profiles) profiles.forEach((p: any) => avatarMap[p.id] = p.avatar_url);
+
           const rpcClips = rpcData.map((clip: any) => ({
             ...clip,
             profiles: {
               display_name: clip.profile_display_name || clip.user_name || 'Player',
               username: clip.profile_username,
-              is_pro: clip.is_pro || false
+              is_pro: clip.is_pro || false,
+              avatar_url: avatarMap[clip.user_id] || null
             }
           }));
           const existingIds = new Set(finalClips.map((c: any) => c.id));

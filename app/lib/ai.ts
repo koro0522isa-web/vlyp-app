@@ -22,6 +22,12 @@ export async function generateVoiceover(text: string, voice: 'male' | 'female'):
     // ダミーのレスポンス（ビルドを通すため）
     const response = await fetch(`https://api.voicerss.org/?key=83838383838383838383838383838383&hl=${lang}&v=${voice === 'male' ? 'Ichiro' : 'Nanami'}&src=${encodeURIComponent(text)}`);
     if (!response.ok) return null;
+    
+    // Check if the API returned an error string instead of audio
+    const clone = response.clone();
+    const textData = await clone.text();
+    if (textData.startsWith('ERROR:')) return null;
+
     return await response.blob();
   } catch (e) {
     return null;

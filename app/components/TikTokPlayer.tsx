@@ -212,12 +212,20 @@ export default function TikTokPlayer({
       <div className="absolute right-4 bottom-24 flex flex-col items-center gap-6 z-20" onClick={(e) => e.stopPropagation()}>
         {/* プロフィール画像 & フォローボタン */}
         <div className="relative mb-2">
-          <Link href={`/profile/${clip.user_id}`} className="w-12 h-12 rounded-full border-2 border-white overflow-hidden bg-zinc-800 block relative">
-            <img 
-              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${clip.profiles?.display_name || clip.user_id}`} 
-              alt="avatar"
-              className="w-full h-full object-cover"
-            />
+          <Link href={`/profile/${clip.user_id}`} className="w-12 h-12 rounded-full border-2 border-white overflow-hidden bg-zinc-800 block relative flex-shrink-0">
+            {clip.profiles?.avatar_url ? (
+              <img 
+                src={clip.profiles.avatar_url} 
+                alt="avatar"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <img 
+                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${clip.profiles?.display_name || clip.user_id}`} 
+                alt="avatar"
+                className="w-full h-full object-cover"
+              />
+            )}
           </Link>
           {!isFollowing && (
             <motion.button 

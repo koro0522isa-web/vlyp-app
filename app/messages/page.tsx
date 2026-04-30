@@ -94,7 +94,7 @@ function MessagesContent() {
         { 
           event: 'INSERT', 
           schema: 'public', 
-          table: 'direct_messages',
+          table: 'messages',
           filter: `receiver_id=eq.${user.id}`
         },
         (payload) => {
@@ -110,7 +110,7 @@ function MessagesContent() {
             
             // Mark as read
             supabase
-              .from('direct_messages')
+              .from('messages')
               .update({ is_read: true })
               .eq('id', newMsg.id);
           }
@@ -142,13 +142,13 @@ function MessagesContent() {
     try {
       // Get all unique partner IDs from messages
       const { data: sent } = await supabase
-        .from('direct_messages')
+        .from('messages')
         .select('receiver_id, content, created_at')
         .eq('sender_id', userId)
         .order('created_at', { ascending: false });
       
       const { data: received } = await supabase
-        .from('direct_messages')
+        .from('messages')
         .select('sender_id, content, created_at')
         .eq('receiver_id', userId)
         .order('created_at', { ascending: false });
@@ -190,7 +190,7 @@ function MessagesContent() {
 
   const fetchMessages = async (userId: string, partnerId: string) => {
     const { data, error } = await supabase
-      .from('direct_messages')
+      .from('messages')
       .select('*')
       .or(`and(sender_id.eq.${userId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${userId})`)
       .order('created_at', { ascending: true })
@@ -204,7 +204,7 @@ function MessagesContent() {
 
     // Mark received messages as read
     await supabase
-      .from('direct_messages')
+      .from('messages')
       .update({ is_read: true })
       .eq('sender_id', partnerId)
       .eq('receiver_id', userId)
@@ -232,7 +232,7 @@ function MessagesContent() {
 
     try {
       const { data, error } = await supabase
-        .from('direct_messages')
+        .from('messages')
         .insert({
           sender_id: user.id,
           receiver_id: selectedPartner.id,
@@ -243,7 +243,7 @@ function MessagesContent() {
 
       if (error) {
         console.error('Send message error:', error);
-        setSendError(`送信失敗: ${error.message}`);
+        setSendError(`送信失敁E ${error.message}`);
         // Remove optimistic message on failure
         setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
         setNewMessage(messageContent); // Restore the message text
@@ -274,8 +274,8 @@ function MessagesContent() {
   };
 
   const deleteMessage = async (msgId: string) => {
-    if (!confirm('このメッセージを削除しますか？')) return;
-    await supabase.from('direct_messages').delete().eq('id', msgId);
+    if (!confirm('こ�EメチE��ージを削除しますか�E�E)) return;
+    await supabase.from('messages').delete().eq('id', msgId);
     setMessages(prev => prev.filter(m => m.id !== msgId));
   };
 
