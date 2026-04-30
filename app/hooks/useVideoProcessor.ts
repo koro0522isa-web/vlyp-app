@@ -130,16 +130,32 @@ export function useVideoProcessor() {
     execArgs.push(
       '-map', '[aout]',
       '-c:v', 'libx264',
-      '-preset', 'ultrafast', // 速度優先
-      '-crf', '28',           // 圧縮率と画質のバランス
+      '-c:a', 'aac',
+      '-preset', 'ultrafast', 
+      '-crf', '28',           
       '-shortest',
       'output.mp4'
     );
 
-    await ffmpeg.exec(execArgs);
+    let lastError = '';
+    const logCallback = ({ message }: { message: string }) => {
+      console.log(message);
+      if (message.toLowerCase().includes('error')) {
+        lastError = message;
+      }
+    };
+    ffmpeg.on('log', logCallback);
 
-    const data = await ffmpeg.readFile('output.mp4');
-    return new Blob([data as any], { type: 'video/mp4' });
+    try {
+      const code = await ffmpeg.exec(execArgs);
+      if (code !== 0) {
+        throw new Error(`FFmpeg error (code ${code}): ${lastError || 'Unknown error'}`);
+      }
+      const data = await ffmpeg.readFile('output.mp4');
+      return new Blob([data as any], { type: 'video/mp4' });
+    } finally {
+      ffmpeg.off('log', logCallback);
+    }
   };
 
   // 互換性のための古いメソッド
