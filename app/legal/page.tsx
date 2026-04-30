@@ -12,7 +12,8 @@ export default function Legal() {
       title: "特定商取引法に基づく表記",
       sections: [
         { h: "販売業者", p: "VLYP 運営事務局" },
-        { h: "代表者 / 所在地", p: "消費者庁の定める特定商取引法に基づき、請求があった場合には遅滞なく開示いたします。開示を希望される方は上記メールアドレスまでご連絡ください。" },
+        { h: "代表者", p: "請求があったら遅滞なく開示します" },
+        { h: "所在地", p: "請求があったら遅滞なく開示します" },
         { h: "お問い合わせ先", p: "vlypgameclip@gmail.com" },
         { h: "販売価格", p: "購入手続きの際に画面に表示されます。消費税が含まれた金額です。" },
         { h: "代金の支払時期", p: "決済時に直ちにお支払いいただきます。" },
@@ -24,7 +25,8 @@ export default function Legal() {
       title: "Legal Notice",
       sections: [
         { h: "Operator", p: "VLYP Admin Office" },
-        { h: "Name / Address", p: "In accordance with the Act on Specified Commercial Transactions, information will be provided without delay upon request. Please contact the email address above." },
+        { h: "Representative", p: "Provided without delay upon request" },
+        { h: "Address", p: "Provided without delay upon request" },
         { h: "Contact", p: "vlypgameclip@gmail.com" },
         { h: "Price", p: "Displayed during checkout, including tax." },
         { h: "Payment Timing", p: "Immediate at the time of checkout." },
