@@ -29,12 +29,20 @@ export default function Post() {
   const [gameTitle, setGameTitle] = useState('VALORANT');
   const [user, setUser] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bgms, setBgms] = useState<any[]>([]);
+  const [selectedBgm, setSelectedBgm] = useState<string>('');
+  const [agreedTerms, setAgreedTerms] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (!session) window.location.href = '/';
+    });
+    
+    // BGMライブラリの取得
+    supabase.from('bgm_library').select('*').then(({ data }) => {
+      if (data) setBgms(data);
     });
   }, []);
 
@@ -194,12 +202,45 @@ export default function Post() {
               </select>
             </div>
 
+            <div>
+              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-3">Add Royalty-Free BGM (Optional)</label>
+              <select 
+                className="w-full bg-zinc-900 border border-zinc-800 p-5 rounded-2xl focus:border-cyan-400 outline-none appearance-none font-bold text-zinc-300"
+                value={selectedBgm}
+                onChange={(e) => setSelectedBgm(e.target.value)}
+              >
+                <option value="">No BGM / Already edited</option>
+                {bgms.map(b => <option key={b.id} value={b.id}>{b.title} - {b.artist}</option>)}
+              </select>
+              <p className="text-[9px] text-emerald-500/70 font-bold mt-2 ml-2 italic">※ These tracks are safe for copyright and won't be flagged by AI.</p>
+            </div>
+
+            <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-2 text-red-400">
+                <ShieldCheck className="w-4 h-4" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Copyright Policy</span>
+              </div>
+              <p className="text-[10px] text-zinc-500 leading-relaxed font-bold">
+                {lang === 'JP' ? '動画内で無断の音楽使用がAIによって検知された場合、動画は自動的に非公開になります。' : 'Videos with unauthorized music detected by AI will be automatically set to private.'}
+              </p>
+              <label className="flex items-center gap-3 mt-4 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  className="w-5 h-5 rounded bg-zinc-800 border-zinc-700 checked:bg-cyan-400"
+                  checked={agreedTerms}
+                  onChange={(e) => setAgreedTerms(e.target.checked)}
+                />
+                <span className="text-[10px] font-black text-zinc-400 group-hover:text-white transition-colors uppercase tracking-widest">I agree to the copyright terms</span>
+              </label>
+            </div>
+
+
             <div className="pt-6">
               <button 
                 type="submit"
-                disabled={isSubmitting || !file}
+                disabled={isSubmitting || !file || !agreedTerms}
                 className={`w-full py-6 rounded-[2rem] flex justify-center items-center gap-3 font-black text-xl uppercase tracking-tighter transition-all shadow-2xl ${
-                  isSubmitting || !file ? 'bg-zinc-800 text-zinc-500' : 'bg-cyan-400 text-black hover:scale-[1.02] shadow-[0_0_20px_rgba(34,211,238,0.4)]'
+                  isSubmitting || !file || !agreedTerms ? 'bg-zinc-800 text-zinc-500' : 'bg-cyan-400 text-black hover:scale-[1.02] shadow-[0_0_20px_rgba(34,211,238,0.4)]'
                 }`}
               >
                 {isSubmitting ? (

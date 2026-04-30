@@ -6,7 +6,7 @@ import { LanguageProvider } from './contexts/LanguageContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 
 if (typeof window !== 'undefined') {
-  posthog.init('YOUR_PROJECT_API_KEY', { // phc_w4po5HD969ykNzmEWvmseujmfPVYZLRipK6MYG4iaJFM
+  posthog.init('phc_w4po5HD969ykNzmEWvmseujmfPVYZLRipK6MYG4iaJFM', {
     api_host: 'https://us.i.posthog.com',
     person_profiles: 'identified_only',
     capture_pageview: false // Next.jsのルーターで制御するため

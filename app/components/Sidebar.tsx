@@ -80,13 +80,13 @@ export default function Sidebar() {
         <Link href={user ? '/post' : '/login'} className="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98]">
           {user ? t('nav.post') : 'Login'}
         </Link>
-        <div className="pt-2 text-center flex flex-col gap-1">
-          <Link href="/admin" className="text-[8px] font-bold text-zinc-800 hover:text-zinc-600 uppercase tracking-widest transition-colors">System</Link>
-          <div className="flex justify-center gap-3">
-            <Link href="/terms" className="text-[8px] font-bold text-zinc-700 hover:text-zinc-500 uppercase tracking-widest transition-colors">Terms</Link>
-            <Link href="/privacy" className="text-[8px] font-bold text-zinc-700 hover:text-zinc-500 uppercase tracking-widest transition-colors">Privacy</Link>
-            <Link href="/legal" className="text-[8px] font-bold text-zinc-700 hover:text-zinc-500 uppercase tracking-widest transition-colors">Legal</Link>
+        <div className="pt-2 text-center flex flex-col gap-3">
+          <Link href="/legal" className="text-xs font-black text-zinc-400 hover:text-cyan-400 uppercase tracking-widest transition-colors">Legal & Pricing</Link>
+          <div className="flex justify-center gap-4">
+            <Link href="/terms" className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors">Terms</Link>
+            <Link href="/privacy" className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors">Privacy</Link>
           </div>
+          <a href="mailto:support@vlyp.example.com" className="text-[10px] font-black text-blue-500 hover:text-blue-400 uppercase tracking-widest transition-colors mt-2">Support / Contact</a>
         </div>
       </div>
     </aside>

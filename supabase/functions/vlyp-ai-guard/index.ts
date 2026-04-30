@@ -17,7 +17,7 @@ serve(async (req) => {
 
     // --- Gemini 1.5 Flash による動画解析 ---
     // (擬似コードですが、構造は以下の通りです)
-    const prompt = "Analyze this video file. 1. Is it gaming-related? 2. Does it contain nudity or explicit content? 3. Does it contain extreme violence? Answer in JSON format: {is_game: boolean, is_safe: boolean, reason: string}";
+    const prompt = "Analyze this video and its audio carefully. 1. Is it gaming-related? 2. Does it contain nudity, explicit content, or extreme violence? 3. Does it contain copyrighted background music (not including game sound effects)? Answer ONLY in JSON format: {is_game: boolean, is_safe: boolean, has_copyright_violation: boolean, reason: string}";
     
     // 実際のAPIリクエスト送信
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
