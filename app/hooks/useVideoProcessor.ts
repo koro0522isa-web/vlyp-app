@@ -17,7 +17,7 @@ export function useVideoProcessor() {
     const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd';
     const ffmpeg = ffmpegRef.current;
     
-    ffmpeg.on('log', ({ message }) => {
+    ffmpeg.on('log', ({ message }: { message: string }) => {
       console.log(message);
     });
 
