@@ -100,7 +100,11 @@ export function useVideoProcessor() {
     }
 
     // オーディオミキシング
-    filterComplex += `;${mixInputs}amix=inputs=${inputCount}:duration=first[aout]`;
+    if (inputCount > 1) {
+      filterComplex += `;${mixInputs}amix=inputs=${inputCount}:duration=first[aout]`;
+    } else {
+      filterComplex += `;[a1]anull[aout]`;
+    }
 
     // ビデオフィルタ設定
     let videoFilter = '';

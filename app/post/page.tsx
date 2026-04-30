@@ -167,7 +167,7 @@ function PostContent() {
       router.push('/');
     } catch (err: any) {
       console.error(err);
-      alert('Failed to post: ' + err.message);
+      alert('Failed to post: ' + (err.message || err.toString() || 'Unknown error'));
       setIsSubmitting(false);
       setIsProcessing(false);
     }
