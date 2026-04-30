@@ -10,7 +10,7 @@ import {
   Plus,
   Clapperboard,
   User,
-  Bell,
+  Swords,
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -32,7 +32,7 @@ export default function BottomNav() {
     { icon: HomeIcon, label: t('nav.home'), href: '/' },
     { icon: Search, label: t('nav.search'), href: '/search' },
     { icon: Plus, label: t('nav.post'), href: user ? '/post' : '/login', isCenter: true },
-    { icon: Bell, label: t('nav.activity'), href: user ? '/notifications' : '/login' },
+    { icon: Swords, label: 'Battle', href: '/battle' },
     { icon: User, label: t('nav.profile'), href: user ? `/profile/${user.id}` : '/login' },
   ];
 

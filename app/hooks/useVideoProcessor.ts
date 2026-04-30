@@ -21,7 +21,7 @@ export function useVideoProcessor() {
       console.log(message);
     });
 
-    ffmpeg.on('progress', ({ progress }) => {
+    ffmpeg.on('progress', ({ progress }: { progress: number }) => {
       setProgress(progress * 100);
     });
 

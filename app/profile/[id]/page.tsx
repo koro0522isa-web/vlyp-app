@@ -276,7 +276,11 @@ export default function ProfilePage() {
               {clips.map(clip => {
                 const vid = getYouTubeId(clip.url || clip.video_url);
                 return (
-                  <div key={clip.id} className="group relative aspect-[9/16] bg-zinc-900 rounded-3xl overflow-hidden border border-white/5 hover:border-blue-500/30 transition-all cursor-pointer">
+                  <Link 
+                    key={clip.id} 
+                    href={`/?clip=${clip.id}`}
+                    className="group relative aspect-[9/16] bg-zinc-900 rounded-3xl overflow-hidden border border-white/5 hover:border-blue-500/30 transition-all cursor-pointer"
+                  >
                     {vid ? (
                       <img
                         src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`}
@@ -306,7 +310,7 @@ export default function ProfilePage() {
                         <span className="text-[9px] text-zinc-400 flex items-center gap-1"><Heart className="w-2.5 h-2.5" />{clip.likes || 0}</span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

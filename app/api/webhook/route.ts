@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-// 実行時に初期化するための関数
 const getClients = () => {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
     apiVersion: '2025-01-27.acacia' as any,
@@ -31,23 +30,46 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 });
   }
 
+  // ========================================
   // 決済完了時の処理
+  // ========================================
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const userId = session.metadata?.userId;
+    const packId = session.metadata?.packId;
     const coins = parseInt(session.metadata?.coins || '0');
 
+    // ---- Pro サブスクリプション購入 ----
+    if (packId === 'pro' && userId) {
+      console.log(`Activating Pro subscription for user ${userId}`);
+      
+      const { error } = await supabaseAdmin
+        .from('profiles')
+        .update({ 
+          is_pro: true,
+          pro_activated_at: new Date().toISOString(),
+          monthly_uploads: 0 // リセット
+        })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Error activating Pro:', error);
+      } else {
+        console.log(`Pro activated successfully for user ${userId}`);
+      }
+    }
+
+    // ---- コイン購入 ----
     if (userId && coins > 0) {
       console.log(`Crediting ${coins} coins to user ${userId}`);
       
-      // ウォレットに残高を追加
       const { error } = await supabaseAdmin.rpc('increment_wallet_coins', {
         p_user_id: userId,
         p_amount: coins
       });
 
       if (error) {
-        // RPCがない場合のフォールバック: 現在の残高を取得して加算
+        // RPCがない場合のフォールバック
         const { data: wallet } = await supabaseAdmin
           .from('wallets')
           .select('coins')
@@ -55,22 +77,67 @@ export async function POST(req: Request) {
           .maybeSingle();
         
         if (wallet) {
-          const { error: updateError } = await supabaseAdmin
+          await supabaseAdmin
             .from('wallets')
             .update({ coins: (wallet.coins || 0) + coins })
             .eq('user_id', userId);
-          if (updateError) console.error('Error updating wallet:', updateError);
         } else {
-          const { error: insertError } = await supabaseAdmin
+          await supabaseAdmin
             .from('wallets')
             .insert({ user_id: userId, coins: coins });
-          if (insertError) console.error('Error creating wallet:', insertError);
         }
       }
     }
   }
 
+  // ========================================
+  // サブスクリプション更新（毎月の自動支払い）
+  // ========================================
+  if (event.type === 'invoice.paid') {
+    const invoice = event.data.object as Stripe.Invoice;
+    const customerId = invoice.customer as string;
+
+    // Stripeの顧客メタデータからuserIdを取得
+    try {
+      const customer = await stripe.customers.retrieve(customerId);
+      if (customer && !customer.deleted) {
+        const userId = (customer as Stripe.Customer).metadata?.userId;
+        if (userId) {
+          // 月間アップロード回数をリセット
+          await supabaseAdmin
+            .from('profiles')
+            .update({ monthly_uploads: 0 })
+            .eq('id', userId);
+        }
+      }
+    } catch (e) {
+      console.error('Error processing invoice.paid:', e);
+    }
+  }
+
+  // ========================================
+  // サブスクリプション解約
+  // ========================================
+  if (event.type === 'customer.subscription.deleted') {
+    const subscription = event.data.object as Stripe.Subscription;
+    const customerId = subscription.customer as string;
+
+    try {
+      const customer = await stripe.customers.retrieve(customerId);
+      if (customer && !customer.deleted) {
+        const userId = (customer as Stripe.Customer).metadata?.userId;
+        if (userId) {
+          console.log(`Deactivating Pro for user ${userId}`);
+          await supabaseAdmin
+            .from('profiles')
+            .update({ is_pro: false })
+            .eq('id', userId);
+        }
+      }
+    } catch (e) {
+      console.error('Error processing subscription deletion:', e);
+    }
+  }
+
   return NextResponse.json({ received: true });
 }
-
-// SQL側で increment_wallet_coins を作成する必要があります

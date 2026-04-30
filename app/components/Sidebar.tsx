@@ -13,7 +13,8 @@ import {
   User,
   MessageSquare,
   Crown,
-  Coins
+  Coins,
+  Swords
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -74,6 +75,7 @@ export default function Sidebar() {
   const navItems = [
     { icon: <HomeIcon />, label: t('nav.home'), href: '/' },
     { icon: <Search />, label: t('nav.search'), href: '/search' },
+    { icon: <Swords />, label: 'Battle', href: '/battle', highlight: true },
     { icon: <MessageSquare />, label: 'Messages', href: '/messages' },
     { icon: <Clapperboard />, label: t('nav.studio'), href: '/studio' },
     { icon: <Settings />, label: t('nav.settings'), href: '/settings' },
