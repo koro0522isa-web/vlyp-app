@@ -6,18 +6,7 @@ import Link from 'next/link';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import {
-  Heart,
-  MessageCircle,
-  Share2,
-  Flame,
-  X,
-  Send,
-  Loader2,
-  Gamepad2,
-  AlertTriangle,
-  Check,
-  Gift,
-  Trophy,
+  MessageCircle, Heart, Share2, Play, Flame, Trophy, Check, Loader2, Search, X, Link as LinkIcon, Lock, MapPin, ExternalLink, Calendar, Plus, Crown, Star, ChevronLeft, ChevronRight, Video
 } from 'lucide-react';
 import AdSlot from './components/AdSlot';
 import { useLanguage } from './contexts/LanguageContext';
@@ -429,7 +418,22 @@ export default function Home() {
               </motion.div>
             );
           })}
-          {hasMore && !isLoading && <div ref={observerTarget} className="w-full h-32 flex items-center justify-center snap-start"><Loader2 className="animate-spin text-blue-500 w-8 h-8" /></div>}
+
+          {/* Empty State */}
+          {!isLoading && clips.length === 0 && (
+            <div className="h-full w-full flex flex-col items-center justify-center p-8 text-center bg-black">
+              <div className="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center mb-6">
+                <Video className="w-10 h-10 text-zinc-600" />
+              </div>
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-2">No Clips Yet</h2>
+              <p className="text-sm font-bold text-zinc-500 mb-8 max-w-xs">Be the first to share your epic gaming moments with the world.</p>
+              <Link href="/post" className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-500 transition-colors shadow-[0_0_20px_rgba(37,99,235,0.4)]">
+                Upload Video
+              </Link>
+            </div>
+          )}
+
+          {hasMore && !isLoading && clips.length > 0 && <div ref={observerTarget} className="w-full h-32 flex items-center justify-center snap-start"><Loader2 className="animate-spin text-blue-500 w-8 h-8" /></div>}
         </div>
         {isLoading && <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-blue-500 w-10 h-10" /></div>}
       </main>
