@@ -174,7 +174,7 @@ function PostContent() {
   };
 
   return (
-    <div className={`min-h-screen w-full bg-[#09090B] text-white p-4 md:p-10 font-sans transition-all duration-700 ${isPro ? 'bg-pro-gradient' : ''}`}>
+    <div className={`h-screen overflow-y-auto w-full bg-[#09090B] text-white p-4 md:p-10 font-sans transition-all duration-700 ${isPro ? 'bg-pro-gradient' : ''}`}>
       <style jsx global>{`
         .bg-pro-gradient {
           background: radial-gradient(circle at 50% -20%, #1e1b4b 0%, #09090b 100%);

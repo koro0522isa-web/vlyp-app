@@ -112,9 +112,9 @@ export default function Sidebar() {
       `}</style>
 
       <div className="p-6 lg:p-8">
-        <Link href="/" className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-black italic text-2xl shadow-lg shadow-blue-600/30`}>V</div>
-          <h1 className="text-2xl font-black italic tracking-tighter text-white hidden lg:block uppercase">VLYP</h1>
+        <Link href="/">
+          <h1 className="text-3xl font-black italic tracking-tighter text-blue-500 hidden lg:block">VLYP</h1>
+          <span className="text-2xl font-black italic text-blue-500 lg:hidden block text-center">V</span>
         </Link>
       </div>
 
