@@ -13,27 +13,11 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: '**.supabase.co', // 自分のSupabaseストレージ用
+        hostname: '**.supabase.co',
       },
     ],
   },
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'Cross-Origin-Opener-Policy',
-            value: 'unsafe-none',
-          },
-          {
-            key: 'Cross-Origin-Embedder-Policy',
-            value: 'unsafe-none',
-          },
-        ],
-      },
-    ];
-  },
+  // セキュリティヘッダーが原因で動画再生がブロックされていたため、一旦完全に削除してデプロイを正常化させます。
 };
 
 export default nextConfig;
