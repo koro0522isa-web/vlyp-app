@@ -1,4 +1,6 @@
 "use client";
+// Force refresh build cache for imports
+
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { supabase } from '../../lib/supabase';
 import { UploadCloud, Loader2, ShieldCheck, ArrowLeft, Crown, Sparkles, Lock, Mic } from 'lucide-react';
