@@ -141,6 +141,16 @@ body {
   outline-offset: 2px;
 }
 
+/* Marquee animation for BGM */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 10s linear infinite;
+}
+
 /* Smooth scroll for mobile */
 @media (max-width: 768px) {
   * {

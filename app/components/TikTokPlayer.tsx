@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, MessageCircle, Share2, Gift, Gamepad2, Check, UserPlus, Volume2, VolumeX, Play, Pause, Crown } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Gift, Gamepad2, Check, UserPlus, Volume2, VolumeX, Play, Pause, Crown, Music } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePlayer } from '../contexts/PlayerContext';
 
@@ -39,8 +39,9 @@ export default function TikTokPlayer({
   const [showHeart, setShowHeart] = useState(false);
   const [heartPos, setHeartPos] = useState({ x: 0, y: 0 });
   const [isPaused, setIsPaused] = useState(false);
-  const { isMuted, setIsMuted } = usePlayer();
+  const { isMuted, setIsMuted, volume, setVolume } = usePlayer();
   const [progress, setProgress] = useState(0);
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const controlsTimeout = useRef<NodeJS.Timeout>(undefined);
   const { t } = useLanguage();
@@ -59,6 +60,13 @@ export default function TikTokPlayer({
       }
     }
   }, [isActive]);
+
+  // Sync volume state to video element
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = volume;
+    }
+  }, [volume]);
 
   // Real-time progress tracking synced to actual video duration
   useEffect(() => {
@@ -160,13 +168,45 @@ export default function TikTokPlayer({
       {/* グラデーションオーバーレイ */}
       <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
-      {/* Mute button */}
-      <button 
-        onClick={(e) => { e.stopPropagation(); toggleMute(); }}
-        className="absolute top-20 right-4 z-30 p-2.5 bg-black/30 backdrop-blur-md rounded-full border border-white/10 hover:bg-white/10 transition-all"
+      {/* Mute & Volume control */}
+      <div 
+        className="absolute top-20 right-4 z-40 flex flex-col items-center gap-2 group"
+        onMouseEnter={() => setShowVolumeSlider(true)}
+        onMouseLeave={() => setShowVolumeSlider(false)}
+        onClick={(e) => e.stopPropagation()}
       >
-        {isMuted ? <VolumeX className="w-4 h-4 text-white/70" /> : <Volume2 className="w-4 h-4 text-white/70" />}
-      </button>
+        <AnimatePresence>
+          {showVolumeSlider && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="bg-black/60 backdrop-blur-md p-3 rounded-2xl border border-white/10 mb-2 h-32 flex flex-col items-center"
+            >
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={volume}
+                onChange={(e) => {
+                  setVolume(parseFloat(e.target.value));
+                  if (parseFloat(e.target.value) > 0 && isMuted) setIsMuted(false);
+                }}
+                className="accent-cyan-400 h-24 -rotate-90 origin-center cursor-pointer"
+                style={{ appearance: 'slider-vertical' } as any}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        <button 
+          onClick={(e) => { e.stopPropagation(); toggleMute(); }}
+          className="p-2.5 bg-black/30 backdrop-blur-md rounded-full border border-white/10 hover:bg-white/10 transition-all"
+        >
+          {isMuted || volume === 0 ? <VolumeX className="w-4 h-4 text-white/70" /> : <Volume2 className="w-4 h-4 text-white/70" />}
+        </button>
+      </div>
 
       {/* 右側アクションバー (TikTok風) */}
       <div className="absolute right-4 bottom-24 flex flex-col items-center gap-6 z-20" onClick={(e) => e.stopPropagation()}>
@@ -249,6 +289,19 @@ export default function TikTokPlayer({
         <h2 className="text-sm font-bold text-white line-clamp-3 drop-shadow-md leading-relaxed mb-4">
           {renderTitle(clip.title)}
         </h2>
+
+        {/* BGM Marquee */}
+        <div className="flex items-center gap-2 overflow-hidden w-48">
+          <Music className="w-3 h-3 text-white/70 animate-pulse" />
+          <div className="whitespace-nowrap flex gap-8 animate-marquee">
+            <span className="text-[10px] font-bold text-white/80">
+              {clip.bgm_title ? `${clip.bgm_title} - ${clip.bgm_artist || 'Artist'}` : `Original Sound - @${clip.profiles?.display_name || "Player"}`}
+            </span>
+            <span className="text-[10px] font-bold text-white/80">
+              {clip.bgm_title ? `${clip.bgm_title} - ${clip.bgm_artist || 'Artist'}` : `Original Sound - @${clip.profiles?.display_name || "Player"}`}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Real video progress bar — synced to actual playback */}
