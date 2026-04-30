@@ -92,8 +92,8 @@ export default function Sidebar() {
         {navItems.map((item) => {
           const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
           return (
-            <Link key={item.href} href={item.href} className={`flex items-center gap-5 p-4 rounded-2xl cursor-pointer transition-all duration-200 group ${isActive ? 'bg-blue-600/10 text-blue-400 font-black' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300'}`}>
-              <span className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-blue-400' : ''}`}>{item.icon}</span>
+            <Link key={item.href} href={item.href} className={`flex items-center gap-5 p-4 rounded-2xl cursor-pointer transition-all duration-200 group ${isActive ? 'bg-blue-600/10 text-blue-400 font-black shadow-[inset_0_0_15px_rgba(37,99,235,0.1)]' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300'}`}>
+              <span className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-blue-400 drop-shadow-[0_0_8px_rgba(37,99,235,0.5)]' : ''}`}>{item.icon}</span>
               <span className="hidden lg:block text-[10px] uppercase tracking-widest font-black">{item.label}</span>
             </Link>
           );
@@ -103,9 +103,14 @@ export default function Sidebar() {
       <div className="p-4 lg:p-6 border-t border-white/5 space-y-4">
         {user && (
           <Link href={`/profile/${user.id}`} className="hidden lg:flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all group">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-900 flex items-center justify-center text-xs font-black flex-shrink-0 border border-blue-500/30">{vlypId.charAt(0).toUpperCase()}</div>
-            <div className="min-w-0">
-              <p className="text-xs font-black text-zinc-200 truncate group-hover:text-blue-400 transition-colors">@{vlypId}</p>
+            <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${isPro ? 'from-purple-600 to-pink-600' : 'from-blue-600 to-blue-900'} flex items-center justify-center text-xs font-black flex-shrink-0 border ${isPro ? 'border-pink-500/50' : 'border-blue-500/30'}`}>{vlypId.charAt(0).toUpperCase()}</div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 overflow-hidden">
+                <p className="text-xs font-black text-zinc-200 truncate group-hover:text-blue-400 transition-colors">@{vlypId}</p>
+                {isPro && (
+                  <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-md text-[7px] font-black text-white leading-none shadow-[0_0_8px_rgba(236,72,153,0.4)]">PRO</span>
+                )}
+              </div>
               <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">View Profile</p>
             </div>
           </Link>

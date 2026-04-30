@@ -5,6 +5,7 @@ import { UploadCloud, Loader2, ShieldCheck, ArrowLeft, Crown, Sparkles, Lock } f
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
 import { generateEmbedding } from '../lib/ai';
+import { useVideoProcessor } from '../hooks/useVideoProcessor';
 
 const GAMES = [
   "VALORANT", "Apex Legends", "League of Legends", "Street Fighter 6", 
@@ -38,6 +39,8 @@ export default function Post() {
   const [isPro, setIsPro] = useState(false);
   const [monthlyUploads, setMonthlyUploads] = useState(0);
   const [useAI, setUseAI] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { mixVideoWithBgm, progress: processingProgress } = useVideoProcessor();
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -100,15 +103,34 @@ export default function Post() {
         return;
       }
 
-      // 1. ファイルサイズチェック
-      if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      let fileToUpload = file;
+
+      // 1. Pro機能: BGMミックス (FFmpeg.wasm)
+      if (isPro && selectedBgm) {
+        const bgm = bgms.find(b => b.id === selectedBgm);
+        if (bgm) {
+          setIsProcessing(true);
+          try {
+            const mixedBlob = await mixVideoWithBgm(file, bgm.url);
+            fileToUpload = new File([mixedBlob], `processed_${file.name}`, { type: 'video/mp4' });
+          } catch (mixErr) {
+            console.error('BGM Mixing failed:', mixErr);
+            alert('BGMの合成に失敗しました。元の動画でアップロードを継続します。');
+          } finally {
+            setIsProcessing(false);
+          }
+        }
+      }
+
+      // 2. ファイルサイズチェック
+      if (fileToUpload.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
         alert(t('post.sizeError') || 'File too large');
         setIsSubmitting(false);
         return;
       }
 
-      // 2. 無断転載防止：ファイルハッシュの計算と重複チェック
-      const fileHash = await calculateFileHash(file);
+      // 3. 無断転載防止：ファイルハッシュの計算と重複チェック
+      const fileHash = await calculateFileHash(fileToUpload);
       const { data: duplicateCheck } = await supabase
         .from('file_hashes')
         .select('id')
@@ -121,14 +143,14 @@ export default function Post() {
         return;
       }
 
-      // 3. Supabase Storage へアップロード
-      const fileExt = file.name.split('.').pop();
+      // 4. Supabase Storage へアップロード
+      const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('videos')
-        .upload(filePath, file);
+        .upload(filePath, fileToUpload);
 
       if (uploadError) {
         throw new Error(t('post.uploadError') || 'Upload failed');
@@ -347,8 +369,21 @@ export default function Post() {
                   isSubmitting || !file || !agreedTerms ? 'bg-zinc-800 text-zinc-500' : 'bg-cyan-400 text-black hover:scale-[1.02] shadow-[0_0_20px_rgba(34,211,238,0.4)]'
                 }`}
               >
-                {isSubmitting ? (
-                  <><Loader2 className="w-6 h-6 animate-spin" /> ...</>
+                {isSubmitting || isProcessing ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                      <span>{isProcessing ? `Processing Video (${Math.round(processingProgress)}%)` : 'Uploading...'}</span>
+                    </div>
+                    {isProcessing && (
+                      <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-cyan-400 transition-all duration-300" 
+                          style={{ width: `${processingProgress}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   t('post.uploadBtn')
                 )}

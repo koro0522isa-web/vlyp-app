@@ -5,6 +5,7 @@ import { PostHogProvider } from 'posthog-js/react'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ToastProvider } from './contexts/ToastContext'
+import { PlayerProvider } from './contexts/PlayerContext'
 
 if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
@@ -20,7 +21,9 @@ export function PHProvider({ children }: { children: React.ReactNode }) {
       <ThemeProvider>
         <ToastProvider>
           <PostHogProvider client={posthog}>
-            {children}
+            <PlayerProvider>
+              {children}
+            </PlayerProvider>
           </PostHogProvider>
         </ToastProvider>
       </ThemeProvider>

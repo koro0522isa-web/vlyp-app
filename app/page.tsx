@@ -129,7 +129,10 @@ export default function Home() {
           if (aiClips && aiClips.length > 0) {
             finalClips = aiClips.map((c: any) => ({
               ...c,
-              profiles: { display_name: c.profile_display_name || 'Player' }
+              profiles: { 
+                display_name: c.profile_display_name || 'Player',
+                is_pro: c.is_pro || false
+              }
             }));
           }
         }
@@ -149,7 +152,8 @@ export default function Home() {
             ...clip,
             profiles: {
               display_name: clip.profile_display_name || clip.user_name || 'Player',
-              username: clip.profile_username
+              username: clip.profile_username,
+              is_pro: clip.is_pro || false
             }
           }));
           const existingIds = new Set(finalClips.map((c: any) => c.id));

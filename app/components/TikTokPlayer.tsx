@@ -4,8 +4,9 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, MessageCircle, Share2, Gift, Gamepad2, Check, UserPlus, Volume2, VolumeX, Play, Pause } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Gift, Gamepad2, Check, UserPlus, Volume2, VolumeX, Play, Pause, Crown } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { usePlayer } from '../contexts/PlayerContext';
 
 interface TikTokPlayerProps {
   clip: any;
@@ -38,7 +39,7 @@ export default function TikTokPlayer({
   const [showHeart, setShowHeart] = useState(false);
   const [heartPos, setHeartPos] = useState({ x: 0, y: 0 });
   const [isPaused, setIsPaused] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const { isMuted, setIsMuted } = usePlayer();
   const [progress, setProgress] = useState(0);
   const [showControls, setShowControls] = useState(false);
   const controlsTimeout = useRef<NodeJS.Timeout>(undefined);
@@ -104,10 +105,8 @@ export default function TikTokPlayer({
   }, []);
 
   const toggleMute = useCallback(() => {
-    if (!videoRef.current) return;
-    videoRef.current.muted = !videoRef.current.muted;
     setIsMuted(!isMuted);
-  }, [isMuted]);
+  }, [isMuted, setIsMuted]);
 
   return (
     <div 
@@ -123,6 +122,8 @@ export default function TikTokPlayer({
         loop
         playsInline
         muted={isMuted}
+        preload="auto"
+        crossOrigin="anonymous"
       />
 
       {/* Pause/Play indicator */}
@@ -233,6 +234,12 @@ export default function TikTokPlayer({
       <div className="absolute bottom-10 left-6 right-20 pointer-events-none z-20">
         <div className="flex items-center gap-2 mb-4">
           <span className="text-lg font-black text-white italic drop-shadow-lg">@{clip.profiles?.display_name || "Player"}</span>
+          {clip.profiles?.is_pro && (
+            <div className="flex items-center gap-1 bg-gradient-to-r from-purple-600 to-pink-600 px-2 py-0.5 rounded-md shadow-[0_0_10px_rgba(236,72,153,0.5)]">
+              <Crown className="w-3 h-3 text-white fill-white" />
+              <span className="text-[8px] font-black text-white uppercase tracking-tighter">PRO</span>
+            </div>
+          )}
           {clip.game_title && (
             <div className="flex items-center gap-1 bg-blue-600/30 backdrop-blur-md px-3 py-1 rounded-full border border-blue-400/30">
               <Gamepad2 className="w-3 h-3 text-blue-300" />
