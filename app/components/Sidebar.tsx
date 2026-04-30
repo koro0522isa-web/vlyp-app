@@ -85,7 +85,7 @@ export default function Sidebar() {
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 animate-rainbow" />
       )}
       
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes rainbow {
           0% { background-position: 0% 50%; }
           100% { background-position: 100% 50%; }
@@ -111,7 +111,7 @@ export default function Sidebar() {
         @keyframes rotate {
           100% { transform: rotate(360deg); }
         }
-      `}</style>
+      `}} />
 
       <div className="p-6 lg:p-8">
         <Link href="/">

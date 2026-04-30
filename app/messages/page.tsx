@@ -280,14 +280,20 @@ function MessagesContent() {
   };
 
   const formatTime = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const isToday = d.toDateString() === now.toDateString();
-    if (isToday) {
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '';
+      const now = new Date();
+      const isToday = d.toDateString() === now.toDateString();
+      if (isToday) {
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + 
+             d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
     }
-    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + 
-           d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   if (isLoading) {
@@ -327,8 +333,12 @@ function MessagesContent() {
                     selectedPartner?.id === partner.id ? 'bg-blue-500/10 border-l-2 border-l-blue-500' : ''
                   }`}
                 >
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-900 flex items-center justify-center text-sm font-black border border-blue-500/30 flex-shrink-0">
-                    {partner.display_name?.charAt(0)?.toUpperCase() || '?'}
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-900 flex items-center justify-center text-sm font-black border border-blue-500/30 flex-shrink-0 overflow-hidden">
+                    {partner.avatar_url ? (
+                      <img src={partner.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      partner.display_name?.charAt(0)?.toUpperCase() || '?'
+                    )}
                   </div>
                   <div className="min-w-0 text-left flex-1">
                     <p className="text-sm font-black truncate">{partner.display_name || 'Player'}</p>
@@ -339,7 +349,7 @@ function MessagesContent() {
                     )}
                   </div>
                   {partner.last_message_at && (
-                    <span className="text-[8px] text-zinc-700 font-bold flex-shrink-0">
+                    <span className="text-[8px] text-zinc-700 font-bold flex-shrink-0" suppressHydrationWarning>
                       {formatTime(partner.last_message_at)}
                     </span>
                   )}
@@ -359,8 +369,12 @@ function MessagesContent() {
                   <ArrowLeft className="w-5 h-5" />
                 </button>
                 <Link href={`/profile/${selectedPartner.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-blue-900 flex items-center justify-center text-sm font-black border border-blue-500/30">
-                    {selectedPartner.display_name?.charAt(0)?.toUpperCase() || '?'}
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-blue-900 flex items-center justify-center text-sm font-black border border-blue-500/30 overflow-hidden">
+                    {selectedPartner.avatar_url ? (
+                      <img src={selectedPartner.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      selectedPartner.display_name?.charAt(0)?.toUpperCase() || '?'
+                    )}
                   </div>
                   <div>
                     <p className="text-sm font-black">{selectedPartner.display_name}</p>
@@ -394,7 +408,7 @@ function MessagesContent() {
                         }`}>
                           {msg.content}
                           <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-end' : ''}`}>
-                            <span className="text-[8px] opacity-50">
+                            <span className="text-[8px] opacity-50" suppressHydrationWarning>
                               {formatTime(msg.created_at)}
                             </span>
                             {isMine && !isTemp && <CheckCheck className={`w-3 h-3 ${msg.is_read ? 'text-cyan-300' : 'opacity-50'}`} />}
