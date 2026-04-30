@@ -93,14 +93,22 @@ export default function Post() {
       // 4. AIによるタイトルベクトルの生成 (推奨エンジン用)
       const embedding = await generateEmbedding(`${title} ${gameTitle}`);
 
-      // 5. クリップデータの保存
+      // 5. Fetch display name from profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('display_name, username')
+        .eq('id', user.id)
+        .maybeSingle();
+      const displayName = profileData?.display_name || profileData?.username || user.email?.split('@')[0] || 'Player';
+
+      // 6. クリップデータの保存
       const { data: clipData, error: insertError } = await supabase.from('clips').insert({
         title,
         url: null, 
         video_url: publicUrl,
         game_title: gameTitle,
         user_id: user.id,
-        user_name: user.email?.split('@')[0],
+        user_name: displayName,
         views: 0,
         likes: 0,
         embedding: embedding

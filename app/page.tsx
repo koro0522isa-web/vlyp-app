@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import Link from 'next/link';
 import Sidebar from './components/Sidebar';
@@ -98,7 +98,9 @@ export default function Home() {
       await fetchClips(0, currentUser?.id);
       
       if (currentUser) {
-        const { data: m } = await supabase.from('daily_user_missions').select('*').eq('user_id', currentUser.id).eq('target_date', new Date().toISOString().split('T')[0]).maybeSingle();
+        // Use JST date for daily missions
+        const jstDate = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const { data: m } = await supabase.from('daily_user_missions').select('*').eq('user_id', currentUser.id).eq('target_date', jstDate).maybeSingle();
         if (m) {
           setDailyViews(m.views_count);
           setIsRewarded(m.is_rewarded);
@@ -180,6 +182,7 @@ export default function Home() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchInitialData(); }, [feedMode]);
 
   useEffect(() => {
@@ -245,7 +248,7 @@ export default function Home() {
   };
 
   const handleLike = async (clipId: number, clipOwnerId: string) => {
-    if (!user) return alert("ログインが必要です");
+    if (!user) return alert(t('auth.loginRequired') || 'Please log in');
     const isLiked = userLikes.includes(clipId);
     if (!isLiked) {
       setLikeAnimation(clipId);
@@ -301,15 +304,15 @@ export default function Home() {
   };
 
   const handleReport = async (clipId: number) => {
-    if (!user) return alert("ログインが必要です");
-    const reason = window.prompt("通報理由を入力してください:");
+    if (!user) return alert(t('auth.loginRequired') || 'Please log in');
+    const reason = window.prompt(t('action.reportReason') || 'Enter the reason for this report:');
     if (!reason) return;
     await supabase.rpc('submit_report', { p_clip_id: clipId, p_reporter_id: user.id, p_reason: reason });
-    alert("通報を受け付けました。");
+    alert(t('action.reportSubmitted') || 'Report submitted.');
   };
 
   const handleFollow = async (targetId: string) => {
-    if (!user) return alert("ログインが必要です");
+    if (!user) return alert(t('auth.loginRequired') || 'Please log in');
     if (user.id === targetId) return;
     
     const isFollowing = followingIds.includes(targetId);
@@ -318,17 +321,16 @@ export default function Home() {
   };
 
   const handleGift = async (clip: any) => {
-    if (!user) return alert("ログインが必要です");
-    if (user.id === clip.user_id) return alert("自分の動画には投げ銭できません");
-    const amountStr = window.prompt("いくらVLYPコインを投げ銭しますか？");
+    if (!user) return alert(t('auth.loginRequired') || 'Please log in');
+    if (user.id === clip.user_id) return alert(t('gift.cantSelf') || 'Cannot gift your own clip');
+    const amountStr = window.prompt(t('gift.howMany') || 'How many VLYP coins to gift?');
     if (!amountStr) return;
     const amount = parseInt(amountStr);
-    if (isNaN(amount) || amount <= 0) return alert("無効な金額です");
+    if (isNaN(amount) || amount <= 0) return alert(t('gift.invalidAmount') || 'Invalid amount');
     const { data, error } = await supabase.rpc('send_gift', { p_sender: user.id, p_receiver: clip.user_id, p_clip_id: clip.id, p_amount: amount });
     if (error || !data) {
-      if (window.confirm("コインが不足しています。チャージ画面へ移動しますか？")) window.location.href = '/coins';
+      if (window.confirm(t('gift.insufficientCoins') || 'Insufficient coins. Go to coin shop?')) window.location.href = '/coins';
     } else {
-      // 派手な演出
       confetti({
         particleCount: 200,
         spread: 160,
@@ -336,7 +338,7 @@ export default function Home() {
         colors: ['#facc15', '#fde047', '#ffffff'],
         shapes: ['star'],
       });
-      alert(`${amount} コインを投げ銭しました！🎉`);
+      alert(`${amount} ${t('gift.sent') || 'coins gifted!'} 🎉`);
     }
   };
 
@@ -429,7 +431,6 @@ export default function Home() {
           })}
           {hasMore && !isLoading && <div ref={observerTarget} className="w-full h-32 flex items-center justify-center snap-start"><Loader2 className="animate-spin text-blue-500 w-8 h-8" /></div>}
         </div>
-        {hasMore && !isLoading && <div ref={observerTarget} className="w-full h-32 flex items-center justify-center snap-start"><Loader2 className="animate-spin text-blue-500 w-8 h-8" /></div>}
         {isLoading && <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-blue-500 w-10 h-10" /></div>}
       </main>
       <aside className="w-80 lg:w-96 border-l border-white/5 bg-[#09090B] p-10 hidden xl:flex flex-col flex-shrink-0">
@@ -441,18 +442,27 @@ export default function Home() {
               <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white">{t('mission.title')}</h2>
             </div>
             <p className="text-sm font-bold text-zinc-300 mb-4">{t('mission.goal')}</p>
-            <div className="relative h-2 w-full bg-white/5 rounded-full overflow-hidden mb-4">
+            <div className="relative h-3 w-full bg-white/5 rounded-full overflow-hidden mb-4">
               <div 
-                className="absolute inset-y-0 left-0 bg-blue-500 transition-all duration-1000" 
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-1000 rounded-full" 
                 style={{ width: `${Math.min(100, (dailyViews / 10) * 100)}%` }}
               />
+              {dailyViews > 0 && dailyViews < 10 && (
+                <div 
+                  className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg pulse-glow transition-all duration-1000"
+                  style={{ left: `calc(${Math.min(100, (dailyViews / 10) * 100)}% - 6px)` }}
+                />
+              )}
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-[10px] font-black text-zinc-500 uppercase">{dailyViews} / 10</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-zinc-500 uppercase">{dailyViews} / 10</span>
+                {dailyViews >= 3 && <span className="text-[10px] font-black text-orange-400 fire-text">🔥 {dailyViews} streak</span>}
+              </div>
               {dailyViews >= 10 && !isRewarded ? (
                 <button 
                   onClick={claimReward}
-                  className="bg-yellow-400 text-black px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter hover:scale-105 transition-all shadow-[0_0_15px_rgba(250,204,21,0.3)]"
+                  className="bg-yellow-400 text-black px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter hover:scale-105 transition-all shadow-[0_0_15px_rgba(250,204,21,0.3)] pulse-glow"
                 >
                   {t('mission.claim')}
                 </button>

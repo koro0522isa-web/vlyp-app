@@ -18,7 +18,7 @@ export default function Legal() {
 
   return (
     <div style={{
-      minHeight: '100-screen',
+      minHeight: '100vh',
       backgroundColor: 'black',
       color: 'white',
       padding: '40px',

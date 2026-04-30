@@ -128,7 +128,7 @@ export default function RevenueDashboard() {
               <div className="pt-6 border-t border-white/5 mt-6">
                 <div className="flex items-center justify-between text-xs font-bold text-zinc-500 uppercase tracking-widest">
                   <span>Platform Fee</span>
-                  <span className="text-white">30%</span>
+                  <span className="text-white">20%</span>
                 </div>
               </div>
             </div>

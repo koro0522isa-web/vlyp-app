@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, MessageCircle, Share2, Gift, Gamepad2, Check, UserPlus } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Gift, Gamepad2, Check, UserPlus, Volume2, VolumeX, Play, Pause } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface TikTokPlayerProps {
@@ -37,6 +37,11 @@ export default function TikTokPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [showHeart, setShowHeart] = useState(false);
   const [heartPos, setHeartPos] = useState({ x: 0, y: 0 });
+  const [isPaused, setIsPaused] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [showControls, setShowControls] = useState(false);
+  const controlsTimeout = useRef<NodeJS.Timeout>(undefined);
   const { t } = useLanguage();
 
   const isLiked = userLikes.includes(clip.id);
@@ -45,11 +50,28 @@ export default function TikTokPlayer({
     if (videoRef.current) {
       if (isActive) {
         videoRef.current.play().catch(() => {});
+        setIsPaused(false);
       } else {
         videoRef.current.pause();
         videoRef.current.currentTime = 0;
+        setProgress(0);
       }
     }
+  }, [isActive]);
+
+  // Real-time progress tracking synced to actual video duration
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isActive) return;
+
+    const updateProgress = () => {
+      if (video.duration > 0) {
+        setProgress((video.currentTime / video.duration) * 100);
+      }
+    };
+
+    video.addEventListener('timeupdate', updateProgress);
+    return () => video.removeEventListener('timeupdate', updateProgress);
   }, [isActive]);
 
   const handleDoubleClick = (e: React.MouseEvent) => {
@@ -66,10 +88,32 @@ export default function TikTokPlayer({
     }
   };
 
+  const togglePause = useCallback(() => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play().catch(() => {});
+      setIsPaused(false);
+    } else {
+      videoRef.current.pause();
+      setIsPaused(true);
+    }
+    // Show controls briefly
+    setShowControls(true);
+    if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
+    controlsTimeout.current = setTimeout(() => setShowControls(false), 1500);
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    if (!videoRef.current) return;
+    videoRef.current.muted = !videoRef.current.muted;
+    setIsMuted(!isMuted);
+  }, [isMuted]);
+
   return (
     <div 
       className="relative h-full w-full bg-black flex items-center justify-center overflow-hidden"
       onDoubleClick={handleDoubleClick}
+      onClick={togglePause}
     >
       {/* ビデオ本体 */}
       <video
@@ -78,7 +122,25 @@ export default function TikTokPlayer({
         className="h-full w-full object-contain pointer-events-none"
         loop
         playsInline
+        muted={isMuted}
       />
+
+      {/* Pause/Play indicator */}
+      <AnimatePresence>
+        {showControls && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 flex items-center justify-center pointer-events-none z-40"
+          >
+            <div className="w-20 h-20 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center">
+              {isPaused ? <Play className="w-10 h-10 text-white ml-1" /> : <Pause className="w-10 h-10 text-white" />}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ダブルタップ・ハート演出 */}
       <AnimatePresence>
@@ -98,8 +160,16 @@ export default function TikTokPlayer({
       {/* グラデーションオーバーレイ */}
       <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
+      {/* Mute button */}
+      <button 
+        onClick={(e) => { e.stopPropagation(); toggleMute(); }}
+        className="absolute top-20 right-4 z-30 p-2.5 bg-black/30 backdrop-blur-md rounded-full border border-white/10 hover:bg-white/10 transition-all"
+      >
+        {isMuted ? <VolumeX className="w-4 h-4 text-white/70" /> : <Volume2 className="w-4 h-4 text-white/70" />}
+      </button>
+
       {/* 右側アクションバー (TikTok風) */}
-      <div className="absolute right-4 bottom-24 flex flex-col items-center gap-6 z-20">
+      <div className="absolute right-4 bottom-24 flex flex-col items-center gap-6 z-20" onClick={(e) => e.stopPropagation()}>
         {/* プロフィール画像 & フォローボタン */}
         <div className="relative mb-2">
           <Link href={`/profile/${clip.user_id}`} className="w-12 h-12 rounded-full border-2 border-white overflow-hidden bg-zinc-800 block relative">
@@ -129,7 +199,7 @@ export default function TikTokPlayer({
         {/* いいね */}
         <button onClick={() => onLike(clip.id, clip.user_id)} className="flex flex-col items-center group">
           <motion.div whileTap={{ scale: 0.7 }} className="p-2">
-            <Heart className={`w-8 h-8 transition-colors ${isLiked ? 'fill-pink-500 text-pink-500' : 'text-white'}`} />
+            <Heart className={`w-8 h-8 transition-all ${isLiked ? 'fill-pink-500 text-pink-500 drop-shadow-[0_0_8px_rgba(236,72,153,0.5)]' : 'text-white'}`} />
           </motion.div>
           <span className="text-xs font-bold text-white shadow-sm">{clip.likes || 0}</span>
         </button>
@@ -145,14 +215,17 @@ export default function TikTokPlayer({
           <div className={`p-2 rounded-full transition-all ${isCopied ? 'bg-green-500' : ''}`}>
             {isCopied ? <Check className="w-8 h-8 text-white" /> : <Share2 className="w-8 h-8 text-white" />}
           </div>
-          <span className="text-xs font-bold text-white shadow-sm">Share</span>
+          <span className="text-xs font-bold text-white shadow-sm">{isCopied ? 'Copied!' : 'Share'}</span>
         </button>
 
         {/* ギフト */}
         <button onClick={() => onGift(clip)} className="flex flex-col items-center">
-          <div className="p-2 bg-yellow-400/20 rounded-full border border-yellow-400/30">
+          <motion.div 
+            whileTap={{ scale: 0.8, rotate: -10 }}
+            className="p-2 bg-yellow-400/20 rounded-full border border-yellow-400/30"
+          >
             <Gift className="w-8 h-8 text-yellow-400" />
-          </div>
+          </motion.div>
           <span className="text-xs font-bold text-yellow-400 shadow-sm uppercase">Gift</span>
         </button>
       </div>
@@ -173,16 +246,13 @@ export default function TikTokPlayer({
         </h2>
       </div>
 
-      {/* 再生プログレスバー */}
-      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/10 z-30">
-        {isActive && (
-          <motion.div 
-            initial={{ width: 0 }}
-            animate={{ width: "100%" }}
-            transition={{ duration: 15, ease: "linear", repeat: Infinity }}
-            className="h-full bg-white/60"
-          />
-        )}
+      {/* Real video progress bar — synced to actual playback */}
+      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/10 z-30">
+        <motion.div 
+          className="h-full bg-white/80"
+          style={{ width: `${progress}%` }}
+          transition={{ duration: 0.1, ease: 'linear' }}
+        />
       </div>
     </div>
   );

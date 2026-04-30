@@ -97,8 +97,10 @@ export default function SearchPage() {
       .limit(50);
 
     if (searchQuery.trim()) {
+      // Sanitize input: escape special SQL pattern characters
+      const sanitized = searchQuery.replace(/[%_\\]/g, '\\$&');
       queryBuilder = queryBuilder.or(
-        `title.ilike.%${searchQuery}%,game_title.ilike.%${searchQuery}%`
+        `title.ilike.%${sanitized}%,game_title.ilike.%${sanitized}%`
       );
     }
 

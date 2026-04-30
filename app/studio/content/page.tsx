@@ -61,11 +61,16 @@ export default function ContentManagerPage() {
       
       if (dbError) throw dbError;
 
-      // 2. ストレージからもファイルを削除（URLからファイル名を抽出）
+      // 2. ストレージからもファイルを削除（URLからユーザーID/ファイル名を抽出）
       if (clip.video_url && clip.video_url.includes('storage')) {
-        const filePath = clip.video_url.split('/').pop();
-        if (filePath) {
-          await supabase.storage.from('videos').remove([filePath]);
+        try {
+          const url = new URL(clip.video_url);
+          const pathParts = url.pathname.split('/object/public/videos/');
+          if (pathParts[1]) {
+            await supabase.storage.from('videos').remove([decodeURIComponent(pathParts[1])]);
+          }
+        } catch (e) {
+          console.error('Storage delete path error:', e);
         }
       }
 

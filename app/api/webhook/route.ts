@@ -47,13 +47,25 @@ export async function POST(req: Request) {
       });
 
       if (error) {
-        // RPCがない場合のフォールバック
-        const { error: updateError } = await supabaseAdmin
+        // RPCがない場合のフォールバック: 現在の残高を取得して加算
+        const { data: wallet } = await supabaseAdmin
           .from('wallets')
-          .update({ coins: coins }) // ※注意: 本来は現在の値 + coins にすべき
-          .eq('user_id', userId);
+          .select('coins')
+          .eq('user_id', userId)
+          .maybeSingle();
         
-        if (updateError) console.error('Error updating wallet:', updateError);
+        if (wallet) {
+          const { error: updateError } = await supabaseAdmin
+            .from('wallets')
+            .update({ coins: (wallet.coins || 0) + coins })
+            .eq('user_id', userId);
+          if (updateError) console.error('Error updating wallet:', updateError);
+        } else {
+          const { error: insertError } = await supabaseAdmin
+            .from('wallets')
+            .insert({ user_id: userId, coins: coins });
+          if (insertError) console.error('Error creating wallet:', insertError);
+        }
       }
     }
   }

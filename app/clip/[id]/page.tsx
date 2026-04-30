@@ -9,14 +9,14 @@ const supabase = createClient(
 );
 
 type Props = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 };
 
 export async function generateMetadata(
   { params }: Props,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const id = params.id;
+  const { id } = await params;
   
   // Fetch clip data
   const { data: clip } = await supabase
@@ -34,7 +34,7 @@ export async function generateMetadata(
   const title = `${clip.title} by @${clip.profiles?.display_name || 'Player'}`;
   const description = `Watch this amazing ${clip.game_title || 'gaming'} play on VLYP!`;
   
-  let imageUrl = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop'; // Default gaming fallback
+  let imageUrl = '/ogp.png'; // Use our own OGP image as fallback
 
   // Extract YouTube ID if legacy YouTube clip
   const ytMatch = (clip.url || clip.video_url)?.match(/(?:v=|\/embed\/|\.be\/)([^&?/]{11})/);
@@ -62,6 +62,7 @@ export async function generateMetadata(
 }
 
 export default async function ClipPage({ params }: Props) {
+  const { id } = await params;
   // ユーザーがブラウザで開いた場合は、メイン画面（フィード）の該当クリップへリダイレクト
-  redirect(`/?clip=${params.id}`);
+  redirect(`/?clip=${id}`);
 }

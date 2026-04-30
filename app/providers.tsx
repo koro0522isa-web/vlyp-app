@@ -4,10 +4,11 @@ import posthog from 'posthog-js'
 import { PostHogProvider } from 'posthog-js/react'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { ToastProvider } from './contexts/ToastContext'
 
-if (typeof window !== 'undefined') {
-  posthog.init('phc_w4po5HD969ykNzmEWvmseujmfPVYZLRipK6MYG4iaJFM', {
-    api_host: 'https://us.i.posthog.com',
+if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+  posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
+    api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
     person_profiles: 'identified_only',
     capture_pageview: false // Next.jsのルーターで制御するため
   })
@@ -17,9 +18,11 @@ export function PHProvider({ children }: { children: React.ReactNode }) {
   return (
     <LanguageProvider>
       <ThemeProvider>
-        <PostHogProvider client={posthog}>
-          {children}
-        </PostHogProvider>
+        <ToastProvider>
+          <PostHogProvider client={posthog}>
+            {children}
+          </PostHogProvider>
+        </ToastProvider>
       </ThemeProvider>
     </LanguageProvider>
   )

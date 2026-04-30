@@ -24,7 +24,7 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-// SEO & PWA メタデータ
+// Apple Web App設定はmetadataのotherフィールドで管理
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
@@ -66,6 +66,10 @@ export const metadata: Metadata = {
     description: "Share your epic gaming moments on VLYP.",
     images: ["/ogp.png"],
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+  },
 };
 
 export default function RootLayout({
@@ -93,8 +97,6 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <head>
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
