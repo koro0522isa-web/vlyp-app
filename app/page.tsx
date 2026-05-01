@@ -8,6 +8,7 @@ import BottomNav from './components/BottomNav';
 import { MessageCircle, Heart, Share2, Play, Flame, Trophy, Check, Loader2, Search, X, Link as LinkIcon, Lock, MapPin, ExternalLink, Calendar, Plus, Crown, Star, ChevronLeft, ChevronRight, Video, Send, Gamepad2, AlertTriangle, Gift } from 'lucide-react';
 import AdSlot from './components/AdSlot';
 import { useLanguage } from './contexts/LanguageContext';
+import { useToast } from './contexts/ToastContext';
 import { useSearchParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
 import { motion } from 'framer-motion';
@@ -44,6 +45,7 @@ function HomeContent() {
   const [commentClipOwnerId, setCommentClipOwnerId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<any>(null); // { id: number, vlyp_id: string }
   const { t } = useLanguage();
+  const { toast } = useToast();
 
   const [likeAnimation, setLikeAnimation] = useState<number | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
@@ -305,7 +307,7 @@ function HomeContent() {
         // エラー時にロールバック
         setUserLikes(previousUserLikes);
         setClips(previousClips);
-        console.error('Failed to save like. Please try again.');
+        toast('Failed to save like. Please try again.', 'error');
         return;
       }
       
@@ -314,13 +316,13 @@ function HomeContent() {
         updateUserPreference(clipId);
       }
       
-        console.log(isLiked ? 'Removed from likes' : 'Added to likes');
+        toast(isLiked ? t('common.removedFromLikes') || 'Removed from likes' : t('common.addedToLikes') || 'Added to likes', 'success');
     } catch (err) {
       console.error('Unexpected error in handleLike:', err);
       // 予期しないエラー時にロールバック
       setUserLikes(previousUserLikes);
       setClips(previousClips);
-      toast?.error(t('common.error') || 'An error occurred. Please try again.');
+      toast(t('common.error') || 'An error occurred. Please try again.', 'error');
     }
   };
 
