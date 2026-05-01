@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       }
 
       // ゲームキーワードマッチング
-      gameKeywords.forEach(keyword => {
+      gameKeywords.forEach((keyword: string) => {
         if (bgm.tags?.includes(keyword)) {
           score += 20;
         }
