@@ -190,20 +190,23 @@ function MessagesContent() {
 
   const fetchMessages = async (userId: string, partnerId: string) => {
     try {
+      // Fetch messages where user is sender OR receiver
       const { data, error } = await supabase
         .from('messages')
         .select('*')
         .or(`and(sender_id.eq.${userId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${userId})`)
-        .order('created_at', { ascending: true })
-        .limit(200);
+        .order('created_at', { ascending: true });
 
       if (error) {
         console.error('Error fetching messages:', error);
+        setMessages([]);
         return;
       }
       
       if (data) {
-        setMessages(data);
+        setMessages(data.slice(-200)); // Keep only last 200 messages
+      } else {
+        setMessages([]);
       }
 
       const { error: updateError } = await supabase
