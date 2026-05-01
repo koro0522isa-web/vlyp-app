@@ -53,6 +53,8 @@ function PostContent() {
   const [selectedGenre, setSelectedGenre] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<VideoFilter>('none');
   const [startTime, setStartTime] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+  const [hashtags, setHashtags] = useState<string[]>([]);
   const [bgmStartTime, setBgmStartTime] = useState(0);
   const [bgmDuration, setBgmDuration] = useState(0);
   
@@ -135,6 +137,7 @@ function PostContent() {
           narrationUrl,
           filter: selectedFilter,
           startTime,
+          playbackSpeed,
           bgmStartTime,
           bgmDuration: bgmDuration > 0 ? bgmDuration : undefined,
           volumeBgm: 0.4,
@@ -162,7 +165,8 @@ function PostContent() {
         video_url: publicUrl,
         game_title: gameTitle,
         user_id: user.id,
-        embedding: embedding
+        embedding: embedding,
+        tags: hashtags
       });
 
       if (insertError) throw insertError;
@@ -343,14 +347,7 @@ function PostContent() {
                 {!isPro && <Lock className="w-4 h-4 text-zinc-700" />}
               </div>
 
-              {!isPro ? (
-                <div className="text-center py-6">
-                  <p className="text-xs text-zinc-500 font-bold mb-6">Unlock AI Auto-Editor, Custom Filters, and BGM Injection with VLYP PRO.</p>
-                  <button onClick={handleProUpgrade} className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-purple-600/20 hover:scale-105 transition-transform">
-                    Upgrade to Pro — $9.99/mo
-                  </button>
-                </div>
-              ) : (
+              {isPro ? (
                 <div className="space-y-8">
                   {/* BGM Genre Selection */}
                   <div className="space-y-3">
@@ -386,15 +383,6 @@ function PostContent() {
                             onChange={(e) => setBgmStartTime(Number(e.target.value))}
                           />
                         </div>
-                        <div className="flex items-center justify-between">
-                          <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em]">BGM Duration (0 = Full)</label>
-                          <input 
-                            type="number" 
-                            className="bg-white/5 border border-white/10 rounded-lg w-16 p-2 text-xs font-bold text-center"
-                            value={bgmDuration}
-                            onChange={(e) => setBgmDuration(Number(e.target.value))}
-                          />
-                        </div>
                       </motion.div>
                     )}
                   </div>
@@ -419,35 +407,83 @@ function PostContent() {
                     </div>
                   </div>
 
+                  {/* Trimming & Speed */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                        <Scissors className="w-3 h-3" /> Quick Trim
+                      </label>
+                      <div className="bg-white/5 p-4 rounded-2xl flex items-center justify-between">
+                        <span className="text-[9px] font-black text-zinc-500 uppercase">Start (s)</span>
+                        <input 
+                          type="number"
+                          className="w-12 bg-transparent text-center font-black outline-none"
+                          value={startTime}
+                          onChange={(e) => setStartTime(Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                        <Zap className="w-3 h-3" /> Playback Speed
+                      </label>
+                      <select 
+                        className="w-full bg-white/5 p-4 rounded-2xl font-black text-[10px] outline-none"
+                        value={playbackSpeed}
+                        onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
+                      >
+                        <option value="0.5" className="bg-[#09090B]">0.5x</option>
+                        <option value="1.0" className="bg-[#09090B]">1.0x</option>
+                        <option value="1.5" className="bg-[#09090B]">1.5x</option>
+                        <option value="2.0" className="bg-[#09090B]">2.0x</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* AI Smart Tags */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                        <Sparkles className="w-3 h-3" /> AI Smart Tags
+                      </label>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const tags = ['gaming', gameTitle.toLowerCase(), 'epic', 'clutch', 'pro'];
+                          if (title.length > 5) tags.push(title.split(' ')[0].toLowerCase());
+                          setHashtags([...new Set(tags)]);
+                        }}
+                        className="text-[8px] font-black text-zinc-500 hover:text-white uppercase tracking-widest transition-colors"
+                      >
+                        Auto Generate
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {hashtags.map(t => (
+                        <span key={t} className="px-3 py-1 bg-white/5 border border-white/5 rounded-full text-[9px] font-bold text-zinc-400">#{t}</span>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* AI Voiceover */}
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
                       <Mic className="w-3 h-3" /> AI Narration
                     </label>
                     <textarea 
-                      className="w-full bg-white/5 border border-white/5 p-4 rounded-2xl focus:border-purple-500 outline-none text-xs text-zinc-300 min-h-[80px]"
-                      placeholder="Add a text for the AI to speak..."
+                      className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl focus:border-purple-500 outline-none text-xs text-zinc-300 min-h-[80px]"
+                      placeholder="Enter text for AI voiceover..."
                       value={voiceoverText}
                       onChange={(e) => setVoiceoverText(e.target.value)}
                     />
                   </div>
-
-                  {/* Trimming (Simple) */}
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
-                      <Scissors className="w-3 h-3" /> Quick Trim
-                    </label>
-                    <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl">
-                      <span className="text-[10px] font-black text-zinc-500 uppercase">Start (sec)</span>
-                      <input 
-                        type="number"
-                        min="0"
-                        className="w-20 bg-transparent border-b border-white/10 text-center font-black outline-none"
-                        value={startTime}
-                        onChange={(e) => setStartTime(Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-xs text-zinc-500 font-bold mb-6">Unlock AI Auto-Editor, Custom Filters, and BGM Injection with VLYP PRO.</p>
+                  <button onClick={handleProUpgrade} className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-purple-600/20 hover:scale-105 transition-transform">
+                    Upgrade to Pro — $9.99/mo
+                  </button>
                 </div>
               )}
             </div>

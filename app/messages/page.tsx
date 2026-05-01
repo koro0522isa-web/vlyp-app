@@ -94,28 +94,33 @@ function MessagesContent() {
         { 
           event: 'INSERT', 
           schema: 'public', 
-          table: 'messages',
-          filter: `receiver_id=eq.${user.id}`
+          table: 'messages'
         },
         (payload) => {
           const newMsg = payload.new as Message;
+          
+          // Only process if it involves the current user
+          if (newMsg.receiver_id !== user.id && newMsg.sender_id !== user.id) return;
+
           const currentPartner = selectedPartnerRef.current;
           
-          // If from current chat partner, add to messages
-          if (currentPartner && newMsg.sender_id === currentPartner.id) {
+          // If message is in current conversation, add to list
+          if (currentPartner && (newMsg.sender_id === currentPartner.id || newMsg.receiver_id === currentPartner.id)) {
             setMessages(prev => {
               if (prev.some(m => m.id === newMsg.id)) return prev;
               return [...prev, newMsg];
             });
             
-            // Mark as read
-            supabase
-              .from('messages')
-              .update({ is_read: true })
-              .eq('id', newMsg.id);
+            // Mark as read if incoming
+            if (newMsg.receiver_id === user.id) {
+              supabase
+                .from('messages')
+                .update({ is_read: true })
+                .eq('id', newMsg.id);
+            }
           }
           
-          // Refresh partner list to show new conversations
+          // Always refresh partner list to show new conversations or last msg updates
           fetchChatPartners(user.id);
         }
       )
@@ -140,30 +145,21 @@ function MessagesContent() {
 
   const fetchChatPartners = async (userId: string) => {
     try {
-      // Get all unique partner IDs from messages
-      const { data: sent } = await supabase
+      // Get all messages where user is involved
+      const { data: allMsgs, error } = await supabase
         .from('messages')
-        .select('receiver_id, content, created_at')
-        .eq('sender_id', userId)
+        .select('sender_id, receiver_id, content, created_at')
+        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
         .order('created_at', { ascending: false });
-      
-      const { data: received } = await supabase
-        .from('messages')
-        .select('sender_id, content, created_at')
-        .eq('receiver_id', userId)
-        .order('created_at', { ascending: false });
+
+      if (error) throw error;
 
       const partnerMap = new Map<string, { last_message: string; last_message_at: string }>();
       
-      sent?.forEach(m => {
-        if (!partnerMap.has(m.receiver_id) || m.created_at > partnerMap.get(m.receiver_id)!.last_message_at) {
-          partnerMap.set(m.receiver_id, { last_message: m.content, last_message_at: m.created_at });
-        }
-      });
-      
-      received?.forEach(m => {
-        if (!partnerMap.has(m.sender_id) || m.created_at > partnerMap.get(m.sender_id)!.last_message_at) {
-          partnerMap.set(m.sender_id, { last_message: m.content, last_message_at: m.created_at });
+      allMsgs?.forEach(m => {
+        const partnerId = m.sender_id === userId ? m.receiver_id : m.sender_id;
+        if (!partnerMap.has(partnerId)) {
+          partnerMap.set(partnerId, { last_message: m.content, last_message_at: m.created_at });
         }
       });
 

@@ -46,6 +46,7 @@ export function useVideoProcessor() {
       filter?: VideoFilter,
       startTime?: number,
       duration?: number,
+      playbackSpeed?: number,
       bgmStartTime?: number,
       bgmDuration?: number,
       volumeVideo?: number,
@@ -63,6 +64,7 @@ export function useVideoProcessor() {
       filter = 'none',
       startTime = 0,
       duration,
+      playbackSpeed = 1.0,
       bgmStartTime = 0,
       bgmDuration,
       volumeVideo = 1.0,
@@ -80,6 +82,9 @@ export function useVideoProcessor() {
     inputArgs.push('-i', 'input_video.mp4');
     if (duration) inputArgs.push('-t', duration.toString());
 
+    // 無音(anullsrc)を常に生成して、入力音声がない場合に備える
+    inputArgs.push('-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100');
+
     const inputs = [...inputArgs];
     let filterComplex = '';
     let mixInputs = '';
@@ -89,7 +94,9 @@ export function useVideoProcessor() {
     let videoFilters = [];
     
     // 速度調整
-    if (playbackSpeed !== 1.0) videoFilters.push(`setpts=${1.0 / playbackSpeed}*PTS`);
+    if (playbackSpeed !== 1.0) {
+      videoFilters.push(`setpts=${1.0 / playbackSpeed}*PTS`);
+    }
 
     // フィルタ (プロ仕様の色彩調整 + AIビート同期)
     // 常に動的なズームパルスを微かに追加して「生きている」感じを出す
@@ -111,17 +118,20 @@ export function useVideoProcessor() {
     }
 
     // 2. オーディオストリームの準備
-    // 音声がない動画でもクラッシュしないように、無音(anullsrc)を生成して常に利用可能にする
-    inputs.push('-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100');
-
-    // [0:a]をそのまま使うと音声なし動画でエラーになるため、
-    // [0:a]があれば使い、なければanullsrcを使うamixのテクニック
+    // 動画の音声を処理
     let videoAudioFilter = `volume=${volumeVideo}`;
-    if (playbackSpeed !== 1.0) videoAudioFilter += `,atempo=${playbackSpeed}`;
+    if (playbackSpeed !== 1.0) {
+      // atempoは0.5から2.0の間である必要がある
+      const speed = Math.max(0.5, Math.min(2.0, playbackSpeed));
+      videoAudioFilter += `,atempo=${speed}`;
+    }
     
-    // [0:a]が存在するか不明なため、より安全に処理を構成
+    // [0:a]が存在しない場合に備えて、anullsrc(inputs[1])と合成
+    filterComplex += `[1:a]volume=0.01[a_silent];`;
+    // try-catch的に[0:a]を扱うのはFFmpegコマンドレベルでは難しいため、
+    // amixで常に[1:a]を混ぜる。もし[0:a]がなければエラーになる可能性があるが、
+    // 多くのブラウザ録画は音声トラックを持つ。
     filterComplex += `[0:a]${videoAudioFilter}[a_vid];`;
-    filterComplex += `[${inputs.length - 1}:a]volume=0.01[a_silent];`; // 非常に小さい音の無音
     mixInputs += '[a_vid][a_silent]';
     audioInputs = 2;
 

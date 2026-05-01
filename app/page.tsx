@@ -77,7 +77,7 @@ function HomeContent() {
       if (currentUser) {
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
         setVlypId(profile?.display_name || profile?.username || profile?.vlyp_id || 'Player');
-        const { data: likes } = await supabase.from('likes').select('clip_id').eq('user_id', currentUser.id);
+        const { data: likes } = await supabase.from('clip_likes').select('clip_id').eq('user_id', currentUser.id);
         if (likes) setUserLikes(likes.map(l => l.clip_id));
 
         const { data: following } = await supabase
