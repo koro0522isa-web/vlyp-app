@@ -189,27 +189,36 @@ function MessagesContent() {
   };
 
   const fetchMessages = async (userId: string, partnerId: string) => {
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-      .or(`sender_id.eq.${partnerId},receiver_id.eq.${partnerId}`)
-      .order('created_at', { ascending: true })
-      .limit(200);
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`and(sender_id.eq.${userId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${userId})`)
+        .order('created_at', { ascending: true })
+        .limit(200);
 
-    if (error) {
-      console.error('Error fetching messages:', error);
-      return;
+      if (error) {
+        console.error('Error fetching messages:', error);
+        return;
+      }
+      
+      if (data) {
+        setMessages(data);
+      }
+
+      const { error: updateError } = await supabase
+        .from('messages')
+        .update({ is_read: true })
+        .eq('sender_id', partnerId)
+        .eq('receiver_id', userId)
+        .eq('is_read', false);
+      
+      if (updateError) {
+        console.error('Error marking messages as read:', updateError);
+      }
+    } catch (e) {
+      console.error('Unexpected error fetching messages:', e);
     }
-    if (data) setMessages(data);
-
-    // Mark received messages as read
-    await supabase
-      .from('messages')
-      .update({ is_read: true })
-      .eq('sender_id', partnerId)
-      .eq('receiver_id', userId)
-      .eq('is_read', false);
   };
 
   const sendMessage = async () => {

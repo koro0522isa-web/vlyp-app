@@ -275,18 +275,52 @@ function HomeContent() {
 
   const handleLike = async (clipId: number, clipOwnerId: string) => {
     if (!user) return alert(t('auth.loginRequired') || 'Please log in');
+    
     const isLiked = userLikes.includes(clipId);
+    
+    // Optimistic update - フロントエンド状態を即座に更新
     if (!isLiked) {
       setLikeAnimation(clipId);
       setTimeout(() => setLikeAnimation(null), 800);
     }
+    
+    // 状態を保存（ロールバック用）
+    const previousUserLikes = userLikes;
+    const previousClips = clips;
+    
+    // フロントエンド状態を更新
     setUserLikes(prev => isLiked ? prev.filter(id => id !== clipId) : [...prev, clipId]);
     setClips(prev => prev.map(c => c.id === clipId ? { ...c, likes: Math.max(0, (c.likes || 0) + (isLiked ? -1 : 1)) } : c));
-    await supabase.rpc('toggle_like', { p_user_id: user.id, p_clip_id: clipId, p_clip_owner_id: clipOwnerId });
     
-    // AI推奨エンジンの学習: 好みを更新
-    if (!isLiked) {
-      updateUserPreference(clipId);
+    try {
+      // Supabase RPC を呼び出し
+      const { data, error } = await supabase.rpc('toggle_like', { 
+        p_user_id: user.id, 
+        p_clip_id: clipId, 
+        p_clip_owner_id: clipOwnerId 
+      });
+      
+      if (error) {
+        console.error('Like toggle error:', error);
+        // エラー時にロールバック
+        setUserLikes(previousUserLikes);
+        setClips(previousClips);
+        toast?.error(t('common.error') || 'Failed to save like. Please try again.');
+        return;
+      }
+      
+      // AI推奨エンジンの学習: 好みを更新
+      if (!isLiked) {
+        updateUserPreference(clipId);
+      }
+      
+      toast?.success(isLiked ? t('common.removedFromLikes') || 'Removed from likes' : t('common.addedToLikes') || 'Added to likes');
+    } catch (err) {
+      console.error('Unexpected error in handleLike:', err);
+      // 予期しないエラー時にロールバック
+      setUserLikes(previousUserLikes);
+      setClips(previousClips);
+      toast?.error(t('common.error') || 'An error occurred. Please try again.');
     }
   };
 
