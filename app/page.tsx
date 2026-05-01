@@ -305,7 +305,7 @@ function HomeContent() {
         // エラー時にロールバック
         setUserLikes(previousUserLikes);
         setClips(previousClips);
-        toast?.error(t('common.error') || 'Failed to save like. Please try again.');
+        console.error('Failed to save like. Please try again.');
         return;
       }
       
@@ -314,7 +314,7 @@ function HomeContent() {
         updateUserPreference(clipId);
       }
       
-      toast?.success(isLiked ? t('common.removedFromLikes') || 'Removed from likes' : t('common.addedToLikes') || 'Added to likes');
+        console.log(isLiked ? 'Removed from likes' : 'Added to likes');
     } catch (err) {
       console.error('Unexpected error in handleLike:', err);
       // 予期しないエラー時にロールバック
