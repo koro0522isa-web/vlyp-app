@@ -11,7 +11,8 @@ import {
 } from 'lucide-react';
 
 export default function ProfilePage() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [clips, setClips] = useState<any[]>([]);
