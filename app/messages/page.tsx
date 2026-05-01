@@ -183,8 +183,12 @@ function MessagesContent() {
         
         setChatPartners(partnersWithLastMsg);
       }
-    } catch (e) {
-      console.error('Error fetching chat partners:', e);
+    } catch (error: any) {
+      console.error('Error fetching chat partners:', error);
+      setSendError('Failed to load chats. Please ensure you have run the latest SQL setup in Supabase.');
+      setIsLoading(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 

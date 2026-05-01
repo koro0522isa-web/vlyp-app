@@ -232,7 +232,14 @@ function HomeContent() {
           if (!viewedVideos.current.has(id)) {
             viewedVideos.current.add(id);
             // 通常の再生数カウント
-            supabase.rpc('increment_view_count', { p_clip_id: id, p_user_id: user?.id || null });
+            (async () => {
+              try {
+                const { error } = await supabase.rpc('increment_view_count', { p_clip_id: id, p_user_id: user?.id || null });
+                if (error) console.error('View count error:', error.message);
+              } catch (err) {
+                console.error('View count failed:', err);
+              }
+            })();
             // デイリーミッション用の視聴カウント
             if (user) {
               supabase.rpc('increment_daily_views').then(() => {
@@ -296,7 +303,7 @@ function HomeContent() {
     
     try {
       // Supabase RPC を呼び出し
-      const { data, error } = await supabase.rpc('toggle_like', { 
+      const { error } = await supabase.rpc('toggle_like', { 
         p_user_id: user.id, 
         p_clip_id: clipId, 
         p_clip_owner_id: clipOwnerId 
