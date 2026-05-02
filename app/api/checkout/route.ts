@@ -36,6 +36,14 @@ export async function POST(req: Request) {
           },
         ],
         mode: 'subscription',
+        // invoice.paid / subscription.deleted の Webhook で userId を取得するため Subscription に載せる
+        subscription_data: {
+          metadata: {
+            userId,
+            packId: 'pro',
+          },
+        },
+        client_reference_id: userId,
         success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/post?success=true`,
         cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/post?canceled=true`,
         metadata: {

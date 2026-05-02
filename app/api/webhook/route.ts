@@ -95,20 +95,26 @@ export async function POST(req: Request) {
   // ========================================
   if (event.type === 'invoice.paid') {
     const invoice = event.data.object as Stripe.Invoice;
-    const customerId = invoice.customer as string;
-
-    // Stripeの顧客メタデータからuserIdを取得
     try {
-      const customer = await stripe.customers.retrieve(customerId);
-      if (customer && !customer.deleted) {
-        const userId = (customer as Stripe.Customer).metadata?.userId;
-        if (userId) {
-          // 月間アップロード回数をリセット
-          await supabaseAdmin
-            .from('profiles')
-            .update({ monthly_uploads: 0 })
-            .eq('id', userId);
+      const subRef = invoice.subscription;
+      const subscriptionId = typeof subRef === 'string' ? subRef : subRef?.id;
+      let userId: string | undefined;
+
+      // Checkout で付けた subscription.metadata.userId を優先（Customer に metadata が無いケース対応）
+      if (subscriptionId) {
+        const sub = await stripe.subscriptions.retrieve(subscriptionId);
+        userId = sub.metadata?.userId;
+      }
+      if (!userId && invoice.customer) {
+        const customerId =
+          typeof invoice.customer === 'string' ? invoice.customer : invoice.customer.id;
+        const customer = await stripe.customers.retrieve(customerId);
+        if (customer && !customer.deleted) {
+          userId = (customer as Stripe.Customer).metadata?.userId;
         }
+      }
+      if (userId) {
+        await supabaseAdmin.from('profiles').update({ monthly_uploads: 0 }).eq('id', userId);
       }
     } catch (e) {
       console.error('Error processing invoice.paid:', e);
@@ -120,19 +126,21 @@ export async function POST(req: Request) {
   // ========================================
   if (event.type === 'customer.subscription.deleted') {
     const subscription = event.data.object as Stripe.Subscription;
-    const customerId = subscription.customer as string;
-
     try {
-      const customer = await stripe.customers.retrieve(customerId);
-      if (customer && !customer.deleted) {
-        const userId = (customer as Stripe.Customer).metadata?.userId;
-        if (userId) {
-          console.log(`Deactivating Pro for user ${userId}`);
-          await supabaseAdmin
-            .from('profiles')
-            .update({ is_pro: false })
-            .eq('id', userId);
+      let userId = subscription.metadata?.userId;
+      if (!userId && subscription.customer) {
+        const customerId =
+          typeof subscription.customer === 'string'
+            ? subscription.customer
+            : subscription.customer.id;
+        const customer = await stripe.customers.retrieve(customerId);
+        if (customer && !customer.deleted) {
+          userId = (customer as Stripe.Customer).metadata?.userId;
         }
+      }
+      if (userId) {
+        console.log(`Deactivating Pro for user ${userId}`);
+        await supabaseAdmin.from('profiles').update({ is_pro: false }).eq('id', userId);
       }
     } catch (e) {
       console.error('Error processing subscription deletion:', e);

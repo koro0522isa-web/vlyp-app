@@ -80,13 +80,23 @@ export default function BattlePage() {
     setVoteCounts({ a: aVotes, b: bVotes });
     setShowResult(true);
 
-    // いいねカウントを増やす
+    // 勝者クリップにログインユーザーのいいねを1件追加（未ログイン・既にいいね済みはスキップ）
     const winnerClip = winner === 'A' ? clipA : clipB;
-    if (winnerClip) {
-      await supabase.rpc('increment_view_count', { 
-        p_clip_id: winnerClip.id, 
-        p_user_id: user?.id || null 
-      });
+    if (winnerClip && user) {
+      const { data: liked } = await supabase
+        .from('clip_likes')
+        .select('clip_id')
+        .eq('user_id', user.id)
+        .eq('clip_id', winnerClip.id)
+        .maybeSingle();
+      if (!liked) {
+        const { error } = await supabase.rpc('toggle_like', {
+          p_user_id: user.id,
+          p_clip_id: winnerClip.id,
+          p_clip_owner_id: winnerClip.user_id,
+        });
+        if (error) console.error('Battle vote like error:', error);
+      }
     }
   };
 

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Sidebar from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
 import { Coins, ArrowLeft, Loader2, Sparkles } from 'lucide-react';
+import { PROFILE_REFRESH_EVENT } from '@/lib/dm-events';
 
 const COIN_PACKS = [
   { id: 'pack_100', amount: 100, price: 150, popular: false },
@@ -36,6 +37,27 @@ export default function CoinsPage() {
     };
     fetchBalance();
   }, []);
+
+  // コイン購入の Checkout 成功後、Sidebar / 本ページの残高を更新
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('success') === 'true') {
+      window.dispatchEvent(new CustomEvent(PROFILE_REFRESH_EVENT));
+    }
+  }, []);
+
+  useEffect(() => {
+    const refreshBalance = () => {
+      void (async () => {
+        if (!user?.id) return;
+        const { data } = await supabase.from('wallets').select('coins').eq('user_id', user.id).maybeSingle();
+        if (data) setBalance(data.coins);
+      })();
+    };
+    window.addEventListener(PROFILE_REFRESH_EVENT, refreshBalance);
+    return () => window.removeEventListener(PROFILE_REFRESH_EVENT, refreshBalance);
+  }, [user?.id]);
 
   const handlePurchase = async (packId: string) => {
     if (!user) return;

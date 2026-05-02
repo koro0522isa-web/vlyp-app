@@ -7,7 +7,8 @@ import {
   Lock, Mic, Music, Scissors, Wand2, Palette, Check, Zap
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { PROFILE_REFRESH_EVENT } from '@/lib/dm-events';
 import { generateEmbedding, generateVoiceover } from '../lib/ai';
 import { useVideoProcessor, VideoFilter } from '../hooks/useVideoProcessor';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -36,6 +37,7 @@ const FILTERS: { id: VideoFilter; label: string; color: string }[] = [
 function PostContent() {
   const { lang, t } = useLanguage();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [gameTitle, setGameTitle] = useState('VALORANT');
@@ -83,6 +85,32 @@ function PostContent() {
       if (data) setBgms(data);
     });
   }, []);
+
+  // Stripe Checkout 成功リダイレクト後に Pro 状態を Sidebar / 本ページで再取得
+  useEffect(() => {
+    if (searchParams.get('success') === 'true') {
+      window.dispatchEvent(new CustomEvent(PROFILE_REFRESH_EVENT));
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const refreshPro = () => {
+      void (async () => {
+        if (!user?.id) return;
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_pro, monthly_uploads')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (profile) {
+          setIsPro(profile.is_pro || false);
+          setMonthlyUploads(profile.monthly_uploads || 0);
+        }
+      })();
+    };
+    window.addEventListener(PROFILE_REFRESH_EVENT, refreshPro);
+    return () => window.removeEventListener(PROFILE_REFRESH_EVENT, refreshPro);
+  }, [user?.id]);
 
   const handleProUpgrade = async () => {
     if (!user) return;

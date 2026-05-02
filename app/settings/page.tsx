@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Sidebar from '@/app/components/Sidebar';
 import BottomNav from '@/app/components/BottomNav';
-import { Save, User, ArrowLeft, Loader2, LogOut, MessageSquare, Eye, Globe } from 'lucide-react';
+import { Save, User, ArrowLeft, Loader2, LogOut, MessageSquare, Eye, Globe, Crown, Check } from 'lucide-react';
 import { useLanguage } from "../contexts/LanguageContext";
 
 export default function SettingsPage() {
@@ -15,6 +15,7 @@ export default function SettingsPage() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [isPro, setIsPro] = useState(false);
   const [user, setUser] = useState<any>(null);
   const { lang, setLang, t } = useLanguage();
   const router = useRouter();
@@ -43,6 +44,7 @@ export default function SettingsPage() {
         setDisplayName(profile.display_name || "");
         setBio(profile.bio || "");
         setAvatarUrl(profile.avatar_url || "");
+        setIsPro(profile.is_pro || false);
       }
       setLoading(false);
     };
@@ -206,6 +208,60 @@ export default function SettingsPage() {
                   />
                   <p className="text-[9px] text-zinc-600 font-bold mt-1 text-right">{bio.length}/160</p>
                 </div>
+              </div>
+            </div>
+
+            {/* Pro Status & Benefits */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                <Crown className="w-5 h-5 text-purple-500" />
+                <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-300">VLYP Pro Status</h2>
+              </div>
+              
+              <div className={`p-6 rounded-3xl border ${isPro ? 'bg-gradient-to-br from-purple-600/20 to-pink-600/10 border-purple-500/30' : 'bg-white/5 border-white/10'}`}>
+                {isPro ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/40">
+                        <Check className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black uppercase tracking-widest text-white">Pro Plan Active</p>
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase">You are supporting the platform!</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-4">
+                      <div className="p-3 bg-black/40 rounded-xl border border-white/5">
+                        <p className="text-[8px] font-black text-purple-400 uppercase tracking-widest mb-1">AI Narration</p>
+                        <p className="text-[10px] font-bold text-zinc-300 uppercase">Unlimited</p>
+                      </div>
+                      <div className="p-3 bg-black/40 rounded-xl border border-white/5">
+                        <p className="text-[8px] font-black text-purple-400 uppercase tracking-widest mb-1">Upload Size</p>
+                        <p className="text-[10px] font-bold text-zinc-300 uppercase">Up to 500MB</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center space-y-4">
+                    <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest leading-relaxed">Upgrade to Pro to unlock AI tools,<br/>premium badges, and higher limits.</p>
+                    <button 
+                      onClick={async () => {
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (!session) return;
+                        const res = await fetch('/api/checkout', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ packId: 'pro', userId: session.user.id }),
+                        });
+                        const data = await res.json();
+                        if (data.url) window.location.href = data.url;
+                      }}
+                      className="w-full py-4 bg-white/10 hover:bg-white/20 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
+                    >
+                      View Pro Benefits
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

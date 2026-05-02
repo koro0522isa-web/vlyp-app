@@ -5,9 +5,12 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import Sidebar from '@/app/components/Sidebar';
 import BottomNav from '@/app/components/BottomNav';
-import { Bell, Heart, Gift, UserPlus, ArrowLeft, Loader2, Sparkles } from 'lucide-react';
+import { Bell, Heart, Gift, UserPlus, ArrowLeft, Loader2 } from 'lucide-react';
+import { useLanguage } from '@/app/contexts/LanguageContext';
+import { broadcastNotifUnread } from '@/lib/dm-events';
 
 export default function NotificationsPage() {
+  const { t } = useLanguage();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,6 +42,7 @@ export default function NotificationsPage() {
           .update({ is_read: true })
           .eq('user_id', session.user.id)
           .eq('is_read', false);
+        broadcastNotifUnread(0);
       }
       setLoading(false);
     };
@@ -62,7 +66,7 @@ export default function NotificationsPage() {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="text-3xl font-black italic tracking-tighter uppercase flex items-center gap-3">
-              <Bell className="w-6 h-6 text-blue-400" /> Notifications
+              <Bell className="w-6 h-6 text-blue-400" /> {t('nav.notifications')}
             </h1>
           </div>
 
@@ -70,8 +74,8 @@ export default function NotificationsPage() {
             {notifications.length === 0 ? (
               <div className="text-center py-20 bg-zinc-900/30 border border-dashed border-white/10 rounded-[2rem]">
                 <Bell className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-                <p className="text-zinc-500 font-black uppercase text-xs tracking-widest">No notifications yet</p>
-                <p className="text-zinc-600 text-[10px] font-bold mt-2">When someone likes or gifts your clips, it will show up here.</p>
+                <p className="text-zinc-500 font-black uppercase text-xs tracking-widest">{t('notif.empty')}</p>
+                <p className="text-zinc-600 text-[10px] font-bold mt-2">{t('notif.emptyHint')}</p>
               </div>
             ) : (
               notifications.map((notif) => (
@@ -101,9 +105,9 @@ export default function NotificationsPage() {
                         {notif.actor?.display_name || 'Player'}
                       </Link>
                       <span className="text-zinc-400 font-medium">
-                        {notif.type === 'like' && 'liked your clip.'}
-                        {notif.type === 'gift' && `sent you ${notif.amount} coins! 🎉`}
-                        {notif.type === 'follow' && 'started following you.'}
+                        {notif.type === 'like' && t('notif.likedClip')}
+                        {notif.type === 'gift' && t('notif.giftCoins').replace('{n}', String(notif.amount ?? 0))}
+                        {notif.type === 'follow' && t('notif.followedYou')}
                       </span>
                     </p>
                     <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mt-1">

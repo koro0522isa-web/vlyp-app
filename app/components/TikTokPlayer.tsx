@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, MessageCircle, Share2, Gift, Gamepad2, Check, UserPlus, Volume2, VolumeX, Play, Pause, Crown, Music } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Gift, Gamepad2, Check, UserPlus, Volume2, VolumeX, Play, Pause, Crown, Music, Bookmark } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePlayer } from '../contexts/PlayerContext';
 
@@ -13,6 +13,7 @@ interface TikTokPlayerProps {
   isActive: boolean;
   userLikes: number[];
   onLike: (id: number, ownerId: string) => void;
+  onSave: (id: number) => void;
   onComment: (id: number, ownerId: string) => void;
   onShare: (clip: any) => void;
   onGift: (clip: any) => void;
@@ -20,13 +21,16 @@ interface TikTokPlayerProps {
   renderTitle: (title: string) => any;
   isCopied: boolean;
   isFollowing: boolean;
+  userSaves: number[];
 }
 
 export default function TikTokPlayer({
   clip,
   isActive,
   userLikes,
+  userSaves,
   onLike,
+  onSave,
   onComment,
   onShare,
   onGift,
@@ -47,6 +51,7 @@ export default function TikTokPlayer({
   const { t } = useLanguage();
 
   const isLiked = userLikes.includes(clip.id);
+  const isSaved = userSaves.includes(clip.id);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -212,7 +217,7 @@ export default function TikTokPlayer({
       <div className="absolute right-4 bottom-24 flex flex-col items-center gap-6 z-20" onClick={(e) => e.stopPropagation()}>
         {/* プロフィール画像 & フォローボタン */}
         <div className="relative mb-2">
-          <Link href={`/profile/${clip.user_id}`} className="w-12 h-12 rounded-full border-2 border-white overflow-hidden bg-zinc-800 block relative flex-shrink-0">
+          <Link href={`/profile/${clip.user_id}`} className="w-12 h-12 rounded-full border-2 border-white overflow-hidden bg-zinc-800 block relative flex-shrink-0 shadow-lg">
             {clip.profiles?.avatar_url ? (
               <img 
                 src={clip.profiles.avatar_url} 
@@ -230,50 +235,102 @@ export default function TikTokPlayer({
           {!isFollowing && (
             <motion.button 
               whileTap={{ scale: 0.5 }}
-              onClick={() => onFollow(clip.user_id)}
-              className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-pink-500 rounded-full p-0.5 border-2 border-black hover:bg-pink-400 transition-colors"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onFollow(clip.user_id);
+              }}
+              className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-pink-500 rounded-full p-0.5 border-2 border-black hover:bg-pink-400 transition-colors shadow-lg"
             >
               <UserPlus className="w-3 h-3 text-white" />
             </motion.button>
           )}
           {isFollowing && (
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-white rounded-full p-0.5 border-2 border-black">
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-white rounded-full p-0.5 border-2 border-black shadow-lg">
               <Check className="w-3 h-3 text-black" />
             </div>
           )}
         </div>
 
-        {/* いいね */}
-        <button onClick={() => onLike(clip.id, clip.user_id)} className="flex flex-col items-center group">
+        {/* いいね — 親の onClick（再生トグル）へ伝播させない */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onLike(clip.id, clip.user_id);
+          }}
+          className="flex flex-col items-center group"
+        >
           <motion.div whileTap={{ scale: 0.7 }} className="p-2">
-            <Heart className={`w-8 h-8 transition-all ${isLiked ? 'fill-pink-500 text-pink-500 drop-shadow-[0_0_8px_rgba(236,72,153,0.5)]' : 'text-white'}`} />
+            <Heart className={`w-8 h-8 transition-all ${isLiked ? 'fill-pink-500 text-pink-500 drop-shadow-[0_0_12px_rgba(236,72,153,0.8)]' : 'text-white'}`} />
           </motion.div>
-          <span className="text-xs font-bold text-white shadow-sm">{clip.likes || 0}</span>
+          <span className="text-[10px] font-black text-white shadow-sm uppercase tracking-tighter">{clip.likes || 0}</span>
         </button>
 
         {/* コメント */}
-        <button onClick={() => onComment(clip.id, clip.user_id)} className="flex flex-col items-center">
-          <div className="p-2"><MessageCircle className="w-8 h-8 text-white" /></div>
-          <span className="text-xs font-bold text-white shadow-sm">Chat</span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onComment(clip.id, clip.user_id);
+          }}
+          className="flex flex-col items-center group"
+        >
+          <motion.div whileTap={{ scale: 0.8 }} className="p-2">
+            <MessageCircle className="w-8 h-8 text-white group-hover:text-blue-400 transition-colors" />
+          </motion.div>
+          <span className="text-[10px] font-black text-white shadow-sm uppercase tracking-tighter">{t('tiktok.chat')}</span>
+        </button>
+
+        {/* 保存 (Bookmark) */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSave(clip.id);
+          }}
+          className="flex flex-col items-center group"
+        >
+          <motion.div whileTap={{ scale: 0.7 }} className="p-2">
+            <Bookmark className={`w-8 h-8 transition-all ${isSaved ? 'fill-yellow-400 text-yellow-400 drop-shadow-[0_0_12px_rgba(250,204,21,0.8)]' : 'text-white'}`} />
+          </motion.div>
+          <span className="text-[10px] font-black text-white shadow-sm uppercase tracking-tighter">{isSaved ? t('tiktok.saved') : t('tiktok.save')}</span>
         </button>
 
         {/* シェア */}
-        <button onClick={() => onShare(clip)} className="flex flex-col items-center">
-          <div className={`p-2 rounded-full transition-all ${isCopied ? 'bg-green-500' : ''}`}>
-            {isCopied ? <Check className="w-8 h-8 text-white" /> : <Share2 className="w-8 h-8 text-white" />}
-          </div>
-          <span className="text-xs font-bold text-white shadow-sm">{isCopied ? 'Copied!' : 'Share'}</span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onShare(clip);
+          }}
+          className="flex flex-col items-center group"
+        >
+          <motion.div 
+            whileTap={{ scale: 0.8 }} 
+            className={`p-2 rounded-full transition-all ${isCopied ? 'bg-green-500' : ''}`}
+          >
+            {isCopied ? <Check className="w-8 h-8 text-white" /> : <Share2 className="w-8 h-8 text-white group-hover:text-green-400 transition-colors" />}
+          </motion.div>
+          <span className="text-[10px] font-black text-white shadow-sm uppercase tracking-tighter">{isCopied ? t('tiktok.copied') : t('tiktok.share')}</span>
         </button>
 
         {/* ギフト */}
-        <button onClick={() => onGift(clip)} className="flex flex-col items-center">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onGift(clip);
+          }}
+          className="flex flex-col items-center"
+        >
           <motion.div 
             whileTap={{ scale: 0.8, rotate: -10 }}
-            className="p-2 bg-yellow-400/20 rounded-full border border-yellow-400/30"
+            className="p-2 bg-yellow-400/20 rounded-full border border-yellow-400/30 shadow-[0_0_15px_rgba(250,204,21,0.2)]"
           >
             <Gift className="w-8 h-8 text-yellow-400" />
           </motion.div>
-          <span className="text-xs font-bold text-yellow-400 shadow-sm uppercase">Gift</span>
+          <span className="text-[10px] font-black text-yellow-400 shadow-sm uppercase tracking-tighter">{t('tiktok.gift')}</span>
         </button>
       </div>
 

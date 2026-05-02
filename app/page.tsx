@@ -11,7 +11,7 @@ import { useLanguage } from './contexts/LanguageContext';
 import { useToast } from './contexts/ToastContext';
 import { useSearchParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import TikTokPlayer from './components/TikTokPlayer';
 
 function HomeContent() {
@@ -34,6 +34,7 @@ function HomeContent() {
 
   const [activeVideoId, setActiveVideoId] = useState<number | null>(null);
   const [userLikes, setUserLikes] = useState<number[]>([]);
+  const [userSaves, setUserSaves] = useState<number[]>([]);
   const [feedMode, setFeedMode] = useState<'all' | 'following'>('all');
   const [followingIds, setFollowingIds] = useState<string[]>([]);
 
@@ -55,6 +56,8 @@ function HomeContent() {
 
   const viewedVideos = useRef<Set<number>>(new Set());
   const observerTarget = useRef<HTMLDivElement>(null);
+  /** 同一クリップへのいいね RPC が並列で走ると楽観 UI が壊れるため、進行中クリップ ID を保持する */
+  const likeInFlightRef = useRef<Set<number>>(new Set());
 
   const getYouTubeId = (url: any) => {
     if (!url || typeof url !== 'string') return null;
@@ -77,8 +80,14 @@ function HomeContent() {
       if (currentUser) {
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
         setVlypId(profile?.display_name || profile?.username || profile?.vlyp_id || 'Player');
+        
+        // Fetch likes
         const { data: likes } = await supabase.from('clip_likes').select('clip_id').eq('user_id', currentUser.id);
         if (likes) setUserLikes(likes.map(l => l.clip_id));
+
+        // Fetch saves
+        const { data: saves } = await supabase.from('clip_saves').select('clip_id').eq('user_id', currentUser.id);
+        if (saves) setUserSaves(saves.map(s => s.clip_id));
 
         const { data: following } = await supabase
           .from('follows')
@@ -284,52 +293,122 @@ function HomeContent() {
 
   const handleLike = async (clipId: number, clipOwnerId: string) => {
     if (!user) return alert(t('auth.loginRequired') || 'Please log in');
-    
+
+    // 連打対策: 進行中は無視（楽観 UI と RPC の結果が一致しなくなるのを防ぐ）
+    if (likeInFlightRef.current.has(clipId)) return;
+    likeInFlightRef.current.add(clipId);
+
     const isLiked = userLikes.includes(clipId);
-    
-    // Optimistic update - フロントエンド状態を即座に更新
+
+    /** 楽観更新を元に戻す（スナップショットではなく「トグル前 wasLiked」基準で逆操作） */
+    const revertOptimisticLike = () => {
+      if (isLiked) {
+        setUserLikes((prev) => (prev.includes(clipId) ? prev : [...prev, clipId]));
+        setClips((prev) =>
+          prev.map((c) =>
+            c.id === clipId ? { ...c, likes: Math.max(0, (c.likes || 0) + 1) } : c
+          )
+        );
+      } else {
+        setUserLikes((prev) => prev.filter((id) => id !== clipId));
+        setClips((prev) =>
+          prev.map((c) =>
+            c.id === clipId ? { ...c, likes: Math.max(0, (c.likes || 0) - 1) } : c
+          )
+        );
+      }
+    };
+
+    // 楽観的 UI: 即時反映
     if (!isLiked) {
       setLikeAnimation(clipId);
       setTimeout(() => setLikeAnimation(null), 800);
     }
-    
-    // 状態を保存（ロールバック用）
-    const previousUserLikes = userLikes;
-    const previousClips = clips;
-    
-    // フロントエンド状態を更新
-    setUserLikes(prev => isLiked ? prev.filter(id => id !== clipId) : [...prev, clipId]);
-    setClips(prev => prev.map(c => c.id === clipId ? { ...c, likes: Math.max(0, (c.likes || 0) + (isLiked ? -1 : 1)) } : c));
-    
+    setUserLikes((prev) => (isLiked ? prev.filter((id) => id !== clipId) : [...prev, clipId]));
+    setClips((prev) =>
+      prev.map((c) =>
+        c.id === clipId
+          ? { ...c, likes: Math.max(0, (c.likes || 0) + (isLiked ? -1 : 1)) }
+          : c
+      )
+    );
+
     try {
-      // Supabase RPC を呼び出し
-      const { error } = await supabase.rpc('toggle_like', { 
-        p_user_id: user.id, 
-        p_clip_id: clipId, 
-        p_clip_owner_id: clipOwnerId 
+      const { error } = await supabase.rpc('toggle_like', {
+        p_user_id: user.id,
+        p_clip_id: clipId,
+        p_clip_owner_id: clipOwnerId,
       });
-      
+
       if (error) {
         console.error('Like toggle error:', error);
-        // エラー時にロールバック
-        setUserLikes(previousUserLikes);
-        setClips(previousClips);
+        revertOptimisticLike();
         toast('Failed to save like. Please try again.', 'error');
         return;
       }
-      
-      // AI推奨エンジンの学習: 好みを更新
+
+      // RPC 成功後: clips.likes と clip_likes を再取得して表示を DB と完全一致させる
+      const [{ data: clipRow }, { data: likeRow }] = await Promise.all([
+        supabase.from('clips').select('likes').eq('id', clipId).maybeSingle(),
+        supabase
+          .from('clip_likes')
+          .select('clip_id')
+          .eq('user_id', user.id)
+          .eq('clip_id', clipId)
+          .maybeSingle(),
+      ]);
+      if (clipRow && typeof clipRow.likes === 'number') {
+        setClips((prev) =>
+          prev.map((c) => (c.id === clipId ? { ...c, likes: clipRow.likes } : c))
+        );
+      }
+      setUserLikes((prev) => {
+        const exists = !!likeRow;
+        if (exists) return prev.includes(clipId) ? prev : [...prev, clipId];
+        return prev.filter((id) => id !== clipId);
+      });
+
       if (!isLiked) {
         updateUserPreference(clipId);
       }
-      
-        toast(isLiked ? t('common.removedFromLikes') || 'Removed from likes' : t('common.addedToLikes') || 'Added to likes', 'success');
+
+      toast(
+        isLiked
+          ? t('common.removedFromLikes') || 'Removed from likes'
+          : t('common.addedToLikes') || 'Added to likes',
+        'success'
+      );
     } catch (err) {
       console.error('Unexpected error in handleLike:', err);
-      // 予期しないエラー時にロールバック
-      setUserLikes(previousUserLikes);
-      setClips(previousClips);
+      revertOptimisticLike();
       toast(t('common.error') || 'An error occurred. Please try again.', 'error');
+    } finally {
+      likeInFlightRef.current.delete(clipId);
+    }
+  };
+
+  const handleSave = async (clipId: number) => {
+    if (!user) return alert(t('auth.loginRequired') || 'Please log in');
+    
+    const isSaved = userSaves.includes(clipId);
+    const previousUserSaves = userSaves;
+
+    // Optimistic update
+    setUserSaves(prev => isSaved ? prev.filter(id => id !== clipId) : [...prev, clipId]);
+
+    try {
+      const { data, error } = await supabase.rpc('toggle_save', {
+        p_user_id: user.id,
+        p_clip_id: clipId
+      });
+
+      if (error) throw error;
+      
+      toast(isSaved ? 'Removed from saves' : 'Saved to your collection', 'success');
+    } catch (err) {
+      console.error('Save error:', err);
+      setUserSaves(previousUserSaves);
+      toast('Failed to save clip.', 'error');
     }
   };
 
@@ -466,7 +545,7 @@ function HomeContent() {
       parent_id: replyingTo?.id || null 
     }).select().single();
     if (error) {
-      alert(error.message || 'Failed to post comment. You may have exceeded the rate limit (10 comments/hour).');
+      toast(error.message || 'Failed to post comment. Rate limit reached.', 'error');
     } else if (data) {
       setCurrentClipComments(prev => [data, ...prev]);
       setNewComment('');
@@ -480,8 +559,8 @@ function HomeContent() {
       <Sidebar />
       <main className="flex-1 h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar bg-black relative">
         <div className="sticky top-0 z-30 flex items-center justify-center gap-1 py-3 bg-black/80 backdrop-blur-xl">
-          <button onClick={() => setFeedMode('all')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'all' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>FOR YOU</button>
-          <button onClick={() => setFeedMode('following')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'following' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>FOLLOWING</button>
+          <button onClick={() => setFeedMode('all')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'all' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>{t('feed.foryou')}</button>
+          <button onClick={() => setFeedMode('following')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'following' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>{t('feed.following')}</button>
         </div>
         <div className="h-full w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar">
           {clips.map((clip, index) => {
@@ -506,7 +585,9 @@ function HomeContent() {
                     clip={clip}
                     isActive={activeVideoId === clip.id}
                     userLikes={userLikes}
+                    userSaves={userSaves}
                     onLike={handleLike}
+                    onSave={handleSave}
                     onComment={openComments}
                     onShare={handleShare}
                     onGift={handleGift}
@@ -531,10 +612,10 @@ function HomeContent() {
               <div className="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center mb-6">
                 <Video className="w-10 h-10 text-zinc-600" />
               </div>
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-2">No Clips Yet</h2>
-              <p className="text-sm font-bold text-zinc-500 mb-8 max-w-xs">Be the first to share your epic gaming moments with the world.</p>
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-2">{t('feed.emptyTitle')}</h2>
+              <p className="text-sm font-bold text-zinc-500 mb-8 max-w-xs">{t('feed.emptyDesc')}</p>
               <Link href="/post" className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-500 transition-colors shadow-[0_0_20px_rgba(37,99,235,0.4)]">
-                Upload Video
+                {t('feed.uploadCta')}
               </Link>
             </div>
           )}
@@ -567,7 +648,7 @@ function HomeContent() {
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black text-zinc-500 uppercase">{dailyViews} / 10</span>
-                {dailyViews >= 3 && <span className="text-[10px] font-black text-orange-400 fire-text">🔥 {dailyViews} streak</span>}
+                {dailyViews >= 3 && <span className="text-[10px] font-black text-orange-400 fire-text">🔥 {dailyViews} {t('common.streak')}</span>}
               </div>
               {dailyViews >= 10 && !isRewarded ? (
                 <button 
@@ -585,12 +666,12 @@ function HomeContent() {
           </div>
         )}
 
-        <div className="flex items-center gap-3 mb-10"><Flame className="w-5 h-5 text-orange-500" /><h2 className="text-xs font-black uppercase tracking-widest text-zinc-100">Trending</h2></div>
+        <div className="flex items-center gap-3 mb-10"><Flame className="w-5 h-5 text-orange-500" /><h2 className="text-xs font-black uppercase tracking-widest text-zinc-100">{t('feed.trending')}</h2></div>
         <div className="space-y-8 mb-12">
           {ranking.map((item, index) => (
             <Link key={item.id} href={`/profile/${item.user_id}`} className="flex gap-5 items-center group cursor-pointer">
               <span className="text-3xl font-black italic text-zinc-800 group-hover:text-blue-500">{index + 1}</span>
-              <div className="min-w-0"><p className="text-xs font-black text-zinc-200 truncate group-hover:text-blue-400 uppercase mb-1">{item.title}</p><p className="text-[10px] font-bold text-zinc-600 uppercase tracking-tighter">{item.views || 0} Views</p></div>
+              <div className="min-w-0"><p className="text-xs font-black text-zinc-200 truncate group-hover:text-blue-400 uppercase mb-1">{item.title}</p><p className="text-[10px] font-bold text-zinc-600 uppercase tracking-tighter">{item.views || 0} {t('feed.viewsLabel')}</p></div>
             </Link>
           ))}
         </div>
@@ -619,60 +700,128 @@ function HomeContent() {
         )}
       </aside>
       {isCommentOpen && (
-        <div className="fixed inset-y-0 right-0 w-full lg:w-[450px] bg-[#09090B]/98 backdrop-blur-3xl border-l border-white/10 z-[100] flex flex-col">
-          <div className="p-8 border-b border-white/5 flex items-center justify-between"><h3 className="font-black uppercase tracking-widest text-xs text-blue-400">Live Chat</h3><button onClick={() => setIsCommentOpen(false)} className="p-2 hover:bg-white/10 rounded-full text-zinc-400"><X className="w-6 h-6" /></button></div>
-          <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
-            {currentClipComments.filter(c => !c.parent_id).map((c) => (
-              <div key={c.id} className="space-y-6">
-                <div className="flex gap-4 group">
-                  <div className="w-10 h-10 rounded-full bg-zinc-800 flex-shrink-0 flex items-center justify-center font-black border border-white/10 text-[10px] uppercase text-zinc-300">
-                    {c.vlyp_id?.charAt(0)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-[10px] font-black text-blue-500 uppercase">@{c.vlyp_id}</p>
-                    </div>
-                    <p className="text-sm text-zinc-300 leading-relaxed font-medium mb-2">{c.content}</p>
-                    <button 
-                      onClick={() => {
-                        setReplyingTo({ id: c.id, vlyp_id: c.vlyp_id });
-                        setNewComment(`@${c.vlyp_id} `);
-                      }}
-                      className="text-[9px] font-black text-zinc-500 uppercase hover:text-blue-400 transition-colors"
-                    >
-                      Reply
-                    </button>
-                  </div>
-                </div>
-                
-                {/* Replies */}
-                {currentClipComments.filter(reply => reply.parent_id === c.id).map(reply => (
-                  <div key={reply.id} className="flex gap-4 ml-12 group">
-                    <div className="w-8 h-8 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black border border-white/5 text-[8px] uppercase text-zinc-500">
-                      {reply.vlyp_id?.charAt(0)}
+        <div className="fixed inset-y-0 right-0 w-full lg:w-[450px] bg-[#09090B]/98 backdrop-blur-3xl border-l border-white/10 z-[100] flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.5)]">
+          <div className="p-8 border-b border-white/5 flex items-center justify-between bg-black/40">
+            <div>
+              <h3 className="font-black uppercase tracking-[0.2em] text-xs text-blue-500 mb-1">{t('comments.title')}</h3>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{t('comments.subtitle')}</p>
+            </div>
+            <button onClick={() => setIsCommentOpen(false)} className="p-3 hover:bg-white/10 rounded-2xl text-zinc-400 transition-all">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar bg-gradient-to-b from-blue-500/[0.02] to-transparent">
+            {currentClipComments.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full opacity-20 text-center gap-4">
+                <MessageCircle className="w-16 h-16" />
+                <p className="font-black uppercase tracking-widest text-[10px]">{t('comments.emptyLine1')}<br/>{t('comments.emptyLine2')}</p>
+              </div>
+            ) : (
+              currentClipComments.filter(c => !c.parent_id).map((c) => (
+                <div key={c.id} className="space-y-6">
+                  <div className="flex gap-4 group">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-900 flex-shrink-0 flex items-center justify-center font-black border border-white/10 text-xs uppercase text-zinc-400 shadow-xl group-hover:scale-105 transition-transform">
+                      {c.vlyp_id?.charAt(0)}
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-[9px] font-black text-zinc-400 uppercase">@{reply.vlyp_id}</p>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-wider">@{c.vlyp_id}</p>
+                        <span className="w-1 h-1 bg-zinc-800 rounded-full" />
+                        <span className="text-[8px] font-bold text-zinc-600 uppercase">{t('comments.justNow')}</span>
                       </div>
-                      <p className="text-sm text-zinc-400 leading-relaxed font-medium">{reply.content}</p>
+                      <p className="text-sm text-zinc-200 leading-relaxed font-medium mb-3 bg-white/[0.03] p-4 rounded-2xl rounded-tl-none border border-white/5">
+                        {c.content}
+                      </p>
+                      <div className="flex items-center gap-4">
+                        <button 
+                          onClick={() => {
+                            setReplyingTo({ id: c.id, vlyp_id: c.vlyp_id });
+                            setNewComment(`@${c.vlyp_id} `);
+                          }}
+                          className="text-[9px] font-black text-zinc-500 uppercase hover:text-blue-400 transition-colors flex items-center gap-1"
+                        >
+                          <Send className="w-2.5 h-2.5 rotate-45" /> {t('comments.reply')}
+                        </button>
+                        <button type="button" className="text-[9px] font-black text-zinc-600 uppercase hover:text-pink-500 transition-colors">{t('comments.like')}</button>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            ))}
+                  
+                  {/* Replies */}
+                  {currentClipComments.filter(reply => reply.parent_id === c.id).map(reply => (
+                    <div key={reply.id} className="flex gap-4 ml-12 group">
+                      <div className="w-9 h-9 rounded-xl bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black border border-white/5 text-[10px] uppercase text-zinc-600">
+                        {reply.vlyp_id?.charAt(0)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-[9px] font-black text-zinc-400 uppercase">@{reply.vlyp_id}</p>
+                        </div>
+                        <p className="text-sm text-zinc-400 leading-relaxed font-medium bg-white/5 p-3 rounded-xl rounded-tl-none">{reply.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
           </div>
-          <div className="p-8 border-t border-white/5 relative flex flex-col gap-4 bg-black/50">
+
+          <div className="p-8 border-t border-white/5 relative flex flex-col gap-4 bg-black/60 backdrop-blur-xl">
+            {/* Quick Emoji Bar */}
+            <div className="flex gap-2 mb-1">
+              {['🔥', 'GG', 'LFG', '🎮', '❤️', '🤩'].map(emoji => (
+                <button 
+                  key={emoji} 
+                  onClick={() => setNewComment(prev => prev + emoji)}
+                  className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-black transition-all hover:scale-110"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+
             {replyingTo && (
-              <div className="flex items-center justify-between bg-blue-500/10 border border-blue-500/20 px-4 py-2 rounded-xl">
-                <p className="text-[10px] font-black text-blue-400 uppercase">Replying to @{replyingTo.vlyp_id}</p>
-                <button onClick={() => setReplyingTo(null)}><X className="w-4 h-4 text-zinc-500" /></button>
+              <div className="flex items-center justify-between bg-blue-500/10 border border-blue-500/20 px-5 py-3 rounded-2xl animate-in slide-in-from-bottom-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">{t('comments.replyingTo')} @{replyingTo.vlyp_id}</p>
+                </div>
+                <button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-blue-500/20 rounded-full transition-all text-blue-400">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             )}
-            <div className="relative flex items-center">
-              <input type="text" placeholder={replyingTo ? "Write a reply..." : "Type a message..."} className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-6 pr-16 text-sm focus:outline-none focus:border-blue-500/50" value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && postComment()} />
-              <button onClick={postComment} className="absolute right-3 p-3 bg-blue-600 rounded-xl text-white">{isCommenting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}</button>
+            
+            <div className="relative group">
+              <textarea 
+                placeholder={replyingTo ? t('comments.placeholderReply') : t('comments.placeholder')} 
+                className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] py-5 px-6 pr-16 text-sm font-medium focus:outline-none focus:border-blue-500/50 transition-all group-hover:bg-white/[0.08] min-h-[60px] max-h-[150px] scrollbar-hide" 
+                value={newComment} 
+                rows={1}
+                onChange={(e) => {
+                  setNewComment(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                }} 
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    postComment();
+                  }
+                }} 
+              />
+              <button 
+                onClick={postComment} 
+                disabled={isCommenting || !newComment.trim()}
+                className={`absolute right-3 bottom-3 p-3.5 rounded-2xl text-white transition-all shadow-xl ${
+                  isCommenting || !newComment.trim() ? 'bg-zinc-800 opacity-50' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/30 active:scale-95'
+                }`}
+              >
+                {isCommenting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+              </button>
             </div>
+            <p className="text-[8px] text-zinc-700 font-black uppercase tracking-[0.4em] text-center">{t('comments.guidelines')}</p>
           </div>
         </div>
       )}

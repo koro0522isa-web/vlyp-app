@@ -14,9 +14,11 @@ import {
   Crown,
   Coins,
   Swords,
-  Sparkles
+  Sparkles,
+  Bell
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { DM_UNREAD_EVENT, PROFILE_REFRESH_EVENT, NOTIF_UNREAD_EVENT } from '@/lib/dm-events';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -25,6 +27,44 @@ export default function Sidebar() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
   const [coins, setCoins] = useState(0);
+  const [dmUnread, setDmUnread] = useState(0);
+  const [notifUnread, setNotifUnread] = useState(0);
+
+  const loadProfileAndWallet = async (userId: string) => {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('display_name, username, vlyp_id, is_pro, avatar_url')
+      .eq('id', userId)
+      .maybeSingle();
+    setVlypId(profile?.display_name || profile?.username || profile?.vlyp_id || 'Player');
+    setAvatarUrl(profile?.avatar_url || null);
+    setIsPro(profile?.is_pro || false);
+
+    const { data: wallet } = await supabase
+      .from('wallets')
+      .select('coins')
+      .eq('user_id', userId)
+      .maybeSingle();
+    setCoins(wallet?.coins || 0);
+  };
+
+  const loadDmUnread = async (userId: string) => {
+    const { count, error } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('receiver_id', userId)
+      .eq('is_read', false);
+    if (!error && count !== null) setDmUnread(count);
+  };
+
+  const loadNotifUnread = async (userId: string) => {
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+    if (!error && count !== null) setNotifUnread(count);
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -32,24 +72,56 @@ export default function Sidebar() {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('display_name, username, vlyp_id, is_pro, avatar_url')
-          .eq('id', currentUser.id)
-          .maybeSingle();
-        setVlypId(profile?.display_name || profile?.username || profile?.vlyp_id || 'Player');
-        setAvatarUrl(profile?.avatar_url || null);
-        setIsPro(profile?.is_pro || false);
-
-        const { data: wallet } = await supabase
-          .from('wallets')
-          .select('coins')
-          .eq('user_id', currentUser.id)
-          .maybeSingle();
-        setCoins(wallet?.coins || 0);
+        await loadProfileAndWallet(currentUser.id);
+        await loadDmUnread(currentUser.id);
+        await loadNotifUnread(currentUser.id);
+      } else {
+        setDmUnread(0);
+        setNotifUnread(0);
       }
     };
     fetchUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) {
+        await loadProfileAndWallet(u.id);
+        await loadDmUnread(u.id);
+        await loadNotifUnread(u.id);
+      } else {
+        setDmUnread(0);
+        setNotifUnread(0);
+      }
+    });
+
+    const onDmUnread = (e: Event) => {
+      const t = (e as CustomEvent<{ total: number }>).detail?.total;
+      if (typeof t === 'number') setDmUnread(t);
+    };
+    const onNotifUnread = (e: Event) => {
+      const t = (e as CustomEvent<{ total: number }>).detail?.total;
+      if (typeof t === 'number') setNotifUnread(t);
+    };
+    const onProfileRefresh = () => {
+      void (async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        const uid = session?.user?.id;
+        if (uid) {
+          await loadProfileAndWallet(uid);
+          await loadNotifUnread(uid);
+        }
+      })();
+    };
+    window.addEventListener(DM_UNREAD_EVENT, onDmUnread);
+    window.addEventListener(NOTIF_UNREAD_EVENT, onNotifUnread);
+    window.addEventListener(PROFILE_REFRESH_EVENT, onProfileRefresh);
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener(DM_UNREAD_EVENT, onDmUnread);
+      window.removeEventListener(NOTIF_UNREAD_EVENT, onNotifUnread);
+      window.removeEventListener(PROFILE_REFRESH_EVENT, onProfileRefresh);
+    };
   }, []);
 
   const handleProUpgrade = async () => {
@@ -70,12 +142,13 @@ export default function Sidebar() {
   const { t } = useLanguage();
 
   const navItems = [
-    { icon: <HomeIcon />, label: t('nav.home'), href: '/' },
-    { icon: <Search />, label: t('nav.search'), href: '/search' },
-    { icon: <Swords />, label: 'Battle', href: '/battle' },
-    { icon: <MessageSquare />, label: 'Messages', href: '/messages' },
-    { icon: <Clapperboard />, label: 'Studio & Edit', href: '/studio' },
-    { icon: <Settings />, label: t('nav.settings'), href: '/settings' },
+    { icon: <HomeIcon />, label: t('nav.home'), href: '/', badge: 0 },
+    { icon: <Search />, label: t('nav.search'), href: '/search', badge: 0 },
+    { icon: <Bell />, label: t('nav.notifications'), href: '/notifications', badge: notifUnread },
+    { icon: <Swords />, label: t('sidebar.battle'), href: '/battle', badge: 0 },
+    { icon: <MessageSquare />, label: t('sidebar.messages'), href: '/messages', badge: dmUnread },
+    { icon: <Clapperboard />, label: t('sidebar.studioEdit'), href: '/studio', badge: 0 },
+    { icon: <Settings />, label: t('nav.settings'), href: '/settings', badge: 0 },
   ];
 
   return (
@@ -124,9 +197,14 @@ export default function Sidebar() {
         {navItems.map((item) => {
           const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
           return (
-            <Link key={item.href} href={item.href} className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-all duration-300 group ${isActive ? 'bg-white/10 text-blue-400 font-black' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300'}`}>
+            <Link key={item.href} href={item.href} className={`relative flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-all duration-300 group ${isActive ? 'bg-white/10 text-blue-400 font-black' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300'}`}>
               <span className={`w-5 h-5 transition-transform duration-300 group-hover:scale-110 ${isActive ? 'text-blue-400' : ''}`}>{item.icon}</span>
               <span className="hidden lg:block text-[10px] uppercase tracking-[0.2em] font-black">{item.label}</span>
+              {item.badge > 0 && (
+                <span className="absolute top-2 left-8 lg:left-auto lg:right-3 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white border-2 border-[#09090B]">
+                  {item.badge > 99 ? '99+' : item.badge}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -148,7 +226,9 @@ export default function Sidebar() {
                   <p className="text-xs font-black text-zinc-200 truncate group-hover:text-blue-400 transition-colors">@{vlypId}</p>
                   {isPro && <Sparkles className="w-3 h-3 text-purple-400 animate-pulse" />}
                 </div>
-                <p className="text-[9px] text-zinc-600 font-black uppercase tracking-widest">Pro Profile</p>
+                <p className="text-[9px] text-zinc-600 font-black uppercase tracking-widest">
+                  {isPro ? 'Pro Profile' : 'Your Profile'}
+                </p>
               </div>
             </Link>
           </div>
@@ -156,7 +236,7 @@ export default function Sidebar() {
 
         <div className="flex gap-2">
           <Link href={user ? '/post' : '/login'} className={`flex-1 py-4 ${isPro ? 'bg-gradient-to-r from-purple-600 to-pink-600' : 'bg-blue-600'} rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center shadow-lg hover:scale-[1.02] active:scale-95`}>
-            {user ? (isPro ? 'Pro Post' : 'Post') : 'Login'}
+            {user ? (isPro ? t('nav.proPost') : t('nav.post')) : t('nav.login')}
           </Link>
           {user && (
             <Link href="/coins" className="w-12 py-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 flex flex-col items-center justify-center transition-all">
@@ -167,11 +247,24 @@ export default function Sidebar() {
         </div>
         
         {user && !isPro && (
-          <button onClick={handleProUpgrade} className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-black text-[10px] uppercase tracking-widest text-zinc-400 flex items-center justify-center gap-2 transition-all">
-            <Crown className="w-4 h-4" />
-            Upgrade to Pro
+          <button 
+            onClick={handleProUpgrade} 
+            className="w-full py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] text-white flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:shadow-[0_0_30px_rgba(147,51,234,0.5)] active:scale-95 group relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
+            <Crown className="w-4 h-4 animate-bounce" />
+            {t('sidebar.upgradePro')}
           </button>
         )}
+
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes shimmer {
+            100% { transform: translateX(100%); }
+          }
+          .group-hover\\:animate-shimmer {
+            animation: shimmer 1.5s infinite;
+          }
+        `}} />
         
         <div className="pt-2 text-center flex flex-col gap-2">
           <Link href="/legal" className="text-[9px] font-black text-zinc-600 hover:text-cyan-400 uppercase tracking-widest transition-colors">Legal & Pricing</Link>
