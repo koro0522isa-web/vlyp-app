@@ -24,29 +24,52 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://vlyp.vercel.app";
+
 // Apple Web App設定はmetadataのotherフィールドで管理
+// グローバル展開: hreflang 相当（同一 URL + アプリ内言語切替）と OG の主ロケールを明示
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  ),
+  metadataBase: new URL(siteUrl),
 
   title: {
-    default: "VLYP | Next-Gen Gaming Clips",
-    template: "%s | VLYP"
+    default: "VLYP | ゲームクリップ・縦型動画コミュニティ",
+    template: "%s | VLYP",
   },
-  description: "Share your epic gaming moments. VLYP is the ultimate platform for high-quality game clips, tips, and highlights.",
-  keywords: ["VLYP", "Game Clip", "Gaming Clips", "Game Highlights", "Apex Legends", "Valorant", "Video Platform", "Gaming Community"],
+  description:
+    "神プレイをシェアしよう。VLYP はゲーム専用のリール型動画プラットフォームです。Gaming highlights, clips, DMs & creator Pro — play in Japanese, English, Korean, or Chinese in-app.",
+  keywords: [
+    "VLYP",
+    "ゲームクリップ",
+    "Gaming Clips",
+    "Valorant",
+    "Apex",
+    "縦型動画",
+    "eスポーツ",
+    "game highlights",
+  ],
   manifest: "/manifest.json",
   authors: [{ name: "VLYP Team" }],
-  
+
+  alternates: {
+    canonical: siteUrl,
+    languages: {
+      "x-default": siteUrl,
+      "ja-JP": siteUrl,
+      "en-US": siteUrl,
+      "ko-KR": siteUrl,
+      "zh-CN": siteUrl,
+    },
+  },
+
   icons: {
     icon: "/icon.svg",
-    apple: "/icon.svg", 
+    apple: "/icon.svg",
   },
 
   openGraph: {
-    title: "VLYP | Next-Gen Gaming Clips Platform",
-    description: "The best place to share and discover epic gaming moments. High-quality game clips from across the world.",
+    title: "VLYP | ゲームクリップ・ショート動画",
+    description:
+      "世界中のゲーマーとハイライトを共有。いいね・コメント・DM・Pro 機能対応。",
     url: "/",
     siteName: "VLYP",
     images: [
@@ -58,12 +81,13 @@ export const metadata: Metadata = {
       },
     ],
     locale: "ja_JP",
+    alternateLocale: ["en_US", "ko_KR", "zh_CN"],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "VLYP | Gaming Short Clips",
-    description: "Share your epic gaming moments on VLYP.",
+    title: "VLYP | Gaming Clips",
+    description: "Share epic gaming moments worldwide.",
     images: ["/ogp.png"],
   },
   appleWebApp: {

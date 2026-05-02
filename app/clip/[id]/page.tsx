@@ -1,12 +1,14 @@
 import { Metadata, ResolvingMetadata } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 
-// Initialize Supabase admin client for server-side fetching
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
-);
+/** ビルド時やプレビューで env が空のとき createClient を呼ばない（supabaseUrl is required 対策） */
+function createSupabaseAnon(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
 
 type Props = {
   params: Promise<{ id: string }>
@@ -17,7 +19,12 @@ export async function generateMetadata(
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   const { id } = await params;
-  
+
+  const supabase = createSupabaseAnon();
+  if (!supabase) {
+    return { title: 'VLYP' };
+  }
+
   // Fetch clip data
   const { data: clip } = await supabase
     .from('clips')

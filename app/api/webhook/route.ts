@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
+/** Stripe API の Invoice には subscription があるが、SDK の型が追従していない場合がある */
+type StripeInvoiceWithSubscription = Stripe.Invoice & {
+  subscription?: string | Stripe.Subscription | null;
+};
+
 const getClients = () => {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
     apiVersion: '2025-01-27.acacia' as any,
@@ -94,7 +99,7 @@ export async function POST(req: Request) {
   // サブスクリプション更新（毎月の自動支払い）
   // ========================================
   if (event.type === 'invoice.paid') {
-    const invoice = event.data.object as Stripe.Invoice;
+    const invoice = event.data.object as StripeInvoiceWithSubscription;
     try {
       const subRef = invoice.subscription;
       const subscriptionId = typeof subRef === 'string' ? subRef : subRef?.id;

@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-
 export async function POST(req: Request) {
   try {
     const { text } = await req.json();
@@ -11,6 +9,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid text parameter' }, { status: 400 });
     }
 
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ embedding: new Array(768).fill(0) });
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'embedding-001' });
     const result = await model.embedContent(text);
     

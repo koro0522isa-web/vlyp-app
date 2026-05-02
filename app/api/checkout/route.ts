@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2025-01-27.acacia' as any, // 安定版を使用
-});
+// ビルド時に STRIPE_SECRET_KEY が無いと new Stripe() が失敗するためリクエスト内で初期化
+function getStripe(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+  return new Stripe(key, {
+    apiVersion: '2025-01-27.acacia' as any,
+  });
+}
 
 // ★サーバー側で価格を定義（クライアントからの改ざんを防ぐ）
 const COIN_PACKS: Record<string, { amount: number, price: number }> = {
@@ -15,6 +22,7 @@ const COIN_PACKS: Record<string, { amount: number, price: number }> = {
 
 export async function POST(req: Request) {
   try {
+    const stripe = getStripe();
     const { packId, userId } = await req.json();
 
     if (!packId || !userId) {

@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// 親ディレクトリに別の package-lock がある環境でもトレース・解決のルートをこのリポジトリに固定（Vercel でも明示して安定化）
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: projectRoot,
+
   images: {
     remotePatterns: [
       {
