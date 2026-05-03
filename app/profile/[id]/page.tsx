@@ -7,7 +7,7 @@ import Link from 'next/link';
 import Sidebar from '@/app/components/Sidebar';
 import BottomNav from '@/app/components/BottomNav';
 import {
-  ArrowLeft, Heart, Eye, Video, UserPlus, UserCheck, Gamepad2, Loader2, X, Users, MessageSquare
+  ArrowLeft, Heart, Eye, Video, UserPlus, UserCheck, Gamepad2, Loader2, X, Users, MessageSquare, Crown
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -191,7 +191,7 @@ export default function ProfilePage() {
 
             <div className="flex flex-col md:flex-row items-center md:items-start gap-8 relative">
               {/* Avatar */}
-              <div className="w-28 h-28 rounded-full bg-gradient-to-br from-blue-600 to-blue-900 flex items-center justify-center text-4xl font-black border-4 border-blue-500/30 shadow-2xl shadow-blue-500/20 flex-shrink-0 overflow-hidden">
+              <div className={`w-28 h-28 rounded-full bg-gradient-to-br ${profile?.is_pro ? 'from-purple-600 to-pink-600 shadow-purple-500/30' : 'from-blue-600 to-blue-900 shadow-blue-500/20'} flex items-center justify-center text-4xl font-black border-4 ${profile?.is_pro ? 'border-purple-500/50' : 'border-blue-500/30'} shadow-2xl flex-shrink-0 overflow-hidden`}>
                 {profile?.avatar_url ? (
                   <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
@@ -200,9 +200,17 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex-1 text-center md:text-left">
-                <h2 className="text-3xl font-black italic tracking-tighter uppercase mb-1">
-                  {profile?.display_name || 'Player'}
-                </h2>
+                <div className="flex items-center gap-3 justify-center md:justify-start mb-1">
+                  <h2 className="text-3xl font-black italic tracking-tighter uppercase">
+                    {profile?.display_name || 'Player'}
+                  </h2>
+                  {profile?.is_pro && (
+                    <div className="flex items-center gap-1 bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1 rounded-full shadow-lg shadow-purple-500/30">
+                      <Crown className="w-3.5 h-3.5 text-white fill-white" />
+                      <span className="text-[9px] font-black text-white uppercase tracking-widest">PRO</span>
+                    </div>
+                  )}
+                </div>
                 <p className="text-blue-400 font-bold text-sm mb-3">@{profile?.vlyp_id || profile?.username || 'unknown'}</p>
 
                 {/* Bio */}

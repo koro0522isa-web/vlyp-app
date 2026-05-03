@@ -56,6 +56,27 @@ function MessagesContent() {
 
   const fetchChatPartners = useCallback(async (userId: string) => {
     try {
+      // 高速版: DB集計RPC（supabase_setup_phase48_performance.sql で作成）
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_chat_partners', { p_user_id: userId });
+      
+      if (!rpcError && rpcData && rpcData.length >= 0) {
+        const partners: ChatPartner[] = rpcData.map((r: any) => ({
+          id: r.partner_id,
+          display_name: r.display_name || 'Player',
+          username: r.username,
+          avatar_url: r.avatar_url,
+          last_message: r.last_message || '',
+          last_message_at: r.last_message_at || '',
+          unread_count: Number(r.unread_count) || 0,
+        }));
+        setChatPartners(partners);
+        
+        const totalUnread = partners.reduce((s, p) => s + (p.unread_count || 0), 0);
+        broadcastDmUnread(totalUnread);
+        return;
+      }
+
+      // フォールバック: RPC未作成時の従来方式
       const { data: allMsgs, error } = await supabase
         .from('messages')
         .select('sender_id, receiver_id, content, created_at')
@@ -188,43 +209,64 @@ function MessagesContent() {
   }, [targetUserId, fetchChatPartners, fetchMessages]);
 
   // Realtime subscription - uses refs to avoid stale closure
+  // 自分宛の受信メッセージのみフィルタして購読する
   useEffect(() => {
     if (!user) return;
 
     const channel = supabase
       .channel(`dm-${user.id}`)
+      // 自分宛の新着メッセージを購読
       .on(
         'postgres_changes',
         { 
           event: 'INSERT', 
           schema: 'public', 
-          table: 'messages'
+          table: 'messages',
+          filter: `receiver_id=eq.${user.id}`
         },
         async (payload) => {
           const newMsg = payload.new as Message;
-          
-          // Only process if it involves the current user
-          if (newMsg.receiver_id !== user.id && newMsg.sender_id !== user.id) return;
-
           const currentPartner = selectedPartnerRef.current;
           
-          // If message is in current conversation, add to list
-          if (currentPartner && (newMsg.sender_id === currentPartner.id || newMsg.receiver_id === currentPartner.id)) {
+          // 開いている会話のメッセージなら一覧に追加
+          if (currentPartner && newMsg.sender_id === currentPartner.id) {
             setMessages(prev => {
               if (prev.some(m => m.id === newMsg.id)) return prev;
               return [...prev, newMsg];
             });
             
-            // 受信メッセージは開いている会話内なら既読にする（await で失敗も捕捉）
-            if (newMsg.receiver_id === user.id) {
-              const { error: readErr } = await supabase
-                .from('messages')
-                .update({ is_read: true })
-                .eq('id', newMsg.id);
-              if (readErr) console.error('既読更新エラー:', readErr);
-            }
+            // 開いている会話なので即座に既読にする
+            const { error: readErr } = await supabase
+              .from('messages')
+              .update({ is_read: true })
+              .eq('id', newMsg.id);
+            if (readErr) console.error('既読更新エラー:', readErr);
           }
 
+          // 未読バッジを即時更新
+          fetchChatPartners(user.id);
+        }
+      )
+      // 自分が送信したメッセージも購読（他タブ同期用）
+      .on(
+        'postgres_changes',
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'messages',
+          filter: `sender_id=eq.${user.id}`
+        },
+        (payload) => {
+          const newMsg = payload.new as Message;
+          const currentPartner = selectedPartnerRef.current;
+          
+          // 他タブから送ったメッセージを反映
+          if (currentPartner && newMsg.receiver_id === currentPartner.id) {
+            setMessages(prev => {
+              if (prev.some(m => m.id === newMsg.id)) return prev;
+              return [...prev, newMsg];
+            });
+          }
           fetchChatPartners(user.id);
         }
       )
@@ -234,11 +276,14 @@ function MessagesContent() {
           event: 'UPDATE',
           schema: 'public',
           table: 'messages',
-          filter: `receiver_id=eq.${user.id}`,
+          filter: `sender_id=eq.${user.id}`,
         },
-        () => {
-          // 他端末・別タブで既読になったとき未読バッジを再計算
-          fetchChatPartners(user.id);
+        (payload) => {
+          // 送信したメッセージが既読になったら UI を更新
+          const updatedMsg = payload.new as Message;
+          setMessages(prev =>
+            prev.map(m => m.id === updatedMsg.id ? { ...m, is_read: updatedMsg.is_read } : m)
+          );
         }
       )
       .subscribe();

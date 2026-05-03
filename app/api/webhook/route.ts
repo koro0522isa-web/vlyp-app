@@ -48,13 +48,29 @@ export async function POST(req: Request) {
     if (packId === 'pro' && userId) {
       console.log(`Activating Pro subscription for user ${userId}`);
       
+      // Stripe の subscription ID と customer ID を保存
+      const updatePayload: Record<string, unknown> = {
+        is_pro: true,
+        pro_activated_at: new Date().toISOString(),
+        monthly_uploads: 0, // リセット
+      };
+
+      if (session.subscription) {
+        updatePayload.stripe_subscription_id =
+          typeof session.subscription === 'string'
+            ? session.subscription
+            : session.subscription;
+      }
+      if (session.customer) {
+        updatePayload.stripe_customer_id =
+          typeof session.customer === 'string'
+            ? session.customer
+            : (session.customer as Stripe.Customer).id;
+      }
+
       const { error } = await supabaseAdmin
         .from('profiles')
-        .update({ 
-          is_pro: true,
-          pro_activated_at: new Date().toISOString(),
-          monthly_uploads: 0 // リセット
-        })
+        .update(updatePayload)
         .eq('id', userId);
 
       if (error) {
@@ -127,6 +143,43 @@ export async function POST(req: Request) {
   }
 
   // ========================================
+  // 支払い失敗時の処理
+  // ========================================
+  if (event.type === 'invoice.payment_failed') {
+    const invoice = event.data.object as StripeInvoiceWithSubscription;
+    try {
+      const subRef = invoice.subscription;
+      const subscriptionId = typeof subRef === 'string' ? subRef : subRef?.id;
+      let userId: string | undefined;
+
+      if (subscriptionId) {
+        const sub = await stripe.subscriptions.retrieve(subscriptionId);
+        userId = sub.metadata?.userId;
+      }
+      if (!userId && invoice.customer) {
+        const customerId =
+          typeof invoice.customer === 'string' ? invoice.customer : invoice.customer.id;
+        const customer = await stripe.customers.retrieve(customerId);
+        if (customer && !customer.deleted) {
+          userId = (customer as Stripe.Customer).metadata?.userId;
+        }
+      }
+
+      if (userId) {
+        console.warn(`Payment failed for user ${userId}`);
+        // 支払い失敗の通知をユーザーに送る
+        await supabaseAdmin.from('notifications').insert({
+          user_id: userId,
+          actor_id: userId,
+          type: 'payment_failed',
+        });
+      }
+    } catch (e) {
+      console.error('Error processing invoice.payment_failed:', e);
+    }
+  }
+
+  // ========================================
   // サブスクリプション解約
   // ========================================
   if (event.type === 'customer.subscription.deleted') {
@@ -145,7 +198,17 @@ export async function POST(req: Request) {
       }
       if (userId) {
         console.log(`Deactivating Pro for user ${userId}`);
-        await supabaseAdmin.from('profiles').update({ is_pro: false }).eq('id', userId);
+        await supabaseAdmin.from('profiles').update({
+          is_pro: false,
+          stripe_subscription_id: null,
+        }).eq('id', userId);
+
+        // 解約通知
+        await supabaseAdmin.from('notifications').insert({
+          user_id: userId,
+          actor_id: userId,
+          type: 'subscription_cancelled',
+        });
       }
     } catch (e) {
       console.error('Error processing subscription deletion:', e);

@@ -58,6 +58,23 @@ function HomeContent() {
   const observerTarget = useRef<HTMLDivElement>(null);
   /** 同一クリップへのいいね RPC が並列で走ると楽観 UI が壊れるため、進行中クリップ ID を保持する */
   const likeInFlightRef = useRef<Set<number>>(new Set());
+  /** View Count バッチ処理用バッファ — 5秒間隔でまとめて送信 */
+  const viewBufferRef = useRef<number[]>([]);
+
+  // View Count バッチフラッシュ（5秒間隔）
+  useEffect(() => {
+    const flush = setInterval(async () => {
+      if (viewBufferRef.current.length === 0) return;
+      const ids = [...viewBufferRef.current];
+      viewBufferRef.current = [];
+      try {
+        await supabase.rpc('batch_increment_views', { p_clip_ids: ids });
+      } catch (err) {
+        console.error('Batch view count error:', err);
+      }
+    }, 5000);
+    return () => clearInterval(flush);
+  }, []);
 
   const getYouTubeId = (url: any) => {
     if (!url || typeof url !== 'string') return null;
@@ -240,15 +257,8 @@ function HomeContent() {
           setActiveVideoId(id);
           if (!viewedVideos.current.has(id)) {
             viewedVideos.current.add(id);
-            // 通常の再生数カウント
-            (async () => {
-              try {
-                const { error } = await supabase.rpc('increment_view_count', { p_clip_id: id, p_user_id: user?.id || null });
-                if (error) console.error('View count error:', error.message);
-              } catch (err) {
-                console.error('View count failed:', err);
-              }
-            })();
+            // バッチバッファに追加（5秒間隔でまとめてDB更新）
+            viewBufferRef.current.push(id);
             // デイリーミッション用の視聴カウント
             if (user) {
               supabase.rpc('increment_daily_views').then(() => {
@@ -334,7 +344,7 @@ function HomeContent() {
     );
 
     try {
-      const { error } = await supabase.rpc('toggle_like', {
+      const { data: rpcResult, error } = await supabase.rpc('toggle_like', {
         p_user_id: user.id,
         p_clip_id: clipId,
         p_clip_owner_id: clipOwnerId,
@@ -347,26 +357,19 @@ function HomeContent() {
         return;
       }
 
-      // RPC 成功後: clips.likes と clip_likes を再取得して表示を DB と完全一致させる
-      const [{ data: clipRow }, { data: likeRow }] = await Promise.all([
-        supabase.from('clips').select('likes').eq('id', clipId).maybeSingle(),
-        supabase
-          .from('clip_likes')
-          .select('clip_id')
-          .eq('user_id', user.id)
-          .eq('clip_id', clipId)
-          .maybeSingle(),
-      ]);
-      if (clipRow && typeof clipRow.likes === 'number') {
-        setClips((prev) =>
-          prev.map((c) => (c.id === clipId ? { ...c, likes: clipRow.likes } : c))
-        );
+      // RPC が JSON { liked, likes_count } を返す場合は DB の正確な値で上書き
+      if (rpcResult && typeof rpcResult === 'object') {
+        const { liked, likes_count } = rpcResult as { liked: boolean; likes_count: number };
+        if (typeof likes_count === 'number') {
+          setClips((prev) =>
+            prev.map((c) => (c.id === clipId ? { ...c, likes: likes_count } : c))
+          );
+        }
+        setUserLikes((prev) => {
+          if (liked) return prev.includes(clipId) ? prev : [...prev, clipId];
+          return prev.filter((id) => id !== clipId);
+        });
       }
-      setUserLikes((prev) => {
-        const exists = !!likeRow;
-        if (exists) return prev.includes(clipId) ? prev : [...prev, clipId];
-        return prev.filter((id) => id !== clipId);
-      });
 
       if (!isLiked) {
         updateUserPreference(clipId);

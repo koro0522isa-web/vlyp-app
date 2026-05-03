@@ -130,7 +130,7 @@ export default function TikTokPlayer({
       {/* ビデオ本体 */}
       <video
         ref={videoRef}
-        src={clip.video_url}
+        src={clip.video_url || clip.url}
         className="h-full w-full object-contain pointer-events-none"
         loop
         playsInline

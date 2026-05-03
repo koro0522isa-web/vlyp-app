@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { videoUrl, editType = 'all' } = await req.json();
+    const { videoUrl, vlypScores, editType = 'vlyp-ai' } = await req.json();
 
     if (!videoUrl) {
       return NextResponse.json(
@@ -11,81 +11,133 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 自動編集の推奨設定を返す
-    const autoEditSettings = {
-      // 自動字幕生成
-      autoSubtitles: {
+    // VLYP AI-powered auto editing based on scores
+    const vlypEditSettings = {
+      // VLYP Score-based highlight detection
+      vlypHighlights: {
         enabled: true,
-        language: 'ja',
-        position: 'bottom',
-        fontSize: 16,
-        fontColor: '#FFFFFF',
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        fontFamily: 'Arial'
+        scoreThreshold: 75, // Minimum VLYP score for highlights
+        highlightDuration: 10, // seconds per highlight
+        maxHighlights: 8,
+        padding: 2, // seconds before/after highlight
+        mergeSimilarHighlights: true
       },
 
-      // 自動トランジション
-      autoTransitions: {
+      // AI-powered cinematic effects
+      cinematicEffects: {
         enabled: true,
-        type: 'fade', // 'fade', 'slide', 'zoom', 'wipe'
-        duration: 0.3,
-        frequency: 'every_5_seconds' // 'every_3_seconds', 'every_5_seconds', 'every_10_seconds'
+        slowMotion: {
+          enabled: true,
+          triggerScore: 90, // Trigger on very high VLYP scores
+          duration: 2, // seconds
+          playbackSpeed: 0.25
+        },
+        zoomEffects: {
+          enabled: true,
+          triggerScore: 80,
+          zoomIntensity: 1.2,
+          duration: 1
+        },
+        colorGrading: {
+          enabled: true,
+          highScoreBoost: {
+            saturation: 1.3,
+            contrast: 1.2,
+            vibrance: 1.4
+          },
+          lowScoreReduction: {
+            saturation: 0.8,
+            contrast: 0.9
+          }
+        }
       },
 
-      // 自動色補正
-      autoColorCorrection: {
+      // Smart BGM integration
+      smartBGM: {
         enabled: true,
-        brightness: 1.0,
-        contrast: 1.1,
-        saturation: 1.2,
-        hue: 0,
-        temperature: 0
+        adaptiveVolume: true,
+        highlightBoost: 0.5, // Increase volume during highlights
+        genreDetection: true,
+        beatSync: true
       },
 
-      // 自動トリミング
-      autoTrimming: {
+      // Auto transitions based on VLYP scores
+      smartTransitions: {
         enabled: true,
-        removeBlackFrames: true,
-        removeSlowMotion: false,
-        minSceneLength: 0.5 // seconds
+        highScoreTransition: 'zoom', // For scores > 85
+        mediumScoreTransition: 'fade', // For scores 70-85
+        lowScoreTransition: 'cut', // For scores < 70
+        transitionDuration: 0.5
       },
 
-      // 自動音量調整
-      autoAudioMix: {
+      // AI-generated highlights compilation
+      highlightCompilation: {
         enabled: true,
-        videoVolume: 0.7,
-        bgmVolume: 0.3,
-        narrationVolume: 0.8,
-        normalization: true
+        topHighlightsCount: 5,
+        compilationStyle: 'montage', // 'montage', 'chronological', 'score-based'
+        addIntroOutro: true,
+        autoThumbnail: true
       },
 
-      // 自動フレームレート最適化
-      autoFrameRate: {
-        enabled: true,
-        targetFPS: 30,
-        adaptiveQuality: true
+      // Performance optimization
+      optimization: {
+        targetResolution: '1080p',
+        targetFPS: 60,
+        qualityProfile: 'high',
+        compressionLevel: 23
       }
     };
 
-    // editType に応じて設定をカスタマイズ
+    // Calculate editing strategy based on VLYP scores
+    let editingStrategy = 'standard';
+    if (vlypScores && vlypScores.length > 0) {
+      const avgScore = vlypScores.reduce((a: number, b: number) => a + b, 0) / vlypScores.length;
+      const maxScore = Math.max(...vlypScores);
+      const highlightCount = vlypScores.filter((score: number) => score > 75).length;
+
+      if (avgScore > 80 && highlightCount > 5) {
+        editingStrategy = 'action-packed';
+        vlypEditSettings.cinematicEffects.slowMotion.enabled = true;
+        vlypEditSettings.cinematicEffects.zoomEffects.enabled = true;
+        vlypEditSettings.smartBGM.adaptiveVolume = true;
+      } else if (maxScore > 90) {
+        editingStrategy = 'epic-moments';
+        vlypEditSettings.vlypHighlights.scoreThreshold = 85;
+        vlypEditSettings.highlightCompilation.topHighlightsCount = 3;
+      } else if (highlightCount < 2) {
+        editingStrategy = 'minimal';
+        vlypEditSettings.vlypHighlights.enabled = false;
+        vlypEditSettings.cinematicEffects.enabled = false;
+      }
+    }
+
+    // Apply editType customizations
     if (editType === 'minimal') {
-      autoEditSettings.autoTransitions.enabled = false;
-      autoEditSettings.autoTrimming.enabled = false;
+      vlypEditSettings.vlypHighlights.enabled = false;
+      vlypEditSettings.cinematicEffects.enabled = false;
+      vlypEditSettings.smartTransitions.enabled = false;
     } else if (editType === 'aggressive') {
-      autoEditSettings.autoTransitions.frequency = 'every_3_seconds';
-      autoEditSettings.autoColorCorrection.saturation = 1.4;
-      autoEditSettings.autoTrimming.removeSlowMotion = true;
+      vlypEditSettings.vlypHighlights.scoreThreshold = 70;
+      vlypEditSettings.cinematicEffects.slowMotion.triggerScore = 80;
+      vlypEditSettings.highlightCompilation.topHighlightsCount = 8;
     }
 
     return NextResponse.json({
       success: true,
-      settings: autoEditSettings,
-      estimatedProcessingTime: '2-5 minutes'
+      settings: vlypEditSettings,
+      strategy: editingStrategy,
+      vlypAnalysis: vlypScores ? {
+        averageScore: vlypScores.reduce((a: number, b: number) => a + b, 0) / vlypScores.length,
+        maxScore: Math.max(...vlypScores),
+        highlightCount: vlypScores.filter((score: number) => score > 75).length,
+        totalMoments: vlypScores.length
+      } : null,
+      estimatedProcessingTime: editingStrategy === 'action-packed' ? '5-8 minutes' : '2-5 minutes'
     });
   } catch (error) {
-    console.error('Auto edit error:', error);
+    console.error('VLYP auto edit error:', error);
     return NextResponse.json(
-      { error: 'Failed to generate auto edit settings' },
+      { error: 'Failed to generate VLYP auto edit settings' },
       { status: 500 }
     );
   }
