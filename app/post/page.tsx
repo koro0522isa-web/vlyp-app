@@ -172,7 +172,7 @@ function PostContent() {
   const fileSizeMB = file ? (file.size / (1024 * 1024)).toFixed(1) : '0';
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white font-sans">
+    <div className="h-[100dvh] overflow-y-auto no-scrollbar bg-[#09090b] text-white font-sans relative">
       <div className="max-w-3xl mx-auto px-4 py-8 md:py-16">
         {/* Header */}
         <div className="flex items-center justify-between mb-10">

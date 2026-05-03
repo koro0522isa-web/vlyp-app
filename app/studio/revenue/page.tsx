@@ -193,7 +193,7 @@ export default function RevenueDashboard() {
             <div className="mt-12 p-6 bg-blue-500/5 border border-blue-500/10 rounded-2xl flex items-start gap-4">
               <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
               <p className="text-[11px] font-medium text-blue-200/70 leading-relaxed">
-                Once eligible, you will start earning <span className="text-white font-bold italic">¥0.1 per view</span> automatically. Tips from gifts are available immediately upon receiving coins.
+                Once eligible, you will start earning from the <span className="text-white font-bold italic">Creator Revenue Pool (Dynamic RPM)</span> based on your monthly views. Tips from gifts are available immediately, subject to a 30% platform fee.
               </p>
             </div>
           </div>
