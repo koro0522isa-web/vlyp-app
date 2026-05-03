@@ -131,12 +131,20 @@ export default function TikTokPlayer({
       <video
         ref={videoRef}
         src={clip.video_url || clip.url}
+        poster={clip.thumbnail_url || undefined}
         className="h-full w-full object-contain pointer-events-none"
         loop
         playsInline
         muted={isMuted}
         preload="auto"
       />
+
+      {/* Free User Watermark */}
+      {!clip.is_pro && (
+        <div className="absolute top-8 left-4 z-30 pointer-events-none opacity-50 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+          <p className="font-black italic text-2xl tracking-tighter text-white">VLYP</p>
+        </div>
+      )}
 
       {/* Pause/Play indicator */}
       <AnimatePresence>

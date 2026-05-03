@@ -68,7 +68,7 @@ export default function EditClipPage() {
   if (isLoading) return <div className="flex h-screen bg-black items-center justify-center"><Loader2 className="animate-spin w-8 h-8 text-blue-500" /></div>;
 
   return (
-    <div className="flex h-screen bg-[#09090B] text-zinc-100 overflow-hidden font-sans">
+    <div className="flex h-[100dvh] bg-[#09090B] text-zinc-100 overflow-hidden font-sans">
       <Sidebar />
 
       <main className="flex-1 h-full overflow-y-auto no-scrollbar pb-20 md:pb-0 p-6 md:p-12 relative">

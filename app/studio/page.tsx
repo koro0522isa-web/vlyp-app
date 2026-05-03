@@ -63,7 +63,7 @@ export default function Studio() {
   );
 
   return (
-    <div className="flex h-screen bg-[#09090B] text-zinc-100 font-sans overflow-hidden">
+    <div className="flex h-[100dvh] bg-[#09090B] text-zinc-100 font-sans overflow-hidden">
       <Sidebar />
 
       <main className="flex-1 h-full overflow-y-auto no-scrollbar pb-20 md:pb-0 p-4 lg:p-10 bg-studio-dots">

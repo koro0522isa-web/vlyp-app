@@ -200,6 +200,15 @@ function MessagesContent() {
         if (profile) {
           setSelectedPartner(profile);
           selectedPartnerRef.current = profile;
+          
+          // Ensure they are in the chat list even if no messages yet
+          setChatPartners(prev => {
+            if (!prev.some(p => p.id === profile.id)) {
+              return [profile, ...prev];
+            }
+            return prev;
+          });
+          
           await fetchMessages(currentUser.id, targetUserId);
         }
       }

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
   UploadCloud, Loader2, ArrowLeft, Crown, Sparkles, 
-  Wand2, Check, Zap, Video as VideoIcon, Gamepad2, Info, X, Hash
+  Wand2, Check, Zap, Video as VideoIcon, Gamepad2, Info, X, Hash, Image as ImageIcon
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -23,12 +23,14 @@ function PostContent() {
   const searchParams = useSearchParams();
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [gameTitle, setGameTitle] = useState('VALORANT');
   const [user, setUser] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
   
   // Pro State
   const [isPro, setIsPro] = useState(false);
@@ -126,10 +128,22 @@ function PostContent() {
 
       const { data: { publicUrl } } = supabase.storage.from('videos').getPublicUrl(filePath);
 
+      let thumbnailUrl = null;
+      if (thumbnail && isPro) {
+        const thumbExt = thumbnail.name.split('.').pop();
+        const thumbName = `thumb_${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${thumbExt}`;
+        const thumbPath = `${user.id}/${thumbName}`;
+        const { error: thumbErr } = await supabase.storage.from('videos').upload(thumbPath, thumbnail);
+        if (!thumbErr) {
+          thumbnailUrl = supabase.storage.from('videos').getPublicUrl(thumbPath).data.publicUrl;
+        }
+      }
+
       const { error: insertError } = await supabase.from('clips').insert({
         title: title.trim(),
         url: publicUrl,
         video_url: publicUrl,
+        thumbnail_url: thumbnailUrl,
         game_title: gameTitle,
         user_id: user.id,
         user_name: user.user_metadata?.name || user.email?.split('@')[0] || 'Player',
@@ -237,6 +251,33 @@ function PostContent() {
             />
             <p className="text-right text-[10px] text-zinc-600 font-bold mt-1 mr-1">{title.length}/120</p>
           </div>
+
+          {/* Pro Feature: Custom Thumbnail */}
+          {isPro && (
+            <div>
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 block ml-1 flex items-center gap-1.5">
+                <Crown className="w-3 h-3 text-purple-500" /> Custom Thumbnail (Optional)
+              </label>
+              <div 
+                onClick={() => thumbnailInputRef.current?.click()}
+                className="w-full bg-white/5 border border-dashed border-purple-500/30 hover:border-purple-500/60 p-4 rounded-2xl flex items-center gap-4 cursor-pointer transition-colors"
+              >
+                <input type="file" ref={thumbnailInputRef} accept="image/*" className="hidden" onChange={(e) => setThumbnail(e.target.files?.[0] || null)} />
+                <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center">
+                  <ImageIcon className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-zinc-300">{thumbnail ? thumbnail.name : 'Upload Thumbnail Image'}</p>
+                  <p className="text-[10px] font-black uppercase text-zinc-600">JPG, PNG, WEBP</p>
+                </div>
+                {thumbnail && (
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setThumbnail(null); }} className="ml-auto p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Game + Hashtags Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

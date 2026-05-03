@@ -543,7 +543,7 @@ function HomeContent() {
     const { data, error } = await supabase.from('comments').insert({ 
       clip_id: commentClipId, 
       user_id: user.id, 
-      vlyp_id: vlypId, 
+      user_name: vlypId, 
       content: newComment,
       parent_id: replyingTo?.id || null 
     }).select().single();
