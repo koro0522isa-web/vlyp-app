@@ -14,6 +14,7 @@ import {
   Crown,
   Coins,
   Swords,
+  Trophy,
   Sparkles,
   Bell
 } from 'lucide-react';
@@ -146,6 +147,7 @@ export default function Sidebar() {
     { icon: <Search />, label: t('nav.search'), href: '/search', badge: 0 },
     { icon: <Bell />, label: t('nav.notifications'), href: '/notifications', badge: notifUnread },
     { icon: <Swords />, label: t('sidebar.battle'), href: '/battle', badge: 0 },
+    { icon: <Trophy />, label: 'ランキング', href: '/leaderboard', badge: 0 },
     { icon: <MessageSquare />, label: t('sidebar.messages'), href: '/messages', badge: dmUnread },
     { icon: <Clapperboard />, label: t('sidebar.studioEdit'), href: '/studio', badge: 0 },
     { icon: <Settings />, label: t('nav.settings'), href: '/settings', badge: 0 },
@@ -268,9 +270,4 @@ export default function Sidebar() {
         
         <div className="pt-2 text-center flex flex-col gap-2">
           <Link href="/legal" className="text-[9px] font-black text-zinc-600 hover:text-cyan-400 uppercase tracking-widest transition-colors">Legal & Pricing</Link>
-          <p className="text-[8px] text-zinc-800 font-bold uppercase tracking-widest">© VLYP 2026</p>
-        </div>
-      </div>
-    </aside>
-  );
-}
+          <p className="text-[8px] text-zinc-800 font-bold up
