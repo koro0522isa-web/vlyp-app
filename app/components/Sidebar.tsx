@@ -270,4 +270,9 @@ export default function Sidebar() {
         
         <div className="pt-2 text-center flex flex-col gap-2">
           <Link href="/legal" className="text-[9px] font-black text-zinc-600 hover:text-cyan-400 uppercase tracking-widest transition-colors">Legal & Pricing</Link>
-          <p className="text-[8px] text-zinc-800 font-bold up
+          <p className="text-[8px] text-zinc-800 font-bold uppercase tracking-widest">© VLYP 2026</p>
+        </div>
+      </div>
+    </aside>
+  );
+}
