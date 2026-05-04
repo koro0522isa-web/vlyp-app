@@ -35,12 +35,13 @@ export default function ProfilePage() {
     const { data: { session } } = await supabase.auth.getSession();
     setCurrentUser(session?.user ?? null);
 
-    // プロフィール取得
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
+    // プロフィール取得 (UUID または username どちらでも対応)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id ?? '');
+    const query = supabase.from('profiles').select('*');
+    const { data: profileData } = await (isUuid
+      ? query.eq('id', id)
+      : query.eq('username', id)
+    ).maybeSingle();
 
     if (!profileData) { router.push('/'); return; }
     setProfile(profileData);
