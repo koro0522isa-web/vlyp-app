@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
-import { 
-  UploadCloud, Loader2, ArrowLeft, Crown, Sparkles, 
-  Wand2, Check, Zap, Video as VideoIcon, Gamepad2, Info, X, Hash, Image as ImageIcon
+import {
+  UploadCloud, Loader2, ArrowLeft, Crown, Sparkles,
+  Wand2, Check, Zap, Video as VideoIcon, Gamepad2, Info, X, Hash, Image as ImageIcon, Calendar, Clock
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -38,6 +38,10 @@ function PostContent() {
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [hashtagInput, setHashtagInput] = useState('');
   const [dragActive, setDragActive] = useState(false);
+
+  // スケジュール投稿（Pro専用）
+  const [useSchedule, setUseSchedule] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState<string>('');
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -139,6 +143,7 @@ function PostContent() {
         }
       }
 
+      const isScheduled = isPro && useSchedule && scheduledAt;
       const { error: insertError } = await supabase.from('clips').insert({
         title: title.trim(),
         url: publicUrl,
@@ -147,7 +152,10 @@ function PostContent() {
         game_title: gameTitle,
         user_id: user.id,
         user_name: user.user_metadata?.name || user.email?.split('@')[0] || 'Player',
-        tags: hashtags.length > 0 ? hashtags : null
+        tags: hashtags.length > 0 ? hashtags : null,
+        status: isScheduled ? 'scheduled' : 'ready',
+        publish_at: isScheduled ? new Date(scheduledAt).toISOString() : null,
+        is_pro: isPro
       });
 
       if (insertError) throw insertError;
@@ -158,8 +166,15 @@ function PostContent() {
       }).eq('id', user.id);
 
       setUploadProgress(100);
-      
-      setTimeout(() => router.push('/'), 500);
+
+      if (isPro && useSchedule && scheduledAt) {
+        setTimeout(() => {
+          alert(`📅 投稿を予約しました！${new Date(scheduledAt).toLocaleString('ja-JP')} に自動公開されます。`);
+          router.push('/studio');
+        }, 500);
+      } else {
+        setTimeout(() => router.push('/'), 500);
+      }
     } catch (err: any) {
       console.error(err);
       alert('Failed to post: ' + (err.message || 'Unknown error'));
@@ -279,6 +294,51 @@ function PostContent() {
             </div>
           )}
 
+          {/* Pro Feature: Schedule Post */}
+          {isPro && (
+            <div className="border border-purple-500/20 rounded-2xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setUseSchedule(!useSchedule)}
+                className={`w-full flex items-center justify-between p-4 transition-all ${useSchedule ? 'bg-purple-500/10' : 'bg-white/[0.02] hover:bg-white/[0.04]'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${useSchedule ? 'bg-purple-500/20' : 'bg-white/5'}`}>
+                    <Calendar className={`w-4 h-4 ${useSchedule ? 'text-purple-400' : 'text-zinc-500'}`} />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-black text-white flex items-center gap-1.5">
+                      <Crown className="w-3 h-3 text-purple-400" /> Schedule Post
+                    </p>
+                    <p className="text-[10px] font-bold text-zinc-500">公開日時を予約する（Pro専用）</p>
+                  </div>
+                </div>
+                <div className={`w-10 h-5 rounded-full transition-all ${useSchedule ? 'bg-purple-500' : 'bg-zinc-700'} relative`}>
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${useSchedule ? 'left-5' : 'left-0.5'}`} />
+                </div>
+              </button>
+              {useSchedule && (
+                <div className="px-4 pb-4 pt-2 bg-purple-500/5">
+                  <label className="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-2 block">
+                    <Clock className="w-3 h-3 inline mr-1" /> 公開日時
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    min={new Date(Date.now() + 5 * 60 * 1000).toISOString().slice(0, 16)}
+                    className="w-full bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:border-purple-500/60 transition-all"
+                  />
+                  {scheduledAt && (
+                    <p className="text-[10px] text-purple-300/70 font-bold mt-2">
+                      📅 {new Date(scheduledAt).toLocaleString('ja-JP')} に自動公開
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Game + Hashtags Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Game */}
@@ -352,25 +412,31 @@ function PostContent() {
           </label>
 
           {/* Submit Button */}
-          <button 
+          <button
             type="submit"
-            disabled={isSubmitting || !file || !agreedTerms || !title.trim()}
+            disabled={isSubmitting || !file || !agreedTerms || !title.trim() || (useSchedule && !scheduledAt)}
             className={`relative w-full py-5 rounded-2xl overflow-hidden flex justify-center items-center gap-3 font-black text-sm uppercase tracking-[0.15em] transition-all duration-300 ${
-              isSubmitting || !file || !agreedTerms || !title.trim()
-                ? 'bg-zinc-900 text-zinc-600 cursor-not-allowed border border-white/5' 
-                : 'bg-blue-600 text-white hover:bg-blue-500 active:scale-[0.98] shadow-xl shadow-blue-600/20'
+              isSubmitting || !file || !agreedTerms || !title.trim() || (useSchedule && !scheduledAt)
+                ? 'bg-zinc-900 text-zinc-600 cursor-not-allowed border border-white/5'
+                : useSchedule
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-500 hover:to-pink-500 active:scale-[0.98] shadow-xl shadow-purple-600/20'
+                  : 'bg-blue-600 text-white hover:bg-blue-500 active:scale-[0.98] shadow-xl shadow-blue-600/20'
             }`}
           >
             {/* Progress bar */}
             {isSubmitting && (
-              <div className="absolute left-0 top-0 bottom-0 bg-blue-400/30 transition-all duration-500" style={{ width: `${uploadProgress}%` }} />
+              <div className="absolute left-0 top-0 bottom-0 bg-white/20 transition-all duration-500" style={{ width: `${uploadProgress}%` }} />
             )}
-            
+
             <span className="relative z-10 flex items-center gap-2">
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  {uploadProgress < 95 ? 'Uploading...' : 'Publishing...'}
+                  {uploadProgress < 95 ? 'Uploading...' : useSchedule ? 'Scheduling...' : 'Publishing...'}
+                </>
+              ) : useSchedule ? (
+                <>
+                  <Calendar className="w-5 h-5" /> Schedule Post
                 </>
               ) : (
                 <>

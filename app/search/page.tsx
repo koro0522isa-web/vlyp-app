@@ -15,6 +15,12 @@ import {
   X,
   Sparkles,
   Users,
+  Target,
+  Zap,
+  Crown,
+  Shield,
+  Star,
+  Swords,
 } from 'lucide-react';
 
 const POPULAR_GAMES = [
@@ -26,6 +32,19 @@ const POPULAR_GAMES = [
   "Overwatch 2",
   "Minecraft",
   "Fortnite",
+];
+
+const GAME_CATEGORIES = [
+  { name: 'VALORANT', icon: <Target className="w-6 h-6" />, color: 'from-red-600/40 to-red-900/20 border-red-500/30 hover:border-red-400/50', iconColor: 'text-red-400', desc: 'FPS / タクティカル' },
+  { name: 'Apex Legends', icon: <Zap className="w-6 h-6" />, color: 'from-orange-600/40 to-orange-900/20 border-orange-500/30 hover:border-orange-400/50', iconColor: 'text-orange-400', desc: 'Battle Royale' },
+  { name: 'League of Legends', icon: <Crown className="w-6 h-6" />, color: 'from-yellow-600/40 to-yellow-900/20 border-yellow-500/30 hover:border-yellow-400/50', iconColor: 'text-yellow-400', desc: 'MOBA' },
+  { name: 'CS2', icon: <Target className="w-6 h-6" />, color: 'from-amber-600/40 to-amber-900/20 border-amber-500/30 hover:border-amber-400/50', iconColor: 'text-amber-400', desc: 'FPS' },
+  { name: 'Overwatch 2', icon: <Shield className="w-6 h-6" />, color: 'from-blue-600/40 to-blue-900/20 border-blue-500/30 hover:border-blue-400/50', iconColor: 'text-blue-400', desc: 'ヒーロー FPS' },
+  { name: 'Fortnite', icon: <Star className="w-6 h-6" />, color: 'from-purple-600/40 to-purple-900/20 border-purple-500/30 hover:border-purple-400/50', iconColor: 'text-purple-400', desc: 'Battle Royale' },
+  { name: 'Street Fighter 6', icon: <Swords className="w-6 h-6" />, color: 'from-pink-600/40 to-pink-900/20 border-pink-500/30 hover:border-pink-400/50', iconColor: 'text-pink-400', desc: '格闘ゲーム' },
+  { name: 'Minecraft', icon: <Gamepad2 className="w-6 h-6" />, color: 'from-green-600/40 to-green-900/20 border-green-500/30 hover:border-green-400/50', iconColor: 'text-green-400', desc: 'サバイバル' },
+  { name: 'Call of Duty', icon: <Target className="w-6 h-6" />, color: 'from-zinc-600/40 to-zinc-900/20 border-zinc-500/30 hover:border-zinc-400/50', iconColor: 'text-zinc-400', desc: 'FPS / Battle Royale' },
+  { name: 'Other', icon: <Gamepad2 className="w-6 h-6" />, color: 'from-cyan-600/40 to-cyan-900/20 border-cyan-500/30 hover:border-cyan-400/50', iconColor: 'text-cyan-400', desc: 'その他' },
 ];
 
 export default function SearchPage() {
@@ -238,6 +257,29 @@ export default function SearchPage() {
           ) : (
             /* Discovery View */
             <div className="space-y-12">
+              {/* Game Categories Grid */}
+              <section>
+                <h2 className="text-[11px] font-black uppercase tracking-[0.4em] text-zinc-500 mb-6 flex items-center gap-3">
+                  <Gamepad2 className="w-4 h-4 text-blue-400" /> Games
+                  <div className="h-[1px] flex-1 bg-white/5" />
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {GAME_CATEGORIES.map((game) => (
+                    <button
+                      key={game.name}
+                      onClick={() => setSelectedGame(game.name)}
+                      className={`bg-gradient-to-br ${game.color} border rounded-2xl p-4 text-left group transition-all hover:scale-[1.02] active:scale-95`}
+                    >
+                      <div className={`${game.iconColor} mb-3 group-hover:scale-110 transition-transform`}>
+                        {game.icon}
+                      </div>
+                      <p className="text-xs font-black text-white leading-tight mb-0.5">{game.name}</p>
+                      <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">{game.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
               {/* Trending Creators */}
               {trendingCreators.length > 0 && (
                 <section>
