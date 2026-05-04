@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import Link from 'next/link';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
-import { MessageCircle, Heart, Share2, Play, Flame, Trophy, Check, Loader2, Search, X, Link as LinkIcon, Lock, MapPin, ExternalLink, Calendar, Plus, Crown, Star, ChevronLeft, ChevronRight, Video, Send, Gamepad2, AlertTriangle, Gift } from 'lucide-react';
+import { MessageCircle, Heart, Share2, Play, Flame, Trophy, Check, Loader2, Search, X, Link as LinkIcon, Lock, MapPin, ExternalLink, Calendar, Plus, Crown, Star, ChevronLeft, ChevronRight, Video, Send, Gamepad2, AlertTriangle, Gift, Target, Zap, Shield, Swords } from 'lucide-react';
 import AdSlot from './components/AdSlot';
 import { useLanguage } from './contexts/LanguageContext';
 import { useToast } from './contexts/ToastContext';
@@ -36,7 +36,17 @@ function HomeContent() {
   const [userLikes, setUserLikes] = useState<number[]>([]);
   const [userSaves, setUserSaves] = useState<number[]>([]);
   const [feedMode, setFeedMode] = useState<'all' | 'following'>('all');
+  const [feedGame, setFeedGame] = useState<string | null>(null);
   const [followingIds, setFollowingIds] = useState<string[]>([]);
+
+  // ギフトモーダル
+  const [showGiftModal, setShowGiftModal] = useState(false);
+  const [giftClip, setGiftClip] = useState<any>(null);
+  const [giftAmount, setGiftAmount] = useState<number>(100);
+  const [giftCustomAmount, setGiftCustomAmount] = useState<string>('');
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [isGifting, setIsGifting] = useState(false);
+  const [userIsPro, setUserIsPro] = useState(false);
 
   const [isCommentOpen, setIsCommentOpen] = useState(false);
   const [currentClipComments, setCurrentClipComments] = useState<any[]>([]);
@@ -97,6 +107,7 @@ function HomeContent() {
       if (currentUser) {
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
         setVlypId(profile?.display_name || profile?.username || profile?.vlyp_id || 'Player');
+        setUserIsPro(profile?.is_pro || false);
         
         // Fetch likes
         const { data: likes } = await supabase.from('clip_likes').select('clip_id').eq('user_id', currentUser.id);
@@ -192,7 +203,8 @@ function HomeContent() {
           p_limit: LIMIT,
           p_offset: offset,
           p_user_id: userId || null,
-          p_mode: feedMode
+          p_mode: feedMode,
+          p_game: feedGame || null
         });
 
         if (!rpcError && rpcData) {
@@ -237,7 +249,7 @@ function HomeContent() {
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchInitialData(); }, [feedMode]);
+  useEffect(() => { fetchInitialData(); }, [feedMode, feedGame]);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -471,25 +483,50 @@ function HomeContent() {
     await supabase.rpc('toggle_follow', { p_follower_id: user.id, p_following_id: targetId });
   };
 
+  const fetchWalletBalance = async () => {
+    if (!user) return;
+    const { data } = await supabase.from('wallets').select('coins').eq('user_id', user.id).maybeSingle();
+    if (data) setWalletBalance(data.coins || 0);
+  };
+
   const handleGift = async (clip: any) => {
     if (!user) return alert(t('auth.loginRequired') || 'Please log in');
     if (user.id === clip.user_id) return alert(t('gift.cantSelf') || 'Cannot gift your own clip');
-    const amountStr = window.prompt(t('gift.howMany') || 'How many VLYP coins to gift?');
-    if (!amountStr) return;
-    const amount = parseInt(amountStr);
-    if (isNaN(amount) || amount <= 0) return alert(t('gift.invalidAmount') || 'Invalid amount');
-    const { data, error } = await supabase.rpc('send_gift', { p_sender: user.id, p_receiver: clip.user_id, p_clip_id: clip.id, p_amount: amount });
-    if (error || !data) {
+    setGiftClip(clip);
+    setGiftAmount(100);
+    setGiftCustomAmount('');
+    await fetchWalletBalance();
+    setShowGiftModal(true);
+  };
+
+  const handleGiftSubmit = async () => {
+    if (!user || !giftClip || isGifting) return;
+    const finalAmount = giftCustomAmount ? parseInt(giftCustomAmount) : giftAmount;
+    if (isNaN(finalAmount) || finalAmount <= 0) return toast('Invalid amount', 'error');
+    if (finalAmount > walletBalance) {
+      setShowGiftModal(false);
       if (window.confirm(t('gift.insufficientCoins') || 'Insufficient coins. Go to coin shop?')) window.location.href = '/coins';
+      return;
+    }
+    setIsGifting(true);
+    const { data, error } = await supabase.rpc('send_gift', {
+      p_sender: user.id,
+      p_receiver: giftClip.user_id,
+      p_clip_id: giftClip.id,
+      p_amount: finalAmount
+    });
+    setIsGifting(false);
+    if (error || !data) {
+      toast(t('gift.insufficientCoins') || 'Insufficient coins', 'error');
     } else {
-      confetti({
-        particleCount: 200,
-        spread: 160,
-        origin: { y: 0.7 },
-        colors: ['#facc15', '#fde047', '#ffffff'],
-        shapes: ['star'],
-      });
-      alert(`${amount} ${t('gift.sent') || 'coins gifted!'} 🎉`);
+      setShowGiftModal(false);
+      setWalletBalance(prev => prev - finalAmount);
+      if (finalAmount >= 500) {
+        confetti({ particleCount: 300, spread: 180, origin: { y: 0.6 }, colors: ['#facc15', '#f97316', '#ec4899', '#ffffff'], shapes: ['star'] });
+      } else {
+        confetti({ particleCount: 100, spread: 90, origin: { y: 0.7 }, colors: ['#facc15', '#fde047', '#ffffff'], shapes: ['star'] });
+      }
+      toast(`🎁 ${finalAmount} coins gifted to @${giftClip.profiles?.display_name || 'creator'}! 🎉`, 'success');
     }
   };
 
@@ -557,13 +594,60 @@ function HomeContent() {
     setIsCommenting(false);
   };
 
+  const GAME_FILTERS = [
+    { name: 'VALORANT', icon: <Target className="w-3 h-3" />, color: 'text-red-400 border-red-500/50 bg-red-500/10' },
+    { name: 'Apex Legends', icon: <Zap className="w-3 h-3" />, color: 'text-orange-400 border-orange-500/50 bg-orange-500/10' },
+    { name: 'League of Legends', icon: <Crown className="w-3 h-3" />, color: 'text-yellow-400 border-yellow-500/50 bg-yellow-500/10' },
+    { name: 'CS2', icon: <Target className="w-3 h-3" />, color: 'text-amber-400 border-amber-500/50 bg-amber-500/10' },
+    { name: 'Overwatch 2', icon: <Shield className="w-3 h-3" />, color: 'text-blue-400 border-blue-500/50 bg-blue-500/10' },
+    { name: 'Fortnite', icon: <Star className="w-3 h-3" />, color: 'text-purple-400 border-purple-500/50 bg-purple-500/10' },
+    { name: 'Street Fighter 6', icon: <Swords className="w-3 h-3" />, color: 'text-pink-400 border-pink-500/50 bg-pink-500/10' },
+    { name: 'Minecraft', icon: <Gamepad2 className="w-3 h-3" />, color: 'text-green-400 border-green-500/50 bg-green-500/10' },
+    { name: 'Call of Duty', icon: <Target className="w-3 h-3" />, color: 'text-zinc-400 border-zinc-500/50 bg-zinc-500/10' },
+    { name: 'Fortnite', icon: <Star className="w-3 h-3" />, color: 'text-cyan-400 border-cyan-500/50 bg-cyan-500/10' },
+    { name: 'Other', icon: <Gamepad2 className="w-3 h-3" />, color: 'text-zinc-500 border-zinc-600/50 bg-zinc-600/10' },
+  ];
+
   return (
     <div className="flex h-screen bg-[#09090B] text-zinc-100 overflow-hidden font-sans">
       <Sidebar />
       <main className="flex-1 h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar bg-black relative">
-        <div className="sticky top-0 z-30 flex items-center justify-center gap-1 py-3 bg-black/80 backdrop-blur-xl">
-          <button onClick={() => setFeedMode('all')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'all' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>{t('feed.foryou')}</button>
-          <button onClick={() => setFeedMode('following')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'following' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>{t('feed.following')}</button>
+        <div className="sticky top-0 z-30 bg-black/90 backdrop-blur-xl border-b border-white/5">
+          {/* フィードモード切り替え */}
+          <div className="flex items-center justify-center gap-1 pt-3 pb-2">
+            <button
+              onClick={() => setFeedMode('all')}
+              className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'all' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}
+            >
+              {t('feed.foryou')}
+            </button>
+            <button
+              onClick={() => setFeedMode('following')}
+              className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'following' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}
+            >
+              {t('feed.following')}
+            </button>
+          </div>
+          {/* ゲームカテゴリフィルター（横スクロール） */}
+          <div className="overflow-x-auto no-scrollbar pb-2 px-2">
+            <div className="flex items-center gap-2 w-max px-2">
+              <button
+                onClick={() => setFeedGame(null)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${feedGame === null ? 'bg-white/15 text-white border-white/30' : 'text-zinc-600 border-zinc-700 hover:border-zinc-500 hover:text-zinc-400'}`}
+              >
+                <Gamepad2 className="w-3 h-3" /> ALL
+              </button>
+              {GAME_FILTERS.map((g) => (
+                <button
+                  key={g.name}
+                  onClick={() => setFeedGame(feedGame === g.name ? null : g.name)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${feedGame === g.name ? `${g.color} border-current` : 'text-zinc-600 border-zinc-700 hover:border-zinc-500 hover:text-zinc-400'}`}
+                >
+                  {g.icon} {g.name}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
         <div className="h-full w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar">
           {clips.map((clip, index) => {
@@ -828,6 +912,123 @@ function HomeContent() {
           </div>
         </div>
       )}
+      {/* ギフトモーダル */}
+      <AnimatePresence>
+        {showGiftModal && giftClip && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[200] flex items-end sm:items-center justify-center p-4"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowGiftModal(false); }}
+          >
+            <motion.div
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 80, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-[#09090B] border border-white/10 rounded-3xl p-6 w-full max-w-sm shadow-2xl"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-black uppercase tracking-tighter text-white flex items-center gap-2">
+                    <Gift className="w-5 h-5 text-yellow-400" /> Gift Coins
+                  </h3>
+                  <p className="text-[10px] font-bold text-zinc-500 mt-0.5">
+                    @{giftClip.profiles?.display_name || giftClip.user_name || 'creator'}
+                  </p>
+                </div>
+                <button onClick={() => setShowGiftModal(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all text-zinc-400">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* ウォレット残高 */}
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4 mb-5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center">
+                    <Gamepad2 className="w-4 h-4 text-yellow-400" />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black text-yellow-600 uppercase tracking-widest">Your Balance</p>
+                    <p className="text-xl font-black text-yellow-400">{walletBalance.toLocaleString()} <span className="text-sm">C</span></p>
+                  </div>
+                </div>
+                <Link href="/coins" className="text-[9px] font-black text-yellow-500 hover:text-yellow-400 uppercase tracking-wider border border-yellow-500/30 px-3 py-1.5 rounded-lg transition-all">
+                  +Coins
+                </Link>
+              </div>
+
+              {/* プリセット金額 */}
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                {[50, 100, 500, 1000].map((amt) => (
+                  <button
+                    key={amt}
+                    onClick={() => { setGiftAmount(amt); setGiftCustomAmount(''); }}
+                    className={`py-3 rounded-xl text-xs font-black transition-all border ${
+                      giftAmount === amt && !giftCustomAmount
+                        ? 'bg-yellow-500 text-black border-yellow-400 shadow-lg shadow-yellow-500/20'
+                        : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    {amt >= 1000 ? `${amt/1000}K` : amt}
+                    {amt >= 500 && <div className="text-[8px] mt-0.5 opacity-70">{amt === 500 ? '⭐' : '🌟'}</div>}
+                  </button>
+                ))}
+              </div>
+
+              {/* カスタム入力 */}
+              <div className="mb-5">
+                <input
+                  type="number"
+                  placeholder="Custom amount..."
+                  value={giftCustomAmount}
+                  onChange={(e) => { setGiftCustomAmount(e.target.value); setGiftAmount(0); }}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:border-yellow-500/50 transition-all"
+                  min="1"
+                />
+              </div>
+
+              {/* 手数料説明 */}
+              <div className="bg-white/[0.03] border border-white/5 rounded-xl p-3 mb-5">
+                <div className="flex justify-between text-[10px] font-bold">
+                  <span className="text-zinc-500">Platform fee</span>
+                  <span className={userIsPro ? 'text-purple-400' : 'text-zinc-400'}>
+                    {userIsPro ? '10% (Pro割引)' : '30%'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-[10px] font-bold mt-1">
+                  <span className="text-zinc-500">Creator receives</span>
+                  <span className="text-green-400">{userIsPro ? '90%' : '70%'}</span>
+                </div>
+                {!userIsPro && (
+                  <Link href="/post?upgrade=pro" className="block mt-2 text-[9px] font-black text-purple-400 hover:text-purple-300 transition-colors">
+                    ✦ Pro会員は手数料10%に → <span className="underline">Upgrade</span>
+                  </Link>
+                )}
+              </div>
+
+              {/* 送信ボタン */}
+              <button
+                onClick={handleGiftSubmit}
+                disabled={isGifting || (giftCustomAmount ? parseInt(giftCustomAmount) <= 0 : giftAmount <= 0)}
+                className="w-full py-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-black text-sm uppercase tracking-widest rounded-2xl hover:from-yellow-400 hover:to-orange-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-yellow-500/20 active:scale-95 flex items-center justify-center gap-2"
+              >
+                {isGifting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    <Gift className="w-4 h-4" />
+                    Send {giftCustomAmount || giftAmount} Coins
+                  </>
+                )}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <BottomNav />
     </div>
   );
