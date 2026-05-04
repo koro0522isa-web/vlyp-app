@@ -819,4 +819,85 @@ function HomeContent() {
                           <p className="text-[9px] font-black text-zinc-400 uppercase">@{reply.vlyp_id}</p>
                         </div>
                         <p className="text-sm text-zinc-400 leading-relaxed font-medium bg-white/5 p-3 rounded-xl rounded-tl-none">{reply.content}</p>
-                      </
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="p-8 border-t border-white/5 relative flex flex-col gap-4 bg-black/60 backdrop-blur-xl">
+            {/* Quick Emoji Bar */}
+            <div className="flex gap-2 mb-1">
+              {['🔥', 'GG', 'LFG', '🎮', '❤️', '🤩'].map(emoji => (
+                <button 
+                  key={emoji} 
+                  onClick={() => setNewComment(prev => prev + emoji)}
+                  className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-black transition-all hover:scale-110"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+
+            {replyingTo && (
+              <div className="flex items-center justify-between bg-blue-500/10 border border-blue-500/20 px-5 py-3 rounded-2xl animate-in slide-in-from-bottom-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">{t('comments.replyingTo')} @{replyingTo.vlyp_id}</p>
+                </div>
+                <button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-blue-500/20 rounded-full transition-all text-blue-400">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+            
+            <div className="relative group">
+              <textarea 
+                placeholder={replyingTo ? t('comments.placeholderReply') : t('comments.placeholder')} 
+                className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] py-5 px-6 pr-16 text-sm font-medium focus:outline-none focus:border-blue-500/50 transition-all group-hover:bg-white/[0.08] min-h-[60px] max-h-[150px] scrollbar-hide" 
+                value={newComment} 
+                rows={1}
+                onChange={(e) => {
+                  setNewComment(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                }} 
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    postComment();
+                  }
+                }} 
+              />
+              <button 
+                onClick={postComment} 
+                disabled={isCommenting || !newComment.trim()}
+                className={`absolute right-3 bottom-3 p-3.5 rounded-2xl text-white transition-all shadow-xl ${
+                  isCommenting || !newComment.trim() ? 'bg-zinc-800 opacity-50' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/30 active:scale-95'
+                }`}
+              >
+                {isCommenting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+              </button>
+            </div>
+            <p className="text-[8px] text-zinc-700 font-black uppercase tracking-[0.4em] text-center">{t('comments.guidelines')}</p>
+          </div>
+        </div>
+      )}
+      <BottomNav />
+    </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-black">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
+  );
+}
