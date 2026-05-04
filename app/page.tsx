@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import Link from 'next/link';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
-import { MessageCircle, Heart, Share2, Play, Flame, Trophy, Check, Loader2, Search, X, Link as LinkIcon, Lock, MapPin, ExternalLink, Calendar, Plus, Crown, Star, ChevronLeft, ChevronRight, Video, Send, Gamepad2, AlertTriangle, Gift } from 'lucide-react';
+import { MessageCircle, Heart, Share2, Play, Flame, Trophy, Check, Loader2, Search, X, Link as LinkIcon, Lock, MapPin, ExternalLink, Calendar, Plus, Crown, Star, ChevronLeft, ChevronRight, Video, Send, Gamepad2, AlertTriangle, Gift, Shield } from 'lucide-react';
 import AdSlot from './components/AdSlot';
 import { useLanguage } from './contexts/LanguageContext';
 import { useToast } from './contexts/ToastContext';
@@ -13,6 +13,7 @@ import { useSearchParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'framer-motion';
 import TikTokPlayer from './components/TikTokPlayer';
+import StoriesBar from './components/StoriesBar';
 
 function HomeContent() {
   const [clips, setClips] = useState<any[]>([]);
@@ -37,6 +38,10 @@ function HomeContent() {
   const [userSaves, setUserSaves] = useState<number[]>([]);
   const [feedMode, setFeedMode] = useState<'all' | 'following'>('all');
   const [followingIds, setFollowingIds] = useState<string[]>([]);
+
+  // 有料動画 - 解放済みIDセット
+  const [unlockedClipIds, setUnlockedClipIds] = useState<Set<number>>(new Set());
+  const [isUnlocking, setIsUnlocking] = useState<number | null>(null);
 
   const [isCommentOpen, setIsCommentOpen] = useState(false);
   const [currentClipComments, setCurrentClipComments] = useState<any[]>([]);
@@ -471,6 +476,23 @@ function HomeContent() {
     await supabase.rpc('toggle_follow', { p_follower_id: user.id, p_following_id: targetId });
   };
 
+  const handleUnlockClip = async (clip: any) => {
+    if (!user) { window.location.href = '/login'; return; }
+    if (user.id === clip.user_id) { setUnlockedClipIds(prev => new Set([...prev, clip.id])); return; }
+    setIsUnlocking(clip.id);
+    const { data, error } = await supabase.rpc('unlock_paid_clip', { p_clip_id: clip.id });
+    setIsUnlocking(null);
+    if (error || data?.error) {
+      if (data?.error === 'Insufficient coins') {
+        if (window.confirm('コインが不足しています。コインショップへ行きますか？')) window.location.href = '/coins';
+      } else {
+        alert('エラーが発生しました: ' + (data?.error || error?.message));
+      }
+    } else {
+      setUnlockedClipIds(prev => new Set([...prev, clip.id]));
+    }
+  };
+
   const handleGift = async (clip: any) => {
     if (!user) return alert(t('auth.loginRequired') || 'Please log in');
     if (user.id === clip.user_id) return alert(t('gift.cantSelf') || 'Cannot gift your own clip');
@@ -561,9 +583,13 @@ function HomeContent() {
     <div className="flex h-screen bg-[#09090B] text-zinc-100 overflow-hidden font-sans">
       <Sidebar />
       <main className="flex-1 h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar bg-black relative">
-        <div className="sticky top-0 z-30 flex items-center justify-center gap-1 py-3 bg-black/80 backdrop-blur-xl">
-          <button onClick={() => setFeedMode('all')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'all' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>{t('feed.foryou')}</button>
-          <button onClick={() => setFeedMode('following')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'following' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>{t('feed.following')}</button>
+        {/* ストーリーズバー + フィードモード切り替え */}
+        <div className="sticky top-0 z-30 bg-black/90 backdrop-blur-xl border-b border-white/5">
+          <div className="flex items-center justify-center gap-1 pt-3 pb-2">
+            <button onClick={() => setFeedMode('all')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'all' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>{t('feed.foryou')}</button>
+            <button onClick={() => setFeedMode('following')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'following' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>{t('feed.following')}</button>
+          </div>
+          <StoriesBar />
         </div>
         <div className="h-full w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar">
           {clips.map((clip, index) => {
@@ -584,21 +610,52 @@ function HomeContent() {
                    それ以外はメモリ節約のために非表示にします。
                 */}
                 {isNearActive ? (
-                  <TikTokPlayer 
-                    clip={clip}
-                    isActive={activeVideoId === clip.id}
-                    userLikes={userLikes}
-                    userSaves={userSaves}
-                    onLike={handleLike}
-                    onSave={handleSave}
-                    onComment={openComments}
-                    onShare={handleShare}
-                    onGift={handleGift}
-                    onFollow={handleFollow}
-                    renderTitle={renderTitle}
-                    isCopied={copiedId === clip.id}
-                    isFollowing={followingIds.includes(clip.user_id)}
-                  />
+                  <div className="relative w-full h-full">
+                    <TikTokPlayer
+                      clip={clip}
+                      isActive={activeVideoId === clip.id && (!clip.is_paid || unlockedClipIds.has(clip.id) || user?.id === clip.user_id)}
+                      userLikes={userLikes}
+                      userSaves={userSaves}
+                      onLike={handleLike}
+                      onSave={handleSave}
+                      onComment={openComments}
+                      onShare={handleShare}
+                      onGift={handleGift}
+                      onFollow={handleFollow}
+                      renderTitle={renderTitle}
+                      isCopied={copiedId === clip.id}
+                      isFollowing={followingIds.includes(clip.user_id)}
+                    />
+                    {/* ペイウォールオーバーレイ */}
+                    {clip.is_paid && !unlockedClipIds.has(clip.id) && user?.id !== clip.user_id && (
+                      <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
+                        <div className="bg-[#09090B] border border-yellow-500/30 rounded-3xl p-8 max-w-xs mx-4 text-center shadow-2xl">
+                          <div className="w-16 h-16 bg-yellow-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Lock className="w-8 h-8 text-yellow-400" />
+                          </div>
+                          <h3 className="text-lg font-black text-white mb-1">有料コンテンツ</h3>
+                          <p className="text-zinc-400 text-sm mb-4">
+                            このクリップを視聴するには<br />
+                            <strong className="text-yellow-400">{clip.paid_price_coins} コイン</strong> が必要です
+                          </p>
+                          <button
+                            onClick={() => handleUnlockClip(clip)}
+                            disabled={isUnlocking === clip.id}
+                            className="w-full py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-black text-sm rounded-2xl hover:from-yellow-400 hover:to-orange-400 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                          >
+                            {isUnlocking === clip.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <>{clip.paid_price_coins}Cで解放</>
+                            )}
+                          </button>
+                          <Link href="/coins" className="block mt-3 text-[10px] text-zinc-500 hover:text-zinc-400">
+                            コインを購入する →
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="h-full w-full bg-black flex items-center justify-center">
                     <Loader2 className="w-8 h-8 animate-spin text-zinc-800" />
@@ -762,85 +819,4 @@ function HomeContent() {
                           <p className="text-[9px] font-black text-zinc-400 uppercase">@{reply.vlyp_id}</p>
                         </div>
                         <p className="text-sm text-zinc-400 leading-relaxed font-medium bg-white/5 p-3 rounded-xl rounded-tl-none">{reply.content}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="p-8 border-t border-white/5 relative flex flex-col gap-4 bg-black/60 backdrop-blur-xl">
-            {/* Quick Emoji Bar */}
-            <div className="flex gap-2 mb-1">
-              {['🔥', 'GG', 'LFG', '🎮', '❤️', '🤩'].map(emoji => (
-                <button 
-                  key={emoji} 
-                  onClick={() => setNewComment(prev => prev + emoji)}
-                  className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-black transition-all hover:scale-110"
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-
-            {replyingTo && (
-              <div className="flex items-center justify-between bg-blue-500/10 border border-blue-500/20 px-5 py-3 rounded-2xl animate-in slide-in-from-bottom-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
-                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">{t('comments.replyingTo')} @{replyingTo.vlyp_id}</p>
-                </div>
-                <button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-blue-500/20 rounded-full transition-all text-blue-400">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-            
-            <div className="relative group">
-              <textarea 
-                placeholder={replyingTo ? t('comments.placeholderReply') : t('comments.placeholder')} 
-                className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] py-5 px-6 pr-16 text-sm font-medium focus:outline-none focus:border-blue-500/50 transition-all group-hover:bg-white/[0.08] min-h-[60px] max-h-[150px] scrollbar-hide" 
-                value={newComment} 
-                rows={1}
-                onChange={(e) => {
-                  setNewComment(e.target.value);
-                  e.target.style.height = 'auto';
-                  e.target.style.height = e.target.scrollHeight + 'px';
-                }} 
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    postComment();
-                  }
-                }} 
-              />
-              <button 
-                onClick={postComment} 
-                disabled={isCommenting || !newComment.trim()}
-                className={`absolute right-3 bottom-3 p-3.5 rounded-2xl text-white transition-all shadow-xl ${
-                  isCommenting || !newComment.trim() ? 'bg-zinc-800 opacity-50' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/30 active:scale-95'
-                }`}
-              >
-                {isCommenting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-              </button>
-            </div>
-            <p className="text-[8px] text-zinc-700 font-black uppercase tracking-[0.4em] text-center">{t('comments.guidelines')}</p>
-          </div>
-        </div>
-      )}
-      <BottomNav />
-    </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <Suspense fallback={
-      <div className="flex h-screen items-center justify-center bg-black">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
-      </div>
-    }>
-      <HomeContent />
-    </Suspense>
-  );
-}
+                      </

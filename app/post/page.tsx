@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
-  UploadCloud, Loader2, ArrowLeft, Crown, Sparkles, 
-  Wand2, Check, Zap, Video as VideoIcon, Gamepad2, Info, X, Hash, Image as ImageIcon
+  UploadCloud, Loader2, ArrowLeft, Crown, Sparkles,
+  Wand2, Check, Zap, Video as VideoIcon, Gamepad2, Info, X, Hash, Image as ImageIcon, Lock
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -38,6 +38,10 @@ function PostContent() {
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [hashtagInput, setHashtagInput] = useState('');
   const [dragActive, setDragActive] = useState(false);
+  // 有料動画設定（Pro限定）
+  const [isPaidVideo, setIsPaidVideo] = useState(false);
+  const [paidPriceCoins, setPaidPriceCoins] = useState<number>(100);
+  const [isMemberOnly, setIsMemberOnly] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -147,7 +151,10 @@ function PostContent() {
         game_title: gameTitle,
         user_id: user.id,
         user_name: user.user_metadata?.name || user.email?.split('@')[0] || 'Player',
-        tags: hashtags.length > 0 ? hashtags : null
+        tags: hashtags.length > 0 ? hashtags : null,
+        is_paid: isPro && isPaidVideo,
+        paid_price_coins: isPro && isPaidVideo ? paidPriceCoins : null,
+        member_only: isPro && isMemberOnly,
       });
 
       if (insertError) throw insertError;
@@ -279,6 +286,75 @@ function PostContent() {
             </div>
           )}
 
+          {/* Pro Feature: Paid Video / Member Only */}
+          {isPro && (
+            <div className="space-y-3">
+              {/* 有料動画トグル */}
+              <div className="border border-yellow-500/20 rounded-2xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsPaidVideo(!isPaidVideo)}
+                  className={`w-full flex items-center justify-between p-4 transition-all ${isPaidVideo ? 'bg-yellow-500/10' : 'bg-white/[0.02] hover:bg-white/[0.04]'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isPaidVideo ? 'bg-yellow-500/20' : 'bg-white/5'}`}>
+                      <Lock className={`w-4 h-4 ${isPaidVideo ? 'text-yellow-400' : 'text-zinc-500'}`} />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-xs font-black text-white flex items-center gap-1.5">
+                        <Crown className="w-3 h-3 text-yellow-400" /> 有料動画（コイン解放）
+                      </p>
+                      <p className="text-[10px] font-bold text-zinc-500">視聴者がコインを払って視聴</p>
+                    </div>
+                  </div>
+                  <div className={`w-10 h-5 rounded-full transition-all ${isPaidVideo ? 'bg-yellow-500' : 'bg-zinc-700'} relative`}>
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${isPaidVideo ? 'left-5' : 'left-0.5'}`} />
+                  </div>
+                </button>
+                {isPaidVideo && (
+                  <div className="px-4 pb-4 pt-2 bg-yellow-500/5">
+                    <label className="text-[9px] font-black text-yellow-400 uppercase tracking-widest mb-2 block">
+                      解放価格（コイン）
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                      {[50, 100, 300, 500, 1000].map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setPaidPriceCoins(c)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all border ${paidPriceCoins === c ? 'bg-yellow-500 text-black border-yellow-400' : 'bg-white/5 text-zinc-400 border-white/10 hover:bg-white/10'}`}
+                        >
+                          {c}C
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-yellow-300/60 mt-2">あなたに入る: {Math.floor(paidPriceCoins * 0.7)}C（30%手数料）</p>
+                  </div>
+                )}
+              </div>
+
+              {/* メンバー限定トグル */}
+              <button
+                type="button"
+                onClick={() => setIsMemberOnly(!isMemberOnly)}
+                className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${isMemberOnly ? 'bg-purple-500/10 border-purple-500/30' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isMemberOnly ? 'bg-purple-500/20' : 'bg-white/5'}`}>
+                    <Crown className={`w-4 h-4 ${isMemberOnly ? 'text-purple-400' : 'text-zinc-500'}`} />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-black text-white">ファンクラブ限定</p>
+                    <p className="text-[10px] font-bold text-zinc-500">メンバーだけが視聴可能</p>
+                  </div>
+                </div>
+                <div className={`w-10 h-5 rounded-full transition-all ${isMemberOnly ? 'bg-purple-500' : 'bg-zinc-700'} relative`}>
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${isMemberOnly ? 'left-5' : 'left-0.5'}`} />
+                </div>
+              </button>
+            </div>
+          )}
+
           {/* Game + Hashtags Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Game */}
@@ -304,91 +380,4 @@ function PostContent() {
               </label>
               <div className="flex gap-2">
                 <input 
-                  value={hashtagInput}
-                  onChange={(e) => setHashtagInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addHashtag())}
-                  placeholder="Add tag..."
-                  className="flex-1 bg-white/5 border border-white/10 p-4 rounded-2xl outline-none font-bold placeholder:text-zinc-700 text-sm"
-                />
-                <button type="button" onClick={addHashtag} className="px-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors text-xs font-black uppercase">+</button>
-              </div>
-              {hashtags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {hashtags.map(tag => (
-                    <span key={tag} className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-[10px] font-black text-blue-300 flex items-center gap-1.5">
-                      #{tag}
-                      <button type="button" onClick={() => setHashtags(hashtags.filter(t => t !== tag))} className="hover:text-red-400 transition-colors">&times;</button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Upload Quota */}
-          <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Info className="w-4 h-4 text-zinc-500" />
-              <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Monthly Uploads</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-black">{monthlyUploads}</span>
-              <span className="text-xs font-bold text-zinc-600">/ {isPro ? '∞' : '30'}</span>
-            </div>
-          </div>
-
-          {/* Terms Checkbox */}
-          <label className="flex items-start gap-4 cursor-pointer group p-4 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-colors">
-            <div className="relative mt-0.5">
-              <input type="checkbox" className="peer sr-only" checked={agreedTerms} onChange={(e) => setAgreedTerms(e.target.checked)} />
-              <div className="w-5 h-5 rounded-lg bg-black/50 border-2 border-zinc-700 peer-checked:bg-blue-600 peer-checked:border-blue-500 transition-all flex items-center justify-center">
-                <Check className={`w-3 h-3 text-white transition-transform duration-200 ${agreedTerms ? 'scale-100' : 'scale-0'}`} />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-black text-zinc-300 uppercase tracking-widest">Copyright Agreement</p>
-              <p className="text-[10px] text-zinc-500 font-bold mt-1">No unauthorized music or duplicate content. You own the rights to this clip.</p>
-            </div>
-          </label>
-
-          {/* Submit Button */}
-          <button 
-            type="submit"
-            disabled={isSubmitting || !file || !agreedTerms || !title.trim()}
-            className={`relative w-full py-5 rounded-2xl overflow-hidden flex justify-center items-center gap-3 font-black text-sm uppercase tracking-[0.15em] transition-all duration-300 ${
-              isSubmitting || !file || !agreedTerms || !title.trim()
-                ? 'bg-zinc-900 text-zinc-600 cursor-not-allowed border border-white/5' 
-                : 'bg-blue-600 text-white hover:bg-blue-500 active:scale-[0.98] shadow-xl shadow-blue-600/20'
-            }`}
-          >
-            {/* Progress bar */}
-            {isSubmitting && (
-              <div className="absolute left-0 top-0 bottom-0 bg-blue-400/30 transition-all duration-500" style={{ width: `${uploadProgress}%` }} />
-            )}
-            
-            <span className="relative z-10 flex items-center gap-2">
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  {uploadProgress < 95 ? 'Uploading...' : 'Publishing...'}
-                </>
-              ) : (
-                <>
-                  <Zap className="w-5 h-5" /> Publish Clip
-                </>
-              )}
-            </span>
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-export default function Post() {
-  return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#09090b]"><Loader2 className="w-10 h-10 animate-spin text-blue-500" /></div>}>
-      <PostContent />
-    </Suspense>
-  );
-}
+   
