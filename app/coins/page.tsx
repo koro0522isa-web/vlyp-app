@@ -9,16 +9,18 @@ import { Coins, ArrowLeft, Loader2, Sparkles } from 'lucide-react';
 import { PROFILE_REFRESH_EVENT } from '@/lib/dm-events';
 
 const COIN_PACKS = [
-  { id: 'pack_100', amount: 100, price: 150, popular: false },
-  { id: 'pack_500', amount: 500, price: 700, popular: true },
-  { id: 'pack_1000', amount: 1000, price: 1300, popular: false },
-  { id: 'pack_5000', amount: 5000, price: 6000, popular: false },
+  { id: 'pack_100',  amount: 100,  price: 150,  popular: false, label: '' },
+  { id: 'pack_500',  amount: 500,  price: 700,  popular: true,  label: 'おすすめ' },
+  { id: 'pack_1000', amount: 1000, price: 1300, popular: false, label: 'お得' },
+  { id: 'pack_3000', amount: 3000, price: 3500, popular: false, label: 'お得' },
+  { id: 'pack_5000', amount: 5000, price: 6000, popular: false, label: 'ベスト' },
 ];
 
 export default function CoinsPage() {
   const [user, setUser] = useState<any>(null);
   const [balance, setBalance] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchBalance = async () => {
