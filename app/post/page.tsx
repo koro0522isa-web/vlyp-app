@@ -2,14 +2,16 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
-import { 
+import {
   UploadCloud, Loader2, ArrowLeft, Crown, Sparkles,
-  Wand2, Check, Zap, Video as VideoIcon, Gamepad2, Info, X, Hash, Image as ImageIcon, Lock
+  Wand2, Check, Zap, Video as VideoIcon, Gamepad2, Info, X, Hash, Image as ImageIcon, Lock,
+  Smartphone
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PROFILE_REFRESH_EVENT } from '@/lib/dm-events';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useVideoProcessor } from '@/app/hooks/useVideoProcessor';
 
 const GAMES = [
   "VALORANT", "Apex Legends", "League of Legends", "Street Fighter 6", 
@@ -42,6 +44,10 @@ function PostContent() {
   const [isPaidVideo, setIsPaidVideo] = useState(false);
   const [paidPriceCoins, setPaidPriceCoins] = useState<number>(100);
   const [isMemberOnly, setIsMemberOnly] = useState(false);
+  // 縦型変換
+  const [isConverting, setIsConverting] = useState(false);
+  const [convertMode, setConvertMode] = useState<'pad' | 'crop'>('pad');
+  const { convertToVertical, progress: convertProgress } = useVideoProcessor();
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -90,6 +96,20 @@ function PostContent() {
     setDragActive(false);
     if (e.dataTransfer.files?.[0]?.type.startsWith('video/')) {
       setFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleConvertToVertical = async () => {
+    if (!file) return;
+    setIsConverting(true);
+    try {
+      const blob = await convertToVertical(file, { mode: convertMode });
+      const converted = new File([blob], file.name.replace(/\.[^.]+$/, '_vertical.mp4'), { type: 'video/mp4' });
+      setFile(converted);
+    } catch (err: any) {
+      alert('縦型変換に失敗しました: ' + err.message);
+    } finally {
+      setIsConverting(false);
     }
   };
 
@@ -244,6 +264,58 @@ function PostContent() {
               </>
             )}
           </div>
+
+          {/* 縦型変換ツール (動画選択後に表示) */}
+          <AnimatePresence>
+            {file && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-2xl space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-blue-400" />
+                    <span className="text-[11px] font-black text-blue-400 uppercase tracking-widest">縦型変換 (9:16)</span>
+                  </div>
+                  <div className="flex items-center gap-1 p-0.5 bg-white/5 rounded-lg border border-white/10">
+                    {(['pad', 'crop'] as const).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setConvertMode(m)}
+                        className={`px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all ${convertMode === m ? 'bg-blue-600 text-white' : 'text-zinc-500 hover:text-white'}`}
+                      >
+                        {m === 'pad' ? '黒帯' : 'クロップ'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[10px] text-zinc-500 font-bold">
+                  {convertMode === 'pad' ? '黒帯付きで全体を表示 — コンテンツが切れない' : '中央クロップで全画面表示 — 端が切れる場合あり'}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleConvertToVertical}
+                  disabled={isConverting}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-xl text-xs font-black text-blue-400 transition-all disabled:opacity-50"
+                >
+                  {isConverting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      変換中... {convertProgress > 0 ? `${Math.round(convertProgress)}%` : ''}
+                    </>
+                  ) : (
+                    <>
+                      <Smartphone className="w-4 h-4" />
+                      縦型に変換する
+                    </>
+                  )}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Title */}
           <div>
