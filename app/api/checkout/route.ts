@@ -1,18 +1,12 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-// ビルド時に STRIPE_SECRET_KEY が無いと new Stripe() が失敗するためリクエスト内で初期化
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) {
-    throw new Error('STRIPE_SECRET_KEY is not configured');
-  }
-  return new Stripe(key, {
-    apiVersion: '2025-01-27.acacia' as any,
-  });
+  if (!key) throw new Error('STRIPE_SECRET_KEY is not configured');
+  return new Stripe(key, { apiVersion: '2025-01-27.acacia' as any });
 }
 
-// ★サーバー側で価格を定義（クライアントからの改ざんを防ぐ）
 const COIN_PACKS: Record<string, { amount: number, price: number }> = {
   'pack_100': { amount: 100, price: 150 },
   'pack_500': { amount: 500, price: 700 },
@@ -34,66 +28,41 @@ export async function POST(req: Request) {
       if (!priceId) {
         return NextResponse.json({ error: 'Pro price ID not configured' }, { status: 500 });
       }
-
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
-        line_items: [
-          {
-            price: priceId,
-            quantity: 1,
-          },
-        ],
+        line_items: [{ price: priceId, quantity: 1 }],
         mode: 'subscription',
-        // invoice.paid / subscription.deleted の Webhook で userId を取得するため Subscription に載せる
-        subscription_data: {
-          metadata: {
-            userId,
-            packId: 'pro',
-          },
-        },
+        subscription_data: { metadata: { userId, packId: 'pro' } },
         client_reference_id: userId,
-        success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/post?success=true`,
+        success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/post?canceled=true`,
-        metadata: {
-          userId: userId,
-          packId: 'pro',
-        },
+        metadata: { userId, packId: 'pro' },
       });
-
       return NextResponse.json({ url: session.url });
     }
 
     if (!COIN_PACKS[packId]) {
       return NextResponse.json({ error: 'Invalid packId' }, { status: 400 });
     }
-
     const selectedPack = COIN_PACKS[packId];
-
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'jpy',
-            product_data: {
-              name: `VLYP Coins x${selectedPack.amount}`,
-              description: 'VLYP内でクリエイターへの投げ銭に使用できるコインです。',
-            },
-            unit_amount: selectedPack.price,
+      line_items: [{
+        price_data: {
+          currency: 'jpy',
+          product_data: {
+            name: `VLYP Coins x${selectedPack.amount}`,
+            description: 'VLYP内でクリエイターへの投げ銭に使用できるコインです。',
           },
-          quantity: 1,
+          unit_amount: selectedPack.price,
         },
-      ],
+        quantity: 1,
+      }],
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/coins?success=true`,
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/coins?canceled=true`,
-      metadata: {
-        userId: userId,
-        coins: selectedPack.amount.toString(),
-        packId: packId,
-      },
+      metadata: { userId, coins: selectedPack.amount.toString(), packId },
     });
-
     return NextResponse.json({ url: session.url });
   } catch (error: any) {
     console.error('Stripe checkout error:', error);
