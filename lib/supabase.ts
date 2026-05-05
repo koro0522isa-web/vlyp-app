@@ -1,10 +1,11 @@
 // lib/supabase.ts
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
 /**
- * Vercel / CI ではビルド時に NEXT_PUBLIC_* が未注入のことがある。
- * 空文字で createClient すると「supabaseUrl is required」で prerender が落ちるため、
- * ダミー値でクライアントだけ生成し、実行時は必ず本番 env を設定すること。
+ * クライアントサイド用 Supabase クライアント。
+ * @supabase/ssr の createBrowserClient を使うことで
+ * cookie ベースのセッション管理が有効になり、ページ遷移でログアウトしなくなる。
+ * Vercel / CI ではビルド時に NEXT_PUBLIC_* が未注入のことがあるためダミー値で保護。
  */
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -13,4 +14,4 @@ const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.build';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export con

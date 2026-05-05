@@ -9,8 +9,8 @@ import {
   Search,
   Plus,
   User,
-  Swords,
   MessageSquare,
+  Trophy,
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { DM_UNREAD_EVENT } from '@/lib/dm-events';
@@ -52,7 +52,7 @@ export default function BottomNav() {
     { icon: HomeIcon, label: t('nav.home'), href: '/', badge: 0 },
     { icon: Search, label: t('nav.search'), href: '/search', badge: 0 },
     { icon: Plus, label: t('nav.post'), href: user ? '/post' : '/login', isCenter: true, badge: 0 },
-    { icon: Swords, label: 'Battle', href: '/battle', badge: 0 },
+    { icon: Trophy, label: 'Rank', href: '/leaderboard', badge: 0 },
     { icon: MessageSquare, label: 'DM', href: '/messages', badge: dmUnread },
     { icon: User, label: t('nav.profile'), href: user ? `/profile/${user.id}` : '/login', badge: 0 },
   ];
@@ -115,4 +115,3 @@ export default function BottomNav() {
       </div>
     </nav>
   );
-}

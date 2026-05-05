@@ -13,7 +13,6 @@ import {
   MessageSquare,
   Crown,
   Coins,
-  Swords,
   Trophy,
   Sparkles,
   Bell
@@ -146,7 +145,6 @@ export default function Sidebar() {
     { icon: <HomeIcon />, label: t('nav.home'), href: '/', badge: 0 },
     { icon: <Search />, label: t('nav.search'), href: '/search', badge: 0 },
     { icon: <Bell />, label: t('nav.notifications'), href: '/notifications', badge: notifUnread },
-    { icon: <Swords />, label: t('sidebar.battle'), href: '/battle', badge: 0 },
     { icon: <Trophy />, label: 'ランキング', href: '/leaderboard', badge: 0 },
     { icon: <MessageSquare />, label: t('sidebar.messages'), href: '/messages', badge: dmUnread },
     { icon: <Clapperboard />, label: t('sidebar.studioEdit'), href: '/studio', badge: 0 },
@@ -276,3 +274,4 @@ export default function Sidebar() {
     </aside>
   );
 }
+                                                                                             

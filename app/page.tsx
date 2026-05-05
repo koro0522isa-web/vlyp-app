@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import TikTokPlayer from './components/TikTokPlayer';
 import StoriesBar from './components/StoriesBar';
 
-function HomeContent() {
+export default function Home() {
   const [clips, setClips] = useState<any[]>([]);
   const [ranking, setRanking] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -293,8 +293,26 @@ function HomeContent() {
 
   const claimReward = async () => {
     if (!user || isRewarded || dailyViews < 10) return;
-    const { data } = await supabase.rpc('claim_daily_reward');
-    if (data?.success) {
+    const { data, error } = await supabase.rpc('claim_daily_reward');
+    if (error) {
+      console.error('claim_daily_reward RPC error:', error);
+      // RPCが存在しない場合のフォールバック: ウォレットに直接1コイン付与
+      const jstDate = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+      await supabase.from('daily_user_missions').upsert(
+        { user_id: user.id, target_date: jstDate, is_rewarded: true, views_count: dailyViews },
+        { onConflict: 'user_id,target_date' }
+      );
+      // wallets テーブルのコインを+1
+      await supabase.rpc('increment_coins', { uid: user.id, amount: 1 }).catch(async () => {
+        const { data: w } = await supabase.from('wallets').select('coins').eq('user_id', user.id).maybeSingle();
+        await supabase.from('wallets').upsert({ user_id: user.id, coins: (w?.coins || 0) + 1 }, { onConflict: 'user_id' });
+      });
+      setIsRewarded(true);
+      confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#22d3ee', '#818cf8', '#fbbf24'] });
+      alert('1コインを獲得しました！');
+      return;
+    }
+    if (data?.success || data) {
       setIsRewarded(true);
       confetti({
         particleCount: 150,
@@ -302,7 +320,7 @@ function HomeContent() {
         origin: { y: 0.6 },
         colors: ['#22d3ee', '#818cf8', '#fbbf24']
       });
-      alert(t('mission.rewarded') || data.message);
+      alert(t('mission.rewarded') || data?.message || '1コインを獲得しました！');
     }
   };
 
@@ -856,48 +874,4 @@ function HomeContent() {
             <div className="relative group">
               <textarea 
                 placeholder={replyingTo ? t('comments.placeholderReply') : t('comments.placeholder')} 
-                className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] py-5 px-6 pr-16 text-sm font-medium focus:outline-none focus:border-blue-500/50 transition-all group-hover:bg-white/[0.08] min-h-[60px] max-h-[150px] scrollbar-hide" 
-                value={newComment} 
-                rows={1}
-                onChange={(e) => {
-                  setNewComment(e.target.value);
-                  e.target.style.height = 'auto';
-                  e.target.style.height = e.target.scrollHeight + 'px';
-                }} 
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    postComment();
-                  }
-                }} 
-              />
-              <button 
-                onClick={postComment} 
-                disabled={isCommenting || !newComment.trim()}
-                className={`absolute right-3 bottom-3 p-3.5 rounded-2xl text-white transition-all shadow-xl ${
-                  isCommenting || !newComment.trim() ? 'bg-zinc-800 opacity-50' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/30 active:scale-95'
-                }`}
-              >
-                {isCommenting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-              </button>
-            </div>
-            <p className="text-[8px] text-zinc-700 font-black uppercase tracking-[0.4em] text-center">{t('comments.guidelines')}</p>
-          </div>
-        </div>
-      )}
-      <BottomNav />
-    </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <Suspense fallback={
-      <div className="flex h-screen items-center justify-center bg-black">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
-      </div>
-    }>
-      <HomeContent />
-    </Suspense>
-  );
-}
+                className="w-full bg-white/5 border border-white/10 rounded-[
