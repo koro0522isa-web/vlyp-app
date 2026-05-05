@@ -2,14 +2,16 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
-import { 
-  UploadCloud, Loader2, ArrowLeft, Crown, Sparkles, 
-  Wand2, Check, Zap, Video as VideoIcon, Gamepad2, Info, X, Hash, Image as ImageIcon
+import {
+  UploadCloud, Loader2, ArrowLeft, Crown, Sparkles,
+  Wand2, Check, Zap, Video as VideoIcon, Gamepad2, Info, X, Hash, Image as ImageIcon, Lock,
+  Smartphone
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PROFILE_REFRESH_EVENT } from '@/lib/dm-events';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useVideoProcessor } from '@/app/hooks/useVideoProcessor';
 
 const GAMES = [
   "VALORANT", "Apex Legends", "League of Legends", "Street Fighter 6", 
@@ -38,6 +40,14 @@ function PostContent() {
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [hashtagInput, setHashtagInput] = useState('');
   const [dragActive, setDragActive] = useState(false);
+  // 有料動画設定（Pro限定）
+  const [isPaidVideo, setIsPaidVideo] = useState(false);
+  const [paidPriceCoins, setPaidPriceCoins] = useState<number>(100);
+  const [isMemberOnly, setIsMemberOnly] = useState(false);
+  // 縦型変換
+  const [isConverting, setIsConverting] = useState(false);
+  const [convertMode, setConvertMode] = useState<'pad' | 'crop'>('pad');
+  const { convertToVertical, progress: convertProgress } = useVideoProcessor();
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -86,6 +96,20 @@ function PostContent() {
     setDragActive(false);
     if (e.dataTransfer.files?.[0]?.type.startsWith('video/')) {
       setFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleConvertToVertical = async () => {
+    if (!file) return;
+    setIsConverting(true);
+    try {
+      const blob = await convertToVertical(file, { mode: convertMode });
+      const converted = new File([blob], file.name.replace(/\.[^.]+$/, '_vertical.mp4'), { type: 'video/mp4' });
+      setFile(converted);
+    } catch (err: any) {
+      alert('縦型変換に失敗しました: ' + err.message);
+    } finally {
+      setIsConverting(false);
     }
   };
 
@@ -147,7 +171,10 @@ function PostContent() {
         game_title: gameTitle,
         user_id: user.id,
         user_name: user.user_metadata?.name || user.email?.split('@')[0] || 'Player',
-        tags: hashtags.length > 0 ? hashtags : null
+        tags: hashtags.length > 0 ? hashtags : null,
+        is_paid: isPro && isPaidVideo,
+        paid_price_coins: isPro && isPaidVideo ? paidPriceCoins : null,
+        member_only: isPro && isMemberOnly,
       });
 
       if (insertError) throw insertError;
@@ -238,6 +265,58 @@ function PostContent() {
             )}
           </div>
 
+          {/* 縦型変換ツール (動画選択後に表示) */}
+          <AnimatePresence>
+            {file && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-2xl space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-blue-400" />
+                    <span className="text-[11px] font-black text-blue-400 uppercase tracking-widest">縦型変換 (9:16)</span>
+                  </div>
+                  <div className="flex items-center gap-1 p-0.5 bg-white/5 rounded-lg border border-white/10">
+                    {(['pad', 'crop'] as const).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setConvertMode(m)}
+                        className={`px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all ${convertMode === m ? 'bg-blue-600 text-white' : 'text-zinc-500 hover:text-white'}`}
+                      >
+                        {m === 'pad' ? '黒帯' : 'クロップ'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[10px] text-zinc-500 font-bold">
+                  {convertMode === 'pad' ? '黒帯付きで全体を表示 — コンテンツが切れない' : '中央クロップで全画面表示 — 端が切れる場合あり'}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleConvertToVertical}
+                  disabled={isConverting}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-xl text-xs font-black text-blue-400 transition-all disabled:opacity-50"
+                >
+                  {isConverting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      変換中... {convertProgress > 0 ? `${Math.round(convertProgress)}%` : ''}
+                    </>
+                  ) : (
+                    <>
+                      <Smartphone className="w-4 h-4" />
+                      縦型に変換する
+                    </>
+                  )}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Title */}
           <div>
             <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 block ml-1">Title</label>
@@ -276,6 +355,75 @@ function PostContent() {
                   </button>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Pro Feature: Paid Video / Member Only */}
+          {isPro && (
+            <div className="space-y-3">
+              {/* 有料動画トグル */}
+              <div className="border border-yellow-500/20 rounded-2xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsPaidVideo(!isPaidVideo)}
+                  className={`w-full flex items-center justify-between p-4 transition-all ${isPaidVideo ? 'bg-yellow-500/10' : 'bg-white/[0.02] hover:bg-white/[0.04]'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isPaidVideo ? 'bg-yellow-500/20' : 'bg-white/5'}`}>
+                      <Lock className={`w-4 h-4 ${isPaidVideo ? 'text-yellow-400' : 'text-zinc-500'}`} />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-xs font-black text-white flex items-center gap-1.5">
+                        <Crown className="w-3 h-3 text-yellow-400" /> 有料動画（コイン解放）
+                      </p>
+                      <p className="text-[10px] font-bold text-zinc-500">視聴者がコインを払って視聴</p>
+                    </div>
+                  </div>
+                  <div className={`w-10 h-5 rounded-full transition-all ${isPaidVideo ? 'bg-yellow-500' : 'bg-zinc-700'} relative`}>
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${isPaidVideo ? 'left-5' : 'left-0.5'}`} />
+                  </div>
+                </button>
+                {isPaidVideo && (
+                  <div className="px-4 pb-4 pt-2 bg-yellow-500/5">
+                    <label className="text-[9px] font-black text-yellow-400 uppercase tracking-widest mb-2 block">
+                      解放価格（コイン）
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                      {[50, 100, 300, 500, 1000].map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setPaidPriceCoins(c)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all border ${paidPriceCoins === c ? 'bg-yellow-500 text-black border-yellow-400' : 'bg-white/5 text-zinc-400 border-white/10 hover:bg-white/10'}`}
+                        >
+                          {c}C
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-yellow-300/60 mt-2">あなたに入る: {Math.floor(paidPriceCoins * 0.7)}C（30%手数料）</p>
+                  </div>
+                )}
+              </div>
+
+              {/* メンバー限定トグル */}
+              <button
+                type="button"
+                onClick={() => setIsMemberOnly(!isMemberOnly)}
+                className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${isMemberOnly ? 'bg-purple-500/10 border-purple-500/30' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isMemberOnly ? 'bg-purple-500/20' : 'bg-white/5'}`}>
+                    <Crown className={`w-4 h-4 ${isMemberOnly ? 'text-purple-400' : 'text-zinc-500'}`} />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-black text-white">ファンクラブ限定</p>
+                    <p className="text-[10px] font-bold text-zinc-500">メンバーだけが視聴可能</p>
+                  </div>
+                </div>
+                <div className={`w-10 h-5 rounded-full transition-all ${isMemberOnly ? 'bg-purple-500' : 'bg-zinc-700'} relative`}>
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${isMemberOnly ? 'left-5' : 'left-0.5'}`} />
+                </div>
+              </button>
             </div>
           )}
 

@@ -240,7 +240,7 @@ function MessagesContent() {
           // 開いている会話のメッセージなら一覧に追加
           if (currentPartner && newMsg.sender_id === currentPartner.id) {
             setMessages(prev => {
-              if (prev.some(m => m.id === newMsg.id)) return prev;
+              if (prev.some(m => String(m.id) === String(newMsg.id))) return prev;
               return [...prev, newMsg];
             });
             
@@ -272,7 +272,7 @@ function MessagesContent() {
           // 他タブから送ったメッセージを反映
           if (currentPartner && newMsg.receiver_id === currentPartner.id) {
             setMessages(prev => {
-              if (prev.some(m => m.id === newMsg.id)) return prev;
+              if (prev.some(m => String(m.id) === String(newMsg.id))) return prev;
               return [...prev, newMsg];
             });
           }
@@ -291,7 +291,7 @@ function MessagesContent() {
           // 送信したメッセージが既読になったら UI を更新
           const updatedMsg = payload.new as Message;
           setMessages(prev =>
-            prev.map(m => m.id === updatedMsg.id ? { ...m, is_read: updatedMsg.is_read } : m)
+            prev.map(m => String(m.id) === String(updatedMsg.id) ? { ...m, is_read: updatedMsg.is_read } : m)
           );
         }
       )
@@ -354,9 +354,15 @@ function MessagesContent() {
       }
 
       if (data) {
-        // Replace optimistic message with real one
-        setMessages(prev => prev.map(m => m.id === optimisticMsg.id ? data : m));
-        // Refresh partner list to update last message
+        // Replace optimistic message with real one.
+        // Realtime INSERT may have already added the real message — deduplicate by ID.
+        setMessages(prev => {
+          const withoutOptimistic = prev.filter(m => String(m.id) !== String(optimisticMsg.id));
+          if (withoutOptimistic.some(m => String(m.id) === String(data.id))) {
+            return withoutOptimistic;
+          }
+          return [...withoutOptimistic, data];
+        });
         fetchChatPartners(user.id);
       }
     } catch (e: any) {
@@ -680,6 +686,7 @@ function MessagesContent() {
           )}
         </div>
       </div>
+
 
       <BottomNav />
     </div>
