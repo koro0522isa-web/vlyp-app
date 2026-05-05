@@ -7,6 +7,7 @@ import Sidebar from '@/app/components/Sidebar';
 import BottomNav from '@/app/components/BottomNav';
 import { Save, User, ArrowLeft, Loader2, LogOut, MessageSquare, Eye, Globe, Crown, Check } from 'lucide-react';
 import { useLanguage } from "../contexts/LanguageContext";
+import { useProMonthlyCoins } from "../hooks/useProMonthlyCoins";
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -19,6 +20,8 @@ export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
   const { lang, setLang, t } = useLanguage();
   const router = useRouter();
+  // Pro月50コイン自動付与
+  useProMonthlyCoins();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -319,13 +322,4 @@ export default function SettingsPage() {
 
           <div className="mt-8 text-center">
             <button onClick={handleLogout} className="text-xs font-bold text-red-500 flex items-center justify-center gap-2 mx-auto hover:text-red-400 p-2">
-              <LogOut className="w-4 h-4" /> {t('nav.logout')}
-            </button>
-          </div>
-        </div>
-      </main>
-
-      <BottomNav />
-    </div>
-  );
-}
+              <LogOut className="w-4 h-4" /> {t('n

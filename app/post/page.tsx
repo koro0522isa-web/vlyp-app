@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import {
   UploadCloud, Loader2, ArrowLeft, Crown, Sparkles,
   Wand2, Check, Zap, Video as VideoIcon, Gamepad2, Info, X, Hash, Image as ImageIcon, Lock,
-  Smartphone
+  Smartphone, Calendar, Clock
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -48,6 +48,9 @@ function PostContent() {
   const [isConverting, setIsConverting] = useState(false);
   const [convertMode, setConvertMode] = useState<'pad' | 'crop'>('pad');
   const { convertToVertical, progress: convertProgress } = useVideoProcessor();
+  // 予約投稿 (Pro only)
+  const [scheduledAt, setScheduledAt] = useState<string>('');
+  const [useSchedule, setUseSchedule] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -135,31 +138,38 @@ function PostContent() {
     setUploadProgress(0);
 
     try {
-      // Simulate upload progress
+      const session = (await supabase.auth.getSession()).data.session;
+      const authToken = session?.access_token ?? '';
+
+      // --- Upload video to Cloudflare R2 via presigned URL ---
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + Math.random() * 15, 90));
       }, 300);
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
+      const { uploadUrl, publicUrl } = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ filename: file.name, contentType: file.type, type: 'video' }),
+      }).then(r => r.json());
 
-      const { error: uploadError } = await supabase.storage.from('videos').upload(filePath, file);
+      if (!uploadUrl) throw new Error('Failed to get upload URL');
+
+      await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+
       clearInterval(progressInterval);
-
-      if (uploadError) throw uploadError;
       setUploadProgress(95);
 
-      const { data: { publicUrl } } = supabase.storage.from('videos').getPublicUrl(filePath);
-
+      // --- Upload thumbnail to R2 (Pro only) ---
       let thumbnailUrl = null;
       if (thumbnail && isPro) {
-        const thumbExt = thumbnail.name.split('.').pop();
-        const thumbName = `thumb_${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${thumbExt}`;
-        const thumbPath = `${user.id}/${thumbName}`;
-        const { error: thumbErr } = await supabase.storage.from('videos').upload(thumbPath, thumbnail);
-        if (!thumbErr) {
-          thumbnailUrl = supabase.storage.from('videos').getPublicUrl(thumbPath).data.publicUrl;
+        const { uploadUrl: thumbUploadUrl, publicUrl: thumbPublicUrl } = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify({ filename: thumbnail.name, contentType: thumbnail.type, type: 'thumbnail' }),
+        }).then(r => r.json());
+        if (thumbUploadUrl) {
+          await fetch(thumbUploadUrl, { method: 'PUT', body: thumbnail, headers: { 'Content-Type': thumbnail.type } });
+          thumbnailUrl = thumbPublicUrl;
         }
       }
 
@@ -175,6 +185,8 @@ function PostContent() {
         is_paid: isPro && isPaidVideo,
         paid_price_coins: isPro && isPaidVideo ? paidPriceCoins : null,
         member_only: isPro && isMemberOnly,
+        scheduled_at: isPro && useSchedule && scheduledAt ? new Date(scheduledAt).toISOString() : null,
+        status: isPro && useSchedule && scheduledAt ? 'scheduled' : 'published',
       });
 
       if (insertError) throw insertError;
@@ -427,6 +439,47 @@ function PostContent() {
             </div>
           )}
 
+          {/* Pro Feature: Schedule Post */}
+          {isPro && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setUseSchedule(!useSchedule)}
+                className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${useSchedule ? 'bg-blue-500/10 border-blue-500/30' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${useSchedule ? 'bg-blue-500/20' : 'bg-white/5'}`}>
+                    <Calendar className={`w-4 h-4 ${useSchedule ? 'text-blue-400' : 'text-zinc-500'}`} />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-black text-white flex items-center gap-1.5">
+                      <Crown className="w-3 h-3 text-blue-400" /> 予約投稿
+                    </p>
+                    <p className="text-[10px] font-bold text-zinc-500">指定した日時に自動公開</p>
+                  </div>
+                </div>
+                <div className={`w-10 h-5 rounded-full transition-all ${useSchedule ? 'bg-blue-500' : 'bg-zinc-700'} relative`}>
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${useSchedule ? 'left-5' : 'left-0.5'}`} />
+                </div>
+              </button>
+              {useSchedule && (
+                <div className="mt-2 px-1">
+                  <label className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2 block flex items-center gap-1.5">
+                    <Clock className="w-3 h-3" /> 公開日時
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    min={new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16)}
+                    className="w-full bg-white/5 border border-blue-500/30 focus:border-blue-500/60 p-3 rounded-2xl outline-none font-bold text-sm text-zinc-300"
+                    style={{ colorScheme: 'dark' }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Game + Hashtags Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Game */}
@@ -479,64 +532,4 @@ function PostContent() {
               <Info className="w-4 h-4 text-zinc-500" />
               <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Monthly Uploads</span>
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-black">{monthlyUploads}</span>
-              <span className="text-xs font-bold text-zinc-600">/ {isPro ? '∞' : '30'}</span>
-            </div>
-          </div>
-
-          {/* Terms Checkbox */}
-          <label className="flex items-start gap-4 cursor-pointer group p-4 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-colors">
-            <div className="relative mt-0.5">
-              <input type="checkbox" className="peer sr-only" checked={agreedTerms} onChange={(e) => setAgreedTerms(e.target.checked)} />
-              <div className="w-5 h-5 rounded-lg bg-black/50 border-2 border-zinc-700 peer-checked:bg-blue-600 peer-checked:border-blue-500 transition-all flex items-center justify-center">
-                <Check className={`w-3 h-3 text-white transition-transform duration-200 ${agreedTerms ? 'scale-100' : 'scale-0'}`} />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-black text-zinc-300 uppercase tracking-widest">Copyright Agreement</p>
-              <p className="text-[10px] text-zinc-500 font-bold mt-1">No unauthorized music or duplicate content. You own the rights to this clip.</p>
-            </div>
-          </label>
-
-          {/* Submit Button */}
-          <button 
-            type="submit"
-            disabled={isSubmitting || !file || !agreedTerms || !title.trim()}
-            className={`relative w-full py-5 rounded-2xl overflow-hidden flex justify-center items-center gap-3 font-black text-sm uppercase tracking-[0.15em] transition-all duration-300 ${
-              isSubmitting || !file || !agreedTerms || !title.trim()
-                ? 'bg-zinc-900 text-zinc-600 cursor-not-allowed border border-white/5' 
-                : 'bg-blue-600 text-white hover:bg-blue-500 active:scale-[0.98] shadow-xl shadow-blue-600/20'
-            }`}
-          >
-            {/* Progress bar */}
-            {isSubmitting && (
-              <div className="absolute left-0 top-0 bottom-0 bg-blue-400/30 transition-all duration-500" style={{ width: `${uploadProgress}%` }} />
-            )}
-            
-            <span className="relative z-10 flex items-center gap-2">
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  {uploadProgress < 95 ? 'Uploading...' : 'Publishing...'}
-                </>
-              ) : (
-                <>
-                  <Zap className="w-5 h-5" /> Publish Clip
-                </>
-              )}
-            </span>
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-export default function Post() {
-  return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#09090b]"><Loader2 className="w-10 h-10 animate-spin text-blue-500" /></div>}>
-      <PostContent />
-    </Suspense>
-  );
-}
+            <div className="flex items-basel
