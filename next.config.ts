@@ -29,7 +29,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  
+
   // セキュリティヘッダー（動画再生を妨げない形で復活）
   async headers() {
     return [
@@ -44,4 +44,22 @@ const nextConfig: NextConfig = {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
           },
-       
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+        ],
+      },
+    ];
+  },
+};
+
+export default nextConfig;

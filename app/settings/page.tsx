@@ -317,4 +317,92 @@ export default function SettingsPage() {
                       className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 ${copiedRef ? 'bg-emerald-500 text-black' : 'bg-white/5 border border-white/10 text-zinc-400 hover:text-white hover:bg-white/10'}`}
                     >
                       {copiedRef ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      {copiedRef 
+                      {copiedRef ? 'Copied!' : 'Copy Link'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 p-3 bg-black/30 rounded-xl border border-white/5">
+                    <Users className="w-4 h-4 text-emerald-500" />
+                    <div>
+                      <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">招待済み</p>
+                      <p className="text-lg font-black text-white">{referralCount}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-black/30 rounded-xl border border-white/5">
+                    <Gift className="w-4 h-4 text-yellow-500" />
+                    <div>
+                      <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">獲得コイン</p>
+                      <p className="text-lg font-black text-yellow-400">{referralCount * 50}C</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Language Settings */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                <Globe className="w-5 h-5 text-blue-500" />
+                <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-300">Language / 言語</h2>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setLang('JP')}
+                  className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
+                    lang === 'JP' ? 'bg-white/10 border-blue-500/50 text-blue-400' : 'bg-black/50 border-white/10 text-zinc-600 hover:text-zinc-400'
+                  }`}
+                >
+                  日本語 (JP)
+                </button>
+                <button
+                  onClick={() => setLang('EN')}
+                  className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
+                    lang === 'EN' ? 'bg-white/10 border-blue-500/50 text-blue-400' : 'bg-black/50 border-white/10 text-zinc-600 hover:text-zinc-400'
+                  }`}
+                >
+                  English (EN)
+                </button>
+                <button
+                  onClick={() => setLang('KR')}
+                  className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
+                    lang === 'KR' ? 'bg-white/10 border-blue-500/50 text-blue-400' : 'bg-black/50 border-white/10 text-zinc-600 hover:text-zinc-400'
+                  }`}
+                >
+                  한국어 (KR)
+                </button>
+                <button
+                  onClick={() => setLang('CN')}
+                  className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
+                    lang === 'CN' ? 'bg-white/10 border-blue-500/50 text-blue-400' : 'bg-black/50 border-white/10 text-zinc-600 hover:text-zinc-400'
+                  }`}
+                >
+                  中文 (CN)
+                </button>
+              </div>
+            </div>
+
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30 active:scale-[0.98]"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saving ? "Saving..." : t('settings.save')}
+            </button>
+          </div>
+
+          <div className="mt-8 text-center">
+            <button onClick={handleLogout} className="text-xs font-bold text-red-500 flex items-center justify-center gap-2 mx-auto hover:text-red-400 p-2">
+              <LogOut className="w-4 h-4" /> {t('nav.logout')}
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <BottomNav />
+    </div>
+  );
+}
