@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { generateEmbedding } from '@/app/lib/ai';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { r2, r2PublicUrl } from '@/lib/r2';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,17 +16,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No video file provided' }, { status: 400 });
     }
 
-    // Create temp directory if it doesn't exist
-    const tempDir = join(process.cwd(), 'temp');
-    if (!existsSync(tempDir)) {
-      await mkdir(tempDir, { recursive: true });
-    }
-
-    // Save video file temporarily
     const fileName = `desktop_${Date.now()}_${videoFile.name}`;
-    const filePath = join(tempDir, fileName);
     const buffer = Buffer.from(await videoFile.arrayBuffer());
-    await writeFile(filePath, buffer);
 
     // Parse VLYP scores
     let vlypScores: number[] = [];
@@ -43,20 +33,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Upload to Supabase storage
-    const { error: uploadError } = await supabase.storage
-      .from('videos')
-      .upload(`${session.user.id}/${fileName}`, buffer);
-
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
+    // Upload to Cloudflare R2
+    const r2Key = `video/${session.user.id}/${fileName}`;
+    try {
+      await r2.send(new PutObjectCommand({
+        Bucket: process.env.CLOUDFLARE_R2_BUCKET!,
+        Key: r2Key,
+        Body: buffer,
+        ContentType: videoFile.type || 'video/mp4',
+      }));
+    } catch (uploadError) {
+      console.error('R2 upload error:', uploadError);
       return NextResponse.json({ error: 'Failed to upload video' }, { status: 500 });
     }
 
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('videos')
-      .getPublicUrl(`${session.user.id}/${fileName}`);
+    const publicUrl = r2PublicUrl(r2Key);
 
     // Generate embedding
     const embedding = await generateEmbedding(`${title} ${gameTitle} desktop recording`);
@@ -90,13 +81,6 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       console.error('Database insert error:', insertError);
       return NextResponse.json({ error: 'Failed to save clip' }, { status: 500 });
-    }
-
-    // Clean up temp file
-    try {
-      await require('fs').promises.unlink(filePath);
-    } catch (e) {
-      console.error('Failed to clean up temp file:', e);
     }
 
     return NextResponse.json({

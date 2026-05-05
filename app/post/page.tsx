@@ -135,31 +135,38 @@ function PostContent() {
     setUploadProgress(0);
 
     try {
-      // Simulate upload progress
+      const session = (await supabase.auth.getSession()).data.session;
+      const authToken = session?.access_token ?? '';
+
+      // --- Upload video to Cloudflare R2 via presigned URL ---
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + Math.random() * 15, 90));
       }, 300);
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
+      const { uploadUrl, publicUrl } = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ filename: file.name, contentType: file.type, type: 'video' }),
+      }).then(r => r.json());
 
-      const { error: uploadError } = await supabase.storage.from('videos').upload(filePath, file);
+      if (!uploadUrl) throw new Error('Failed to get upload URL');
+
+      await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+
       clearInterval(progressInterval);
-
-      if (uploadError) throw uploadError;
       setUploadProgress(95);
 
-      const { data: { publicUrl } } = supabase.storage.from('videos').getPublicUrl(filePath);
-
+      // --- Upload thumbnail to R2 (Pro only) ---
       let thumbnailUrl = null;
       if (thumbnail && isPro) {
-        const thumbExt = thumbnail.name.split('.').pop();
-        const thumbName = `thumb_${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${thumbExt}`;
-        const thumbPath = `${user.id}/${thumbName}`;
-        const { error: thumbErr } = await supabase.storage.from('videos').upload(thumbPath, thumbnail);
-        if (!thumbErr) {
-          thumbnailUrl = supabase.storage.from('videos').getPublicUrl(thumbPath).data.publicUrl;
+        const { uploadUrl: thumbUploadUrl, publicUrl: thumbPublicUrl } = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify({ filename: thumbnail.name, contentType: thumbnail.type, type: 'thumbnail' }),
+        }).then(r => r.json());
+        if (thumbUploadUrl) {
+          await fetch(thumbUploadUrl, { method: 'PUT', body: thumbnail, headers: { 'Content-Type': thumbnail.type } });
+          thumbnailUrl = thumbPublicUrl;
         }
       }
 
@@ -513,19 +520,11 @@ function PostContent() {
             {isSubmitting && (
               <div className="absolute left-0 top-0 bottom-0 bg-blue-400/30 transition-all duration-500" style={{ width: `${uploadProgress}%` }} />
             )}
-            
-            <span className="relative z-10 flex items-center gap-2">
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  {uploadProgress < 95 ? 'Uploading...' : 'Publishing...'}
-                </>
-              ) : (
-                <>
-                  <Zap className="w-5 h-5" /> Publish Clip
-                </>
-              )}
-            </span>
+            {isSubmitting ? (
+              <><Loader2 className="w-5 h-5 animate-spin" /><span>Uploading...</span></>
+            ) : (
+              <><UploadCloud className="w-5 h-5" /><span>Post Clip</span></>
+            )}
           </button>
         </form>
       </div>

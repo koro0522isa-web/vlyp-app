@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import TikTokPlayer from './components/TikTokPlayer';
 import StoriesBar from './components/StoriesBar';
 
-function HomeContent() {
+export default function Home() {
   const [clips, setClips] = useState<any[]>([]);
   const [ranking, setRanking] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -874,30 +874,14 @@ function HomeContent() {
               <button 
                 onClick={postComment} 
                 disabled={isCommenting || !newComment.trim()}
-                className={`absolute right-3 bottom-3 p-3.5 rounded-2xl text-white transition-all shadow-xl ${
-                  isCommenting || !newComment.trim() ? 'bg-zinc-800 opacity-50' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/30 active:scale-95'
-                }`}
+                className="absolute right-3 bottom-3 p-3.5 rounded-xl bg-blue-600 disabled:opacity-30 transition-all hover:bg-blue-500 active:scale-95"
               >
-                {isCommenting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                <Send className="w-4 h-4 text-white" />
               </button>
             </div>
-            <p className="text-[8px] text-zinc-700 font-black uppercase tracking-[0.4em] text-center">{t('comments.guidelines')}</p>
           </div>
         </div>
       )}
-      <BottomNav />
     </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <Suspense fallback={
-      <div className="flex h-screen items-center justify-center bg-black">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
-      </div>
-    }>
-      <HomeContent />
-    </Suspense>
   );
 }

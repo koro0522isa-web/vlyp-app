@@ -3,17 +3,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Crown, ChevronLeft, ChevronRight, Send } from 'lucide-react';
+import { X, Plus, Crown, ChevronLeft, ChevronRight, Send, Eye } from 'lucide-react';
 import Link from 'next/link';
 
 interface StoryItem {
   id: number;
+  user_id: string;
   media_url: string;
   thumbnail_url?: string;
   type: 'image' | 'video';
   caption?: string;
   game_tag?: string;
   views: number;
+  view_count?: number;
   created_at: string;
   expires_at: string;
 }
@@ -70,6 +72,7 @@ export default function StoriesBar() {
       }
       grouped[s.user_id].stories.push({
         id: s.id,
+        user_id: s.user_id,
         media_url: s.media_url,
         thumbnail_url: s.thumbnail_url,
         type: s.type,
@@ -153,16 +156,21 @@ export default function StoriesBar() {
     if (!file || !currentUser) return;
     setIsUploading(true);
     try {
-      const ext = file.name.split('.').pop();
-      const path = `${currentUser.id}/${Date.now()}.${ext}`;
-      const type = file.type.startsWith('video') ? 'video' : 'image';
-      const { error: uploadErr } = await supabase.storage.from('stories').upload(path, file);
-      if (uploadErr) throw uploadErr;
-      const { data: { publicUrl } } = supabase.storage.from('stories').getPublicUrl(path);
+      const mediaType = file.type.startsWith('video') ? 'video' : 'image';
+      // Get presigned URL from R2 upload API
+      const session = (await supabase.auth.getSession()).data.session;
+      const authToken = session?.access_token ?? '';
+      const { uploadUrl, publicUrl } = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ filename: file.name, contentType: file.type, type: 'story' }),
+      }).then(r => r.json());
+      if (!uploadUrl) throw new Error('Failed to get upload URL');
+      await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
       await supabase.from('stories').insert({
         user_id: currentUser.id,
         media_url: publicUrl,
-        type,
+        type: mediaType,
       });
       fetchStories();
     } catch (err) {
@@ -340,20 +348,14 @@ export default function StoriesBar() {
             </button>
 
             {/* 視聴数（自分のストーリーのみ） */}
-            {currentUser?.id === viewing.user_id && (
-              <div className="absolute bottom-4 left-4 text-[10px] text-white/50 flex items-center gap-1">
-                <span>👁</span> {viewingStory.views}
+            {currentUser?.id === viewing?.stories[viewingStoryIdx]?.user_id && (
+              <div className="absolute bottom-16 left-0 right-0 flex justify-center">
+                <span className="text-white/60 text-xs bg-black/40 px-3 py-1 rounded-full">
+                  <Eye className="w-3 h-3 inline mr-1" />
+                  {viewing?.stories[viewingStoryIdx]?.view_count ?? 0}
+                </span>
               </div>
             )}
-
-            {/* プロフィールへのリンク */}
-            <Link
-              href={`/profile/${viewing.profile?.username}`}
-              onClick={closeStory}
-              className="absolute bottom-4 right-4 text-[10px] font-black text-white/60 hover:text-white border border-white/20 px-3 py-1.5 rounded-full"
-            >
-              プロフィール
-            </Link>
           </motion.div>
         )}
       </AnimatePresence>

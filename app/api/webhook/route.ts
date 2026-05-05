@@ -319,12 +319,12 @@ export async function POST(req: Request) {
           await supabaseAdmin.from('notifications').insert({
             user_id: userId,
             actor_id: userId,
-            type: 'subscription_cancelled',
+            type: 'payment_failed',
           });
         }
       }
     } catch (e) {
-      console.error('Error processing subscription deletion:', e);
+      console.error('subscription.deleted handler error:', e);
     }
   }
 

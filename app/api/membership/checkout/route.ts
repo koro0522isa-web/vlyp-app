@@ -103,7 +103,6 @@ export async function POST(req: NextRequest) {
       type: 'fan_club',
       tier_id: String(tier_id),
       user_id: user.id,
-      creator_id: tier.creator_id,
     },
   });
 

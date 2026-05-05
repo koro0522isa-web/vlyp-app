@@ -217,7 +217,7 @@ function TopPodium({ creator, rank, tab, formatNum }: {
       <p className="text-[10px] font-bold text-zinc-400">{formatNum(creator[tab] || 0)}</p>
       {/* 台 */}
       <div className={`w-20 ${heights[rank]} bg-gradient-to-t ${RANK_COLORS[rank - 1]} opacity-20 rounded-t-xl flex items-start justify-center pt-2 group-hover:opacity-30 transition-opacity`}>
-        <span className="text-2xl font-black text-white opacity-80">#{rank}</span>
+        <span className="text-black font-black text-lg opacity-70">{rank}</span>
       </div>
     </Link>
   );

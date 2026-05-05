@@ -31,7 +31,7 @@ interface ChatPartner {
   unread_count?: number;
 }
 
-function MessagesContent() {
+export default function Messages() {
   const searchParams = useSearchParams();
   const targetUserId = searchParams.get('u');
 
@@ -686,21 +686,6 @@ function MessagesContent() {
           )}
         </div>
       </div>
-
-
-      <BottomNav />
     </div>
-  );
-}
-
-export default function MessagesPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex h-screen items-center justify-center bg-black">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
-      </div>
-    }>
-      <MessagesContent />
-    </Suspense>
   );
 }

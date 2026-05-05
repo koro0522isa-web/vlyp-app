@@ -146,12 +146,10 @@ export default function NotificationsPage() {
                     </Link>
                   )}
                 </div>
-              ))
-            )}
-          </div>
+              )))}
+            </div>
         </div>
       </main>
-
       <BottomNav />
     </div>
   );
