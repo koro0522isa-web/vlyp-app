@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Sidebar from '@/app/components/Sidebar';
 import BottomNav from '@/app/components/BottomNav';
-import { Save, User, ArrowLeft, Loader2, LogOut, MessageSquare, Eye, Globe, Crown, Check } from 'lucide-react';
+import { Save, User, ArrowLeft, Loader2, LogOut, MessageSquare, Eye, Globe, Crown, Check, Gift, Copy, Users } from 'lucide-react';
 import { useLanguage } from "../contexts/LanguageContext";
 import { useProMonthlyCoins } from "../hooks/useProMonthlyCoins";
 
@@ -18,6 +18,9 @@ export default function SettingsPage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [isPro, setIsPro] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [referralCode, setReferralCode] = useState('');
+  const [referralCount, setReferralCount] = useState(0);
+  const [copiedRef, setCopiedRef] = useState(false);
   const { lang, setLang, t } = useLanguage();
   const router = useRouter();
   // Pro月50コイン自動付与
@@ -48,6 +51,22 @@ export default function SettingsPage() {
         setBio(profile.bio || "");
         setAvatarUrl(profile.avatar_url || "");
         setIsPro(profile.is_pro || false);
+
+        // リファラルコード: なければ生成してupsert
+        if (profile.referral_code) {
+          setReferralCode(profile.referral_code);
+        } else {
+          const newCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+          await supabase.from('profiles').update({ referral_code: newCode }).eq('id', session.user.id);
+          setReferralCode(newCode);
+        }
+
+        // 招待した人数
+        const { count } = await supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('referred_by', session.user.id);
+        setReferralCount(count || 0);
       }
       setLoading(false);
     };
@@ -268,58 +287,34 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Language Settings */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                <Globe className="w-5 h-5 text-blue-500" />
-                <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-300">Language / 言語</h2>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setLang('JP')}
-                  className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
-                    lang === 'JP' ? 'bg-white/10 border-blue-500/50 text-blue-400' : 'bg-black/50 border-white/10 text-zinc-600 hover:text-zinc-400'
-                  }`}
-                >
-                  日本語 (JP)
-                </button>
-                <button
-                  onClick={() => setLang('EN')}
-                  className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
-                    lang === 'EN' ? 'bg-white/10 border-blue-500/50 text-blue-400' : 'bg-black/50 border-white/10 text-zinc-600 hover:text-zinc-400'
-                  }`}
-                >
-                  English (EN)
-                </button>
-                <button
-                  onClick={() => setLang('KR')}
-                  className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
-                    lang === 'KR' ? 'bg-white/10 border-blue-500/50 text-blue-400' : 'bg-black/50 border-white/10 text-zinc-600 hover:text-zinc-400'
-                  }`}
-                >
-                  한국어 (KR)
-                </button>
-                <button
-                  onClick={() => setLang('CN')}
-                  className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
-                    lang === 'CN' ? 'bg-white/10 border-blue-500/50 text-blue-400' : 'bg-black/50 border-white/10 text-zinc-600 hover:text-zinc-400'
-                  }`}
-                >
-                  中文 (CN)
-                </button>
-              </div>
-            </div>
+            {/* Referral Program */}
+            {referralCode && (
+              <div className="space-y-5 p-6 rounded-[1.5rem] border border-emerald-500/20 bg-emerald-500/5">
+                <div className="flex items-center gap-3 pb-3 border-b border-white/5">
+                  <Gift className="w-5 h-5 text-emerald-500" />
+                  <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-300">Referral Program</h2>
+                  <span className="ml-auto px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[9px] font-black text-emerald-400 uppercase tracking-widest">
+                    +50 Coins Each
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-500 font-bold">
+                  友達を招待すると、あなたと友達それぞれに <span className="text-emerald-400 font-black">50コイン</span>プレゼント！
+                </p>
 
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30 active:scale-[0.98]"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {saving ? "Saving..." : t('settings.save')}
-            </button>
-          </div>
-
-          <div className="mt-8 text-center">
-            <button onClick={handleLogout} className="text-xs font-bold text-red-500 flex items-center justify-center gap-2 mx-auto hover:text-red-400 p-2">
-              <LogOut className="w-4 h-4" /> {t('n
+                {/* Referral Code */}
+                <div>
+                  <label className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1.5 block">Your Invite Code</label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 bg-black/40 border border-emerald-500/20 rounded-xl px-4 py-3 flex items-center">
+                      <span className="font-black text-emerald-400 tracking-[0.3em] text-sm">{referralCode}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`https://vlyp.app/login?ref=${referralCode}`);
+                        setCopiedRef(true);
+                        setTimeout(() => setCopiedRef(false), 2000);
+                      }}
+                      className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 ${copiedRef ? 'bg-emerald-500 text-black' : 'bg-white/5 border border-white/10 text-zinc-400 hover:text-white hover:bg-white/10'}`}
+                    >
+                      {copiedRef ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {copiedRef 
