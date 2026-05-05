@@ -52,7 +52,7 @@ export async function POST(req: Request) {
           },
         },
         client_reference_id: userId,
-        success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/post?success=true`,
+        success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/post?canceled=true`,
         metadata: {
           userId: userId,
@@ -85,7 +85,7 @@ export async function POST(req: Request) {
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/coins?success=true`,
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/coins?canceled=true`,
       metadata: {
         userId: userId,
@@ -97,6 +97,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: session.url });
   } catch (error: any) {
     console.error('Stripe checkout error:', error);
-    return NextResponse.json({ error: error.message || '決済セッションの作成に失敗しました。' }, { status: 500 });
-  }
-}
+    return NextResponse.json({ error: error.message || '決済セッシ
