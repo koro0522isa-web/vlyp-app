@@ -26,11 +26,13 @@ export async function GET(req: NextRequest) {
   try {
     const { stripe, supabaseAdmin } = getClients();
 
+    // Stripe からセッション情報を取得して検証
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ['subscription'],
     });
 
     if (session.status !== 'complete' && session.payment_status !== 'paid') {
+      console.warn(`Checkout session not complete: ${sessionId}`);
       return NextResponse.redirect(`${siteUrl}/post?error=payment_incomplete`);
     }
 
@@ -38,9 +40,11 @@ export async function GET(req: NextRequest) {
     const packId = session.metadata?.packId;
 
     if (!userId) {
+      console.error(`No userId in session metadata: ${sessionId}`);
       return NextResponse.redirect(`${siteUrl}/post?success=true`);
     }
 
+    // Pro サブスクリプションの処理
     if (packId === 'pro') {
       const updatePayload: Record<string, unknown> = {
         is_pro: true,
@@ -73,33 +77,41 @@ export async function GET(req: NextRequest) {
       } else {
         console.log(`Pro activated via success URL for user ${userId}`);
       }
-
-      return NextResponse.redirect(`${siteUrl}/post?success=true&pro=activated`);
     }
 
+    // コイン購入の処理
     const coins = parseInt(session.metadata?.coins || '0');
     if (coins > 0) {
       const { error } = await supabaseAdmin.rpc('increment_wallet_coins', {
         p_user_id: userId,
         p_amount: coins,
       });
+
       if (error) {
+        // RPC がない場合のフォールバック
         const { data: wallet } = await supabaseAdmin
           .from('wallets')
           .select('coins')
           .eq('user_id', userId)
           .maybeSingle();
+
         if (wallet) {
           await supabaseAdmin
             .from('wallets')
             .update({ coins: (wallet.coins || 0) + coins })
             .eq('user_id', userId);
         } else {
-          await supabaseAdmin.from('wallets').insert({ user_id: userId, coins });
+          await supabaseAdmin
+            .from('wallets')
+            .insert({ user_id: userId, coins });
         }
       }
     }
 
+    // 成功 → 元のページへリダイレクト
+    if (packId === 'pro') {
+      return NextResponse.redirect(`${siteUrl}/post?success=true&pro=activated`);
+    }
     return NextResponse.redirect(`${siteUrl}/coins?success=true`);
   } catch (err: any) {
     console.error('checkout-success error:', err);

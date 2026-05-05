@@ -74,12 +74,16 @@ export default function MembershipPage() {
 
   const handleJoin = async () => {
     if (!currentUser || !tier) return;
-    if (!currentUser) { window.location.href = '/login'; return; }
     setIsJoining(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { window.location.href = '/login'; return; }
       const res = await fetch('/api/membership/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({ tier_id: tier.id, creator_username: username }),
       });
       const data = await res.json();

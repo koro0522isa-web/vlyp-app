@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import Sidebar from '@/app/components/Sidebar';
 import BottomNav from '@/app/components/BottomNav';
-import { Bell, Heart, Gift, UserPlus, ArrowLeft, Loader2 } from 'lucide-react';
+import { Bell, Heart, Gift, UserPlus, ArrowLeft, Loader2, Crown, AlertCircle, XCircle } from 'lucide-react';
 import { useLanguage } from '@/app/contexts/LanguageContext';
 import { broadcastNotifUnread } from '@/lib/dm-events';
 
@@ -95,19 +95,27 @@ export default function NotificationsPage() {
                       {notif.type === 'like' && <div className="w-full h-full bg-pink-500 rounded-full flex items-center justify-center"><Heart className="w-3 h-3 text-white fill-white" /></div>}
                       {notif.type === 'gift' && <div className="w-full h-full bg-yellow-500 rounded-full flex items-center justify-center"><Gift className="w-3 h-3 text-white" /></div>}
                       {notif.type === 'follow' && <div className="w-full h-full bg-blue-500 rounded-full flex items-center justify-center"><UserPlus className="w-3 h-3 text-white" /></div>}
+                      {notif.type === 'new_member' && <div className="w-full h-full bg-purple-500 rounded-full flex items-center justify-center"><Crown className="w-3 h-3 text-white" /></div>}
+                      {notif.type === 'payment_failed' && <div className="w-full h-full bg-red-500 rounded-full flex items-center justify-center"><AlertCircle className="w-3 h-3 text-white" /></div>}
+                      {notif.type === 'subscription_cancelled' && <div className="w-full h-full bg-zinc-600 rounded-full flex items-center justify-center"><XCircle className="w-3 h-3 text-white" /></div>}
                     </div>
                   </div>
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm">
-                      <Link href={`/profile/${notif.actor_id}`} className="font-bold text-white hover:text-blue-400 transition-colors mr-1">
-                        {notif.actor?.display_name || 'Player'}
-                      </Link>
+                      {notif.actor_id && (
+                        <Link href={`/profile/${notif.actor_id}`} className="font-bold text-white hover:text-blue-400 transition-colors mr-1">
+                          {notif.actor?.display_name || 'Player'}
+                        </Link>
+                      )}
                       <span className="text-zinc-400 font-medium">
                         {notif.type === 'like' && t('notif.likedClip')}
                         {notif.type === 'gift' && t('notif.giftCoins').replace('{n}', String(notif.amount ?? 0))}
                         {notif.type === 'follow' && t('notif.followedYou')}
+                        {notif.type === 'new_member' && 'があなたのファンクラブに参加しました！'}
+                        {notif.type === 'payment_failed' && '決済に失敗しました。支払い方法をご確認ください。'}
+                        {notif.type === 'subscription_cancelled' && 'サブスクリプションがキャンセルされました。'}
                       </span>
                     </p>
                     <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mt-1">

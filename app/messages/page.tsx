@@ -56,6 +56,7 @@ function MessagesContent() {
 
   const fetchChatPartners = useCallback(async (userId: string) => {
     try {
+      // 高速版: DB集計RPC（supabase_setup_phase48_performance.sql で作成）
       const { data: rpcData, error: rpcError } = await supabase.rpc('get_chat_partners', { p_user_id: userId });
       
       if (!rpcError && rpcData && rpcData.length >= 0) {
@@ -75,6 +76,7 @@ function MessagesContent() {
         return;
       }
 
+      // フォールバック: RPC未作成時の従来方式
       const { data: allMsgs, error } = await supabase
         .from('messages')
         .select('sender_id, receiver_id, content, created_at')
@@ -131,7 +133,7 @@ function MessagesContent() {
       }
     } catch (error: any) {
       console.error('Error fetching chat partners:', error);
-      setSendError('会話の読み込みに失敗しました。');
+      setSendError('会話の読み込みに失敗しました。Supabase の messages テーブルと RLS を確認してください。');
       setIsLoading(false);
     } finally {
       setIsLoading(false);
@@ -168,6 +170,7 @@ function MessagesContent() {
       if (updateError) {
         console.error('Error marking messages as read:', updateError);
       } else {
+        // 一覧の未読バッジと Sidebar の件数を更新
         await fetchChatPartners(userId);
       }
     } catch (e) {
@@ -175,6 +178,7 @@ function MessagesContent() {
     }
   }, [fetchChatPartners]);
 
+  // Init: fetch session + partners + target user
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -186,6 +190,7 @@ function MessagesContent() {
 
       await fetchChatPartners(currentUser.id);
       
+      // If a target user is specified via ?u=xxx, open that chat
       if (targetUserId) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -196,6 +201,7 @@ function MessagesContent() {
           setSelectedPartner(profile);
           selectedPartnerRef.current = profile;
           
+          // Ensure they are in the chat list even if no messages yet
           setChatPartners(prev => {
             if (!prev.some(p => p.id === profile.id)) {
               return [profile, ...prev];
@@ -211,11 +217,14 @@ function MessagesContent() {
     init();
   }, [targetUserId, fetchChatPartners, fetchMessages]);
 
+  // Realtime subscription - uses refs to avoid stale closure
+  // 自分宛の受信メッセージのみフィルタして購読する
   useEffect(() => {
     if (!user) return;
 
     const channel = supabase
       .channel(`dm-${user.id}`)
+      // 自分宛の新着メッセージを購読
       .on(
         'postgres_changes',
         { 
@@ -228,12 +237,14 @@ function MessagesContent() {
           const newMsg = payload.new as Message;
           const currentPartner = selectedPartnerRef.current;
           
+          // 開いている会話のメッセージなら一覧に追加
           if (currentPartner && newMsg.sender_id === currentPartner.id) {
             setMessages(prev => {
               if (prev.some(m => String(m.id) === String(newMsg.id))) return prev;
               return [...prev, newMsg];
             });
             
+            // 開いている会話なので即座に既読にする
             const { error: readErr } = await supabase
               .from('messages')
               .update({ is_read: true })
@@ -241,9 +252,11 @@ function MessagesContent() {
             if (readErr) console.error('既読更新エラー:', readErr);
           }
 
+          // 未読バッジを即時更新
           fetchChatPartners(user.id);
         }
       )
+      // 自分が送信したメッセージも購読（他タブ同期用）
       .on(
         'postgres_changes',
         { 
@@ -256,6 +269,7 @@ function MessagesContent() {
           const newMsg = payload.new as Message;
           const currentPartner = selectedPartnerRef.current;
           
+          // 他タブから送ったメッセージを反映
           if (currentPartner && newMsg.receiver_id === currentPartner.id) {
             setMessages(prev => {
               if (prev.some(m => String(m.id) === String(newMsg.id))) return prev;
@@ -274,6 +288,7 @@ function MessagesContent() {
           filter: `sender_id=eq.${user.id}`,
         },
         (payload) => {
+          // 送信したメッセージが既読になったら UI を更新
           const updatedMsg = payload.new as Message;
           setMessages(prev =>
             prev.map(m => String(m.id) === String(updatedMsg.id) ? { ...m, is_read: updatedMsg.is_read } : m)
@@ -287,10 +302,12 @@ function MessagesContent() {
     };
   }, [user?.id, fetchChatPartners]);
 
+  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Focus input when partner is selected
   useEffect(() => {
     if (selectedPartner) {
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -304,6 +321,7 @@ function MessagesContent() {
 
     const messageContent = newMessage.trim();
     
+    // Optimistic update - add message to UI immediately
     const optimisticMsg: Message = {
       id: `temp-${Date.now()}`,
       sender_id: user.id,
@@ -329,13 +347,15 @@ function MessagesContent() {
       if (error) {
         console.error('Send message error:', error);
         setSendError(`送信失敗: ${error.message}`);
+        // Remove optimistic message on failure
         setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
-        setNewMessage(messageContent);
+        setNewMessage(messageContent); // Restore the message text
         return;
       }
 
       if (data) {
-        // Realtime INSERT may have already added the real message — deduplicate.
+        // Replace optimistic message with real one.
+        // Realtime INSERT may have already added the real message — deduplicate by ID.
         setMessages(prev => {
           const withoutOptimistic = prev.filter(m => String(m.id) !== String(optimisticMsg.id));
           if (withoutOptimistic.some(m => String(m.id) === String(data.id))) {
@@ -365,7 +385,7 @@ function MessagesContent() {
   const deleteMessage = async (msgId: string) => {
     if (!confirm('このメッセージを削除しますか？')) return;
     await supabase.from('messages').delete().eq('id', msgId);
-    setMessages(prev => prev.filter(m => String(m.id) !== String(msgId)));
+    setMessages(prev => prev.filter(m => m.id !== msgId));
   };
 
   const formatTime = (dateStr: string) => {
@@ -410,6 +430,7 @@ function MessagesContent() {
               </div>
             </div>
             
+            {/* User Search Bar */}
             <div className="relative group">
               <input 
                 type="text"
@@ -499,6 +520,7 @@ function MessagesContent() {
         <div className={`flex-1 flex flex-col bg-black relative ${!selectedPartner ? 'hidden md:flex' : 'flex'}`}>
           {selectedPartner ? (
             <>
+              {/* Chat Header */}
               <div className="p-6 border-b border-white/5 flex items-center justify-between bg-black/80 backdrop-blur-3xl z-10">
                 <div className="flex items-center gap-4">
                   <button onClick={() => { setSelectedPartner(null); selectedPartnerRef.current = null; }} className="p-2 hover:bg-white/10 rounded-full md:hidden">
@@ -533,6 +555,7 @@ function MessagesContent() {
                 </div>
               </div>
 
+              {/* Messages */}
               <div className="flex-1 overflow-y-auto p-8 space-y-6 no-scrollbar bg-gradient-to-b from-transparent to-blue-500/5">
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full gap-4 opacity-20">
@@ -567,6 +590,7 @@ function MessagesContent() {
                             {isTemp && <Loader2 className="w-3 h-3 animate-spin opacity-30" />}
                           </div>
 
+                          {/* Delete on hover */}
                           {isMine && !isTemp && (
                             <button
                               onClick={(e) => { e.stopPropagation(); deleteMessage(msg.id); }}
@@ -583,6 +607,7 @@ function MessagesContent() {
                 <div ref={messagesEndRef} />
               </div>
 
+              {/* Error Display */}
               <AnimatePresence>
                 {sendError && (
                   <motion.div
@@ -597,6 +622,7 @@ function MessagesContent() {
                 )}
               </AnimatePresence>
 
+              {/* Input Area */}
               <div className="p-8 border-t border-white/5 bg-[#09090b]/80 backdrop-blur-3xl">
                 <div className="flex items-center gap-3">
                   <button 
@@ -660,6 +686,7 @@ function MessagesContent() {
           )}
         </div>
       </div>
+
 
       <BottomNav />
     </div>

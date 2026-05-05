@@ -136,11 +136,13 @@ export async function POST(req: Request) {
       if (fanUserId && tierId && creatorId) {
         console.log(`Activating fan_club membership: user=${fanUserId} tier=${tierId}`);
 
+        // subscription ID を取得
         const subscriptionId =
           typeof session.subscription === 'string'
             ? session.subscription
             : (session.subscription as Stripe.Subscription | null)?.id ?? null;
 
+        // current_period_end を取得
         let currentPeriodEnd: string | null = null;
         if (subscriptionId) {
           try {
@@ -169,6 +171,8 @@ export async function POST(req: Request) {
           console.error('Error activating fan_club membership:', error);
         } else {
           console.log(`fan_club membership activated for user ${fanUserId}`);
+
+          // クリエイターに通知
           await supabaseAdmin.from('notifications').insert({
             user_id: creatorId,
             actor_id: fanUserId,
@@ -194,8 +198,10 @@ export async function POST(req: Request) {
         const userId = await getUserIdFromSub(stripe, sub);
 
         if (subType === 'fan_club') {
-          const fanUserId = sub.metadata?.user_id;
+          // ファンクラブ：period end を更新して active に保つ
+          const tierId = sub.metadata?.tier_id;
           const creatorId = sub.metadata?.creator_id;
+          const fanUserId = sub.metadata?.user_id;
           const currentPeriodEnd = new Date(
             (sub as any).current_period_end * 1000
           ).toISOString();
@@ -214,6 +220,7 @@ export async function POST(req: Request) {
             console.log(`fan_club renewed for user ${fanUserId} until ${currentPeriodEnd}`);
           }
         } else {
+          // Pro：monthly_uploads リセット
           if (userId) {
             await supabaseAdmin
               .from('profiles')
@@ -282,6 +289,7 @@ export async function POST(req: Request) {
       const subType = subscription.metadata?.type;
 
       if (subType === 'fan_club') {
+        // ファンクラブ解約
         const fanUserId = subscription.metadata?.user_id;
         const creatorId = subscription.metadata?.creator_id;
         if (fanUserId && creatorId) {
@@ -299,6 +307,7 @@ export async function POST(req: Request) {
           });
         }
       } else {
+        // Pro 解約
         const userId = await getUserIdFromSub(stripe, subscription);
         if (userId) {
           console.log(`Deactivating Pro for user ${userId}`);
