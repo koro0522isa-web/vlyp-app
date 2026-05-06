@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import Sidebar from '@/app/components/Sidebar';
@@ -21,7 +21,8 @@ const GAME_META: Record<string, { label: string; color: string; emoji: string; d
   r6:         { label: 'Rainbow Six',  color: '#1c3a6e', emoji: '🛡️', description: 'レインボーシックスシージのオペレーター・アウトプレイ・ACE集。' },
 };
 
-export default function GameTagPage({ params }: { params: { game: string } }) {
+export default function GameTagPage({ params: paramsPromise }: { params: Promise<{ game: string }> }) {
+  const params = use(paramsPromise);
   const game = params.game.toLowerCase();
   const meta = GAME_META[game] || { label: params.game, color: '#3b82f6', emoji: '🎮', description: `${params.game}のゲームクリップ・ハイライト集。` };
 
