@@ -48,6 +48,9 @@ function PostContent() {
   const [isConverting, setIsConverting] = useState(false);
   const [convertMode, setConvertMode] = useState<'pad' | 'crop'>('pad');
   const { convertToVertical, progress: convertProgress } = useVideoProcessor();
+  // 動画長さ制限
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  const [durationError, setDurationError] = useState<string | null>(null);
   // 予約投稿 (Pro only)
   const [scheduledAt, setScheduledAt] = useState<string>('');
   const [useSchedule, setUseSchedule] = useState(false);
@@ -98,8 +101,30 @@ function PostContent() {
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files?.[0]?.type.startsWith('video/')) {
-      setFile(e.dataTransfer.files[0]);
+      handleFileSelect(e.dataTransfer.files[0]);
     }
+  };
+
+  const maxDurationSec = isPro ? 600 : 60; // Pro: 10分 / 無料: 60秒
+
+  const handleFileSelect = (selectedFile: File) => {
+    setDurationError(null);
+    setVideoDuration(null);
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      const dur = video.duration;
+      setVideoDuration(dur);
+      URL.revokeObjectURL(video.src);
+      if (dur > maxDurationSec) {
+        const limit = isPro ? '10分' : '60秒';
+        setDurationError(`動画が長すぎます (${Math.floor(dur)}秒)。${isPro ? 'Pro' : '無料'}プランの上限は${limit}です。`);
+        setFile(null);
+      } else {
+        setFile(selectedFile);
+      }
+    };
+    video.src = URL.createObjectURL(selectedFile);
   };
 
   const handleConvertToVertical = async () => {
@@ -127,7 +152,9 @@ function PostContent() {
   const handlePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || isSubmitting || !file || !title.trim()) return;
-    
+    if (durationError) return;
+    if (videoDuration !== null && videoDuration > maxDurationSec) return;
+
     const maxUploads = isPro ? 999999 : 30;
     if (monthlyUploads >= maxUploads) {
       alert(isPro ? 'Upload limit reached.' : 'Free plan: 30 uploads/month. Upgrade to Pro for unlimited uploads!');
@@ -245,7 +272,7 @@ function PostContent() {
                   : 'border-dashed border-white/10 hover:border-white/20 bg-white/[0.02] aspect-[16/9]'
             }`}
           >
-            <input type="file" ref={fileInputRef} accept="video/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            <input type="file" ref={fileInputRef} accept="video/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]); }} />
             
             {!file ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
@@ -256,7 +283,7 @@ function PostContent() {
                   <UploadCloud className={`w-7 h-7 transition-colors ${dragActive ? 'text-blue-400' : 'text-zinc-500'}`} />
                 </motion.div>
                 <p className="font-black uppercase tracking-widest text-sm mb-1">Drop your clip here</p>
-                <p className="text-zinc-500 text-xs font-bold">or click to browse • MP4, WebM • Max {maxFileSize}MB</p>
+                <p className="text-zinc-500 text-xs font-bold">MP4, WebM • Max {maxFileSize}MB • {isPro ? '10分' : '60秒'}以内</p>
               </div>
             ) : (
               <>
@@ -266,6 +293,11 @@ function PostContent() {
                   autoPlay muted loop playsInline
                 />
                 <div className="absolute top-3 right-3 flex gap-2">
+                  {videoDuration !== null && (
+                    <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-[10px] font-black text-zinc-300">
+                      {videoDuration >= 60 ? `${Math.floor(videoDuration / 60)}m${Math.floor(videoDuration % 60)}s` : `${Math.floor(videoDuration)}s`}
+                    </div>
+                  )}
                   <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-[10px] font-black text-zinc-300">
                     {fileSizeMB} MB
                   </div>
@@ -276,6 +308,33 @@ function PostContent() {
               </>
             )}
           </div>
+
+          {/* 動画長さエラー */}
+          <AnimatePresence>
+            {durationError && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-3"
+              >
+                <X className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-[11px] font-black text-red-400 uppercase tracking-widest mb-1">動画が長すぎます</p>
+                  <p className="text-xs text-zinc-400">{durationError}</p>
+                  {!isPro && (
+                    <button
+                      type="button"
+                      onClick={handleProUpgrade}
+                      className="mt-2 flex items-center gap-1 text-[10px] font-black text-purple-400 hover:text-purple-300 transition-colors"
+                    >
+                      <Crown className="w-3 h-3" /> Proにアップグレードして10分まで投稿
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* 縦型変換ツール (動画選択後に表示) */}
           <AnimatePresence>
@@ -534,56 +593,4 @@ function PostContent() {
             </div>
             <div className="flex items-baseline gap-1">
               <span className="text-lg font-black">{monthlyUploads}</span>
-              <span className="text-xs font-bold text-zinc-600">/ {isPro ? '∞' : '30'}</span>
-            </div>
-          </div>
-
-          {/* Terms Checkbox */}
-          <label className="flex items-start gap-4 cursor-pointer group p-4 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-colors">
-            <div className="relative mt-0.5">
-              <input type="checkbox" className="peer sr-only" checked={agreedTerms} onChange={(e) => setAgreedTerms(e.target.checked)} />
-              <div className="w-5 h-5 rounded-lg bg-black/50 border-2 border-zinc-700 peer-checked:bg-blue-600 peer-checked:border-blue-500 transition-all flex items-center justify-center">
-                <Check className={`w-3 h-3 text-white transition-transform duration-200 ${agreedTerms ? 'scale-100' : 'scale-0'}`} />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-black text-zinc-300 uppercase tracking-widest">Copyright Agreement</p>
-              <p className="text-[10px] text-zinc-500 font-bold mt-1">No unauthorized music or duplicate content. You own the rights to this clip.</p>
-            </div>
-          </label>
-
-          {/* Submit Button */}
-          <button 
-            type="submit"
-            disabled={isSubmitting || !file || !agreedTerms || !title.trim()}
-            className={`relative w-full py-5 rounded-2xl overflow-hidden flex justify-center items-center gap-3 font-black text-sm uppercase tracking-[0.15em] transition-all duration-300 ${
-              isSubmitting || !file || !agreedTerms || !title.trim()
-                ? 'bg-zinc-900 text-zinc-600 cursor-not-allowed border border-white/5' 
-                : 'bg-blue-600 text-white hover:bg-blue-500 active:scale-[0.98] shadow-xl shadow-blue-600/20'
-            }`}
-          >
-            {/* Progress bar */}
-            {isSubmitting && (
-              <div className="absolute left-0 top-0 bottom-0 bg-blue-400/30 transition-all duration-500" style={{ width: `${uploadProgress}%` }} />
-            )}
-            {isSubmitting ? (
-              <><Loader2 className="w-5 h-5 animate-spin" /><span>Uploading...</span></>
-            ) : isPro && useSchedule && scheduledAt ? (
-              <><Calendar className="w-5 h-5" /><span>Schedule Clip</span></>
-            ) : (
-              <><UploadCloud className="w-5 h-5" /><span>Post Clip</span></>
-            )}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-export default function Post() {
-  return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#09090b]"><Loader2 className="w-10 h-10 animate-spin text-blue-500" /></div>}>
-      <PostContent />
-    </Suspense>
-  );
-}
+              <span cl

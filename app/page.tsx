@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import Link from 'next/link';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
-import { MessageCircle, Heart, Share2, Play, Flame, Trophy, Check, Loader2, Search, X, Link as LinkIcon, Lock, MapPin, ExternalLink, Calendar, Plus, Crown, Star, ChevronLeft, ChevronRight, Video, Send, Gamepad2, AlertTriangle, Gift, Shield } from 'lucide-react';
+import { MessageCircle, Heart, Share2, Play, Flame, Trophy, Check, Loader2, Search, X, Link as LinkIcon, Lock, MapPin, ExternalLink, Calendar, Plus, Crown, Star, ChevronLeft, ChevronRight, Video, Send, Gamepad2, AlertTriangle, Gift, Shield, Wifi } from 'lucide-react';
 import AdSlot from './components/AdSlot';
 import { useLanguage } from './contexts/LanguageContext';
 import { useToast } from './contexts/ToastContext';
@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import TikTokPlayer from './components/TikTokPlayer';
 import StoriesBar from './components/StoriesBar';
 
-function HomeContent() {
+export default function Home() {
   const [clips, setClips] = useState<any[]>([]);
   const [ranking, setRanking] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -26,6 +26,7 @@ function HomeContent() {
   const [isRewarded, setIsRewarded] = useState(false);
   
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [pageOffset, setPageOffset] = useState(0);
@@ -151,6 +152,7 @@ function HomeContent() {
 
     } catch (e) {
       console.error(e);
+      setFetchError(true);
     } finally {
       setIsLoading(false);
     }
@@ -303,11 +305,10 @@ function HomeContent() {
         { onConflict: 'user_id,target_date' }
       );
       // wallets テーブルのコインを+1
-      const { error: rpcErr } = await supabase.rpc('increment_coins', { uid: user.id, amount: 1 });
-      if (rpcErr) {
+      await supabase.rpc('increment_coins', { uid: user.id, amount: 1 }).catch(async () => {
         const { data: w } = await supabase.from('wallets').select('coins').eq('user_id', user.id).maybeSingle();
         await supabase.from('wallets').upsert({ user_id: user.id, coins: (w?.coins || 0) + 1 }, { onConflict: 'user_id' });
-      }
+      });
       setIsRewarded(true);
       confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#22d3ee', '#818cf8', '#fbbf24'] });
       alert('1コインを獲得しました！');
@@ -685,8 +686,25 @@ function HomeContent() {
             );
           })}
 
+          {/* Error State */}
+          {!isLoading && fetchError && clips.length === 0 && (
+            <div className="h-full w-full flex flex-col items-center justify-center p-8 text-center bg-black snap-start">
+              <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
+                <Wifi className="w-10 h-10 text-red-500/60" />
+              </div>
+              <h2 className="text-xl font-black italic uppercase tracking-tighter text-white mb-2">読み込みに失敗しました</h2>
+              <p className="text-sm font-bold text-zinc-500 mb-8 max-w-xs">ネットワーク接続を確認して、もう一度お試しください。</p>
+              <button
+                onClick={() => { setFetchError(false); fetchInitialData(); }}
+                className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-500 transition-colors shadow-[0_0_20px_rgba(37,99,235,0.4)]"
+              >
+                再試行
+              </button>
+            </div>
+          )}
+
           {/* Empty State */}
-          {!isLoading && clips.length === 0 && (
+          {!isLoading && !fetchError && clips.length === 0 && (
             <div className="h-full w-full flex flex-col items-center justify-center p-8 text-center bg-black">
               <div className="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center mb-6">
                 <Video className="w-10 h-10 text-zinc-600" />
@@ -875,40 +893,4 @@ function HomeContent() {
             <div className="relative group">
               <textarea 
                 placeholder={replyingTo ? t('comments.placeholderReply') : t('comments.placeholder')} 
-                className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] py-5 px-6 pr-16 text-sm font-medium focus:outline-none focus:border-blue-500/50 transition-all group-hover:bg-white/[0.08] min-h-[60px] max-h-[150px] scrollbar-hide" 
-                value={newComment} 
-                rows={1}
-                onChange={(e) => {
-                  setNewComment(e.target.value);
-                  e.target.style.height = 'auto';
-                  e.target.style.height = e.target.scrollHeight + 'px';
-                }} 
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    postComment();
-                  }
-                }} 
-              />
-              <button 
-                onClick={postComment} 
-                disabled={isCommenting || !newComment.trim()}
-                className="absolute right-3 bottom-3 p-3.5 rounded-xl bg-blue-600 disabled:opacity-30 transition-all hover:bg-blue-500 active:scale-95"
-              >
-                <Send className="w-4 h-4 text-white" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <Suspense fallback={null}>
-      <HomeContent />
-    </Suspense>
-  );
-}
+                cla

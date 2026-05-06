@@ -97,7 +97,7 @@ export default function BottomNav() {
                 <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
                 {item.badge > 0 && (
                   <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-0.5 flex items-center justify-center rounded-full bg-red-500 text-[8px] font-black text-white">
-                    {item.badge > 99 ? '…' : item.badge}
+                    {item.badge > 99 ? '99+' : item.badge}
                   </span>
                 )}
               </span>
