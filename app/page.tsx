@@ -316,7 +316,7 @@ function HomeContent() {
       alert('1コインを獲得しました！');
       return;
     }
-    if (data?.success || data) {
+    if (data?.success) {
       setIsRewarded(true);
       confetti({
         particleCount: 150,
