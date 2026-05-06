@@ -303,10 +303,11 @@ export default function Home() {
         { onConflict: 'user_id,target_date' }
       );
       // wallets テーブルのコインを+1
-      await supabase.rpc('increment_coins', { uid: user.id, amount: 1 }).catch(async () => {
+      const { error: rpcErr } = await supabase.rpc('increment_coins', { uid: user.id, amount: 1 });
+      if (rpcErr) {
         const { data: w } = await supabase.from('wallets').select('coins').eq('user_id', user.id).maybeSingle();
         await supabase.from('wallets').upsert({ user_id: user.id, coins: (w?.coins || 0) + 1 }, { onConflict: 'user_id' });
-      });
+      }
       setIsRewarded(true);
       confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#22d3ee', '#818cf8', '#fbbf24'] });
       alert('1コインを獲得しました！');
