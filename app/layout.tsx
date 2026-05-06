@@ -94,6 +94,9 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "default",
   },
+  verification: {
+    google: "H5xI-kskMQoEFTd42hmbb4W0xwiGAmQ-kzSiMh_P6a0",
+  },
 };
 
 export default function RootLayout({
