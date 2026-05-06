@@ -565,7 +565,7 @@ function MessagesInner() {
                 ) : (
                   messages.map((msg, idx) => {
                     const isMine = msg.sender_id === user?.id;
-                    const isTemp = msg.id.startsWith('temp-');
+                    const isTemp = String(msg.id).startsWith('temp-');
                     const nextMsg = messages[idx + 1];
                     const isLastInGroup = !nextMsg || nextMsg.sender_id !== msg.sender_id;
                     
