@@ -874,4 +874,32 @@ export default function Home() {
             <div className="relative group">
               <textarea 
                 placeholder={replyingTo ? t('comments.placeholderReply') : t('comments.placeholder')} 
-                className="w-full bg-white/5 border border-white/10 rounded-[
+                className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] py-5 px-6 pr-16 text-sm font-medium focus:outline-none focus:border-blue-500/50 transition-all group-hover:bg-white/[0.08] min-h-[60px] max-h-[150px] scrollbar-hide" 
+                value={newComment} 
+                rows={1}
+                onChange={(e) => {
+                  setNewComment(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                }} 
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    postComment();
+                  }
+                }} 
+              />
+              <button 
+                onClick={postComment} 
+                disabled={isCommenting || !newComment.trim()}
+                className="absolute right-3 bottom-3 p-3.5 rounded-xl bg-blue-600 disabled:opacity-30 transition-all hover:bg-blue-500 active:scale-95"
+              >
+                <Send className="w-4 h-4 text-white" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

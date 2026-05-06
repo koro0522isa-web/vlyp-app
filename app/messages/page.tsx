@@ -690,4 +690,14 @@ function MessagesInner() {
   );
 }
 
-export de
+export default function Messages() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen bg-[#09090B] items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
+      </div>
+    }>
+      <MessagesInner />
+    </Suspense>
+  );
+}
