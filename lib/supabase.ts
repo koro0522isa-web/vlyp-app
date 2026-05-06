@@ -14,4 +14,4 @@ const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.build';
 
-export con
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
