@@ -114,7 +114,4 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.redirect(`${siteUrl}/coins?success=true`);
   } catch (err: any) {
-    console.error('checkout-success error:', err);
-    return NextResponse.redirect(`${siteUrl}/post?success=true`);
-  }
-}
+    console.error('checkou

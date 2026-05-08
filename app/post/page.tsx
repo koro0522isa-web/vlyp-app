@@ -239,19 +239,33 @@ function PostContent() {
       <div className="max-w-3xl mx-auto px-4 py-8 md:py-16">
         {/* Header */}
         <div className="flex items-center justify-between mb-10">
-          <button onClick={() => router.push('/')} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5">
+          <motion.button
+            onClick={() => router.push('\/')}
+            className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
             <ArrowLeft className="w-5 h-5" />
-          </button>
+          </motion.button>
           <h1 className="text-2xl font-black italic tracking-tighter uppercase">Post Clip</h1>
           <div className="flex items-center gap-2">
             {isPro ? (
-              <span className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+              <motion.span
+                className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+              >
                 <Crown className="w-3 h-3" /> PRO
-              </span>
+              </motion.span>
             ) : (
-              <button onClick={handleProUpgrade} className="px-3 py-1.5 bg-white/5 hover:bg-purple-500/20 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/5 hover:border-purple-500/30 transition-all flex items-center gap-1">
+              <motion.button
+                onClick={handleProUpgrade}
+                className="px-3 py-1.5 bg-white/5 hover:bg-purple-500/20 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/5 hover:border-purple-500/30 transition-all flex items-center gap-1"
+                whileHover={{ scale: 1.05, backgroundColor: 'rgba(168, 85, 247, 0.1)' }}
+                whileTap={{ scale: 0.95 }}
+              >
                 <Sparkles className="w-3 h-3" /> Upgrade
-              </button>
+              </motion.button>
             )}
           </div>
         </div>
@@ -540,7 +554,13 @@ function PostContent() {
                   placeholder="Add tag..."
                   className="flex-1 bg-white/5 border border-white/10 p-4 rounded-2xl outline-none font-bold placeholder:text-zinc-700 text-sm"
                 />
-                <button type="button" onClick={addHashtag} className="px-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors text-xs font-black uppercase">+</button>
+                <motion.button
+                  type="button"
+                  onClick={addHashtag}
+                  className="px-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors text-xs font-black uppercase"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >+</motion.button>
               </div>
               {hashtags.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-3">
@@ -582,7 +602,7 @@ function PostContent() {
           </label>
 
           {/* Submit Button */}
-          <button 
+          <motion.button
             type="submit"
             disabled={isSubmitting || !file || !agreedTerms || !title.trim()}
             className={`relative w-full py-5 rounded-2xl overflow-hidden flex justify-center items-center gap-3 font-black text-sm uppercase tracking-[0.15em] transition-all duration-300 ${
@@ -590,6 +610,8 @@ function PostContent() {
                 ? 'bg-zinc-900 text-zinc-600 cursor-not-allowed border border-white/5' 
                 : 'bg-blue-600 text-white hover:bg-blue-500 active:scale-[0.98] shadow-xl shadow-blue-600/20'
             }`}
+            whileHover={isSubmitting || !file || !agreedTerms || !title.trim() ? {} : { scale: 1.02 }}
+            whileTap={isSubmitting || !file || !agreedTerms || !title.trim() ? {} : { scale: 0.98 }}
           >
             {/* Progress bar */}
             {isSubmitting && (
@@ -602,7 +624,7 @@ function PostContent() {
             ) : (
               <><UploadCloud className="w-5 h-5" /><span>Post Clip</span></>
             )}
-          </button>
+          </motion.button>
         </form>
       </div>
     </div>

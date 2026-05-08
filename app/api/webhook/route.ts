@@ -316,17 +316,4 @@ export async function POST(req: Request) {
             .update({ is_pro: false, stripe_subscription_id: null })
             .eq('id', userId);
 
-          await supabaseAdmin.from('notifications').insert({
-            user_id: userId,
-            actor_id: userId,
-            type: 'subscription_cancelled',
-          });
-        }
-      }
-    } catch (e) {
-      console.error('Error processing subscription deletion:', e);
-    }
-  }
-
-  return NextResponse.json({ received: true });
-}
+          aw

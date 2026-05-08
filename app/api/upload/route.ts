@@ -23,16 +23,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'filename and contentType are required' }, { status: 400 });
     }
 
-    // ファイルパス: {type}/{userId}/{uuid}.{ext}
-    const ext = filename.split('.').pop() ?? 'mp4';
-    const key = `${type}/${user.id}/${randomUUID()}.${ext}`;
+    // ユーザープロフィール取得（Pro判定用）
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('is_pro')
+      .eq('id', user.id)
+      .maybeSingle();
+    const isPro = profile?.is_pro ?? false;
 
-    const uploadUrl = await createPresignedUrl(key, contentType);
-    const publicUrl = `${PUBLIC_URL}/${key}`;
-
-    return NextResponse.json({ uploadUrl, publicUrl, key });
-  } catch (err: any) {
-    console.error('[upload] error:', err);
-    return NextResponse.json({ error: err.message ?? 'Internal error' }, { status: 500 });
-  }
-}
+    // 動画ファイルの場合、基本的なバリデーションを実施
+    // 注：実際の動画メタデータ検証は、クライアント側で既に実施済み
+    // サーバー側ではファイル拡張子と content-type の整合性をチェック
+    if (type === 'video') {
+      const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+      const validVideoExts = ['mp4', 'webm', 'mov', 'avi', 'mkv'];
+      if (!validVideoExts.includes(ext)) {
+        return NextResponse.json(
+          { error: 'Invalid video format. Supported: MP4, WebM, MOV, AVI, MKV' },
+          { status: 400 }
+        );
+      }
+      // content-type チェック
+      if (!contentType.startsWith('video/')) {
+        return NextResp

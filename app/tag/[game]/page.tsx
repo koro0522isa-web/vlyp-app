@@ -156,16 +156,4 @@ export default function GameTagPage({ params: paramsPromise }: { params: Promise
                       <div className="mt-2 px-1">
                         <p className="text-xs font-bold text-zinc-300 truncate">{clip.title}</p>
                         <p className="text-[10px] text-zinc-600 mt-0.5">@{profile?.username || profile?.display_name || 'Player'}</p>
-                      </div>
-                    </Link>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </main>
-      <BottomNav />
-    </div>
-  );
-}
+ 

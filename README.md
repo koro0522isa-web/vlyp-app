@@ -219,39 +219,3 @@ npm run package
 # Distribute installers
 # Windows: .exe installer
 # macOS: .dmg package
-# Linux: .AppImage
-```
-
-## 🎯 Business Model
-
-### For Content Creators
-- **Free Tier**: Basic features, 30 uploads/month
-- **Pro Subscription** ($9.99/month): Unlimited uploads, AI editing, priority processing
-- **Revenue Sharing**: 70% to creators, 30% platform fee
-
-### For Viewers
-- **Free Access**: All content, basic features
-- **Premium Features**: Ad-free experience, exclusive content
-- **Gifting System**: Support creators with VLYP coins
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-- **Documentation**: [Full documentation](https://docs.vlyp.com)
-- **Discord Community**: [Join our Discord](https://discord.gg/vlyp)
-- **GitHub Issues**: [Report bugs and request features](https://github.com/your-username/vlyp-app/issues)
-
----
-
-**VLYP** - Where Gaming Moments Become Legends 🎮✨

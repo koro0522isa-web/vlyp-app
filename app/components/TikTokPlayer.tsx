@@ -213,12 +213,14 @@ export default function TikTokPlayer({
           )}
         </AnimatePresence>
         
-        <button 
+        <motion.button
           onClick={(e) => { e.stopPropagation(); toggleMute(); }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
           className="p-2.5 bg-black/30 backdrop-blur-md rounded-full border border-white/10 hover:bg-white/10 transition-all"
         >
           {isMuted || volume === 0 ? <VolumeX className="w-4 h-4 text-white/70" /> : <Volume2 className="w-4 h-4 text-white/70" />}
-        </button>
+        </motion.button>
       </div>
 
       {/* 右側アクションバー (TikTok風) */}
@@ -241,8 +243,9 @@ export default function TikTokPlayer({
             )}
           </Link>
           {!isFollowing && (
-            <motion.button 
+            <motion.button
               whileTap={{ scale: 0.5 }}
+              whileHover={{ scale: 1.15 }}
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
@@ -261,85 +264,96 @@ export default function TikTokPlayer({
         </div>
 
         {/* いいね — 親の onClick（再生トグル）へ伝播させない */}
-        <button
+        <motion.button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onLike(clip.id, clip.user_id);
           }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.85 }}
           className="flex flex-col items-center group"
         >
           <motion.div whileTap={{ scale: 0.7 }} className="p-2">
-            <Heart className={`w-8 h-8 transition-all ${isLiked ? 'fill-pink-500 text-pink-500 drop-shadow-[0_0_12px_rgba(236,72,153,0.8)]' : 'text-white'}`} />
+            <Heart className={`w-8 h-8 transition-all ${isLiked ? 'fill-pink-500 text-pink-500 drop-shadow-[0_0_12px_rgba(236,72,153,0.8)]' : 'text-white hover:text-pink-300'}`} />
           </motion.div>
           <span className="text-[10px] font-black text-white shadow-sm uppercase tracking-tighter">{clip.likes || 0}</span>
-        </button>
+        </motion.button>
 
         {/* コメント */}
-        <button
+        <motion.button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onComment(clip.id, clip.user_id);
           }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.85 }}
           className="flex flex-col items-center group"
         >
           <motion.div whileTap={{ scale: 0.8 }} className="p-2">
-            <MessageCircle className="w-8 h-8 text-white group-hover:text-blue-400 transition-colors" />
+            <MessageCircle className="w-8 h-8 text-white group-hover:text-blue-400 hover:text-blue-400 transition-colors" />
           </motion.div>
           <span className="text-[10px] font-black text-white shadow-sm uppercase tracking-tighter">{t('tiktok.chat')}</span>
-        </button>
+        </motion.button>
 
         {/* 保存 (Bookmark) */}
-        <button
+        <motion.button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onSave(clip.id);
           }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.85 }}
           className="flex flex-col items-center group"
         >
           <motion.div whileTap={{ scale: 0.7 }} className="p-2">
-            <Bookmark className={`w-8 h-8 transition-all ${isSaved ? 'fill-yellow-400 text-yellow-400 drop-shadow-[0_0_12px_rgba(250,204,21,0.8)]' : 'text-white'}`} />
+            <Bookmark className={`w-8 h-8 transition-all ${isSaved ? 'fill-yellow-400 text-yellow-400 drop-shadow-[0_0_12px_rgba(250,204,21,0.8)]' : 'text-white hover:text-yellow-300'}`} />
           </motion.div>
           <span className="text-[10px] font-black text-white shadow-sm uppercase tracking-tighter">{isSaved ? t('tiktok.saved') : t('tiktok.save')}</span>
-        </button>
+        </motion.button>
 
         {/* シェア */}
-        <button
+        <motion.button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onShare(clip);
           }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.85 }}
           className="flex flex-col items-center group"
         >
-          <motion.div 
-            whileTap={{ scale: 0.8 }} 
+          <motion.div
+            whileTap={{ scale: 0.8 }}
             className={`p-2 rounded-full transition-all ${isCopied ? 'bg-green-500' : ''}`}
           >
-            {isCopied ? <Check className="w-8 h-8 text-white" /> : <Share2 className="w-8 h-8 text-white group-hover:text-green-400 transition-colors" />}
+            {isCopied ? <Check className="w-8 h-8 text-white" /> : <Share2 className="w-8 h-8 text-white group-hover:text-green-400 hover:text-green-400 transition-colors" />}
           </motion.div>
           <span className="text-[10px] font-black text-white shadow-sm uppercase tracking-tighter">{isCopied ? t('tiktok.copied') : t('tiktok.share')}</span>
-        </button>
+        </motion.button>
 
         {/* ギフト */}
-        <button
+        <motion.button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onGift(clip);
           }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.85 }}
           className="flex flex-col items-center"
         >
-          <motion.div 
+          <motion.div
             whileTap={{ scale: 0.8, rotate: -10 }}
-            className="p-2 bg-yellow-400/20 rounded-full border border-yellow-400/30 shadow-[0_0_15px_rgba(250,204,21,0.2)]"
+            whileHover={{ rotate: 8 }}
+            className="p-2 bg-yellow-400/20 rounded-full border border-yellow-400/30 shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:bg-yellow-400/30 transition-colors"
           >
             <Gift className="w-8 h-8 text-yellow-400" />
           </motion.div>
           <span className="text-[10px] font-black text-yellow-400 shadow-sm uppercase tracking-tighter">{t('tiktok.gift')}</span>
-        </button>
+        </motion.button>
       </div>
 
       {/* 左下テキスト情報 */}
@@ -368,23 +382,4 @@ export default function TikTokPlayer({
           <Music className="w-3 h-3 text-white/70 animate-pulse" />
           <div className="whitespace-nowrap flex gap-8 animate-marquee">
             <span className="text-[10px] font-bold text-white/80">
-              {clip.bgm_title ? `${clip.bgm_title} - ${clip.bgm_artist || 'Artist'}` : `Original Sound - @${clip.profiles?.display_name || "Player"}`}
-            </span>
-            <span className="text-[10px] font-bold text-white/80">
-              {clip.bgm_title ? `${clip.bgm_title} - ${clip.bgm_artist || 'Artist'}` : `Original Sound - @${clip.profiles?.display_name || "Player"}`}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Real video progress bar — synced to actual playback */}
-      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/10 z-30">
-        <motion.div 
-          className="h-full bg-white/80"
-          style={{ width: `${progress}%` }}
-          transition={{ duration: 0.1, ease: 'linear' }}
-        />
-      </div>
-    </div>
-  );
-}
+              {clip.bgm_title ? `${clip.bgm_title} - ${clip.bgm_artist || 'Artist'

@@ -96,29 +96,3 @@ export async function POST(request: NextRequest) {
     try {
       await require('fs').promises.unlink(filePath);
     } catch (e) {
-      console.error('Failed to clean up temp file:', e);
-    }
-
-    return NextResponse.json({
-      success: true,
-      clip: {
-        id: clip.id,
-        title: clip.title,
-        video_url: clip.video_url,
-        vlyp_scores: {
-          average: avgScore,
-          max: maxScore,
-          highlights: highlightCount,
-          scores: vlypScores
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Desktop upload error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}

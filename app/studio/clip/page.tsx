@@ -485,19 +485,4 @@ export default function ClipEditorPage() {
                   >
                     ⬇️ ダウンロード
                   </button>
-                  <button
-                    onClick={() => { setStep(3); setProcessingProgress(0); setProcessedUrl(null); setProcessedBlob(null); }}
-                    className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-semibold transition-colors text-sm text-zinc-400"
-                  >
-                    ← 編集に戻る
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-      </div>
-    </div>
-  );
-}
+     

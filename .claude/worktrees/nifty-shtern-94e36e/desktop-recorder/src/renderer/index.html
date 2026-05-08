@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLYP Desktop Recorder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #09090B 0%, #1a1a2e 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 40px;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .logo-text {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 40px;
+        }
+        
+        .header {
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .recording-controls {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+        
+        .record-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(239, 68, 68, 0.3);
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .record-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(239, 68, 68, 0.4);
+        }
+        
+        .record-button.recording {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            animation: pulse 2s infinite;
+        }
+        
+        .record-button::before {
+            content: '';
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 8px;
+        }
+        
+        .record-button.recording::before {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+        }
+        
+        .status-info {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .status-text {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .status-details {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .vlyp-score-display {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .score-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+        
+        .score-value {
+            font-size: 48px;
+            font-weight: 800;
+        }
+        
+        .highlights-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+        
+        .highlight-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .highlight-time {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .highlight-score {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .shortcuts {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .shortcut-key {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">V</div>
+                <div class="logo-text">VLYP</div>
+            </div>
+            
+            <div class="vlyp-score-display">
+                <div class="score-label">Current VLYP Score</div>
+                <div class="score-value" id="current-score">0</div>
+            </div>
+            
+            <div class="shortcuts">
+                <h3 style="font-size: 14px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">Shortcuts</h3>
+                <div class="shortcut-item">
+                    <span>Start/Stop Recording</span>
+                    <span class="shortcut-key">Ctrl+Shift+R</span>
+                </div>
+                <div class="shortcut-item">
+                    <span>Highlight Moment</span>
+                    <span class="shortcut-key">Ctrl+Shift+H</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="header">
+                <h1>VLYP Desktop Recorder</h1>
+                <p>Capture your best gaming moments with AI-powered highlighting</p>
+            </div>
+            
+            <div class="recording-controls">
+                <button class="record-button" id="record-btn"></button>
+                
+                <div class="status-info">
+                    <div class="status-text" id="status-text">Ready to record</div>
+                    <div class="status-details" id="status-details">Press Ctrl+Shift+R to start recording</div>
+                </div>
+            </div>
+            
+            <div class="highlights-section">
+                <h2 class="section-title">Recent Highlights</h2>
+                <div id="highlights-list">
+                    <p style="color: rgba(255, 255, 255, 0.4); text-align: center; padding: 20px;">
+                        No highlights yet. Start recording to capture amazing moments!
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        let isRecording = false;
+        let highlights = [];
+        
+        const recordBtn = document.getElementById('record-btn');
+        const statusText = document.getElementById('status-text');
+        const statusDetails = document.getElementById('status-details');
+        const currentScore = document.getElementById('current-score');
+        const highlightsList = document.getElementById('highlights-list');
+        
+        // Recording controls
+        recordBtn.addEventListener('click', toggleRecording);
+        
+        async function toggleRecording() {
+            if (!isRecording) {
+                const result = await ipcRenderer.invoke('start-recording');
+                if (result.success) {
+                    isRecording = true;
+                    updateUI();
+                }
+            } else {
+                const result = await ipcRenderer.invoke('stop-recording');
+                if (result.success) {
+                    isRecording = false;
+                    updateUI();
+                }
+            }
+        }
+        
+        function updateUI() {
+            if (isRecording) {
+                recordBtn.classList.add('recording');
+                statusText.textContent = 'Recording in progress';
+                statusDetails.textContent = 'Press Ctrl+Shift+R to stop recording';
+            } else {
+                recordBtn.classList.remove('recording');
+                statusText.textContent = 'Ready to record';
+                statusDetails.textContent = 'Press Ctrl+Shift+R to start recording';
+            }
+        }
+        
+        // IPC event listeners
+        ipcRenderer.on('recording-status-changed', (event, { isRecording: recording }) => {
+            isRecording = recording;
+            updateUI();
+        });
+        
+        ipcRenderer.on('vlyp-score-update', (event, { score, timestamp }) => {
+            currentScore.textContent = Math.round(score);
+            
+            // Add highlight if score is high
+            if (score > 75) {
+                addHighlight(timestamp, score);
+            }
+        });
+        
+        ipcRenderer.on('highlight-added', (event, { timestamp }) => {
+            addHighlight(timestamp, 100); // Manual highlights get max score
+        });
+        
+        ipcRenderer.on('recording-completed', (event, { videoPath, vlypScores }) => {
+            statusText.textContent = 'Recording completed!';
+            statusDetails.textContent = 'Processing video with AI...';
+            
+            // Show completion notification
+            setTimeout(() => {
+                statusText.textContent = 'Ready to record';
+                statusDetails.textContent = 'Press Ctrl+Shift+R to start recording';
+            }, 3000);
+        });
+        
+        function addHighlight(timestamp, score) {
+            const time = new Date(timestamp).toLocaleTimeString();
+            highlights.unshift({ time, score, timestamp });
+            
+            // Keep only last 10 highlights
+            highlights = highlights.slice(0, 10);
+            
+            renderHighlights();
+        }
+        
+        function renderHighlights() {
+            if (highlights.length === 0) {
+                highlightsList.innerHTML = `
+                    <p style="color: rgba(255, 255, 255, 0.4); text-align: center; padding: 20px;">
+                        No highlights yet. Start recording to capture amazing moments!
+                    </p>
+                `;
+                return;
+            }
+            
+            highlightsList.innerHTML = highlights.map(highlight => `
+                <div class="highlight-item">
+                    <span class="highlight-time">${highlight.time}</span>
+                    <span class="highlight-score">${Math.round(highlight.score)} pts</span>
+                </div>
+            `).join('');
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+                e.preventDefault();
+                toggleRecording();
+            } else if (e.ctrlKey && e.shiftKey && e.key === 'H') {
+                e.preventDefault();
+                ipcRenderer.invoke('highlight-moment');
+            }
+        });
+    </script>
+</body>
+</html>

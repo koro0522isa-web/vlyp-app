@@ -113,7 +113,4 @@ export class Clipper {
 
   private async runAutoEdit(info: ClipInfo, options: EditOptions): Promise<void> {
     console.log('[Clipper] Starting auto-edit for:', info.rawPath);
-    const result = await this.editor.edit(info.rawPath, options);
-
-    info.editing = false;
-    if (result.editedPath && !result.error)
+    const result = aw

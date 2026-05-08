@@ -40,8 +40,4 @@ export function useProMonthlyCoins() {
 
         console.log('[VLYP] Pro monthly coins granted: +50 (total:', newCoins, ')');
       } catch (err) {
-        console.error('[VLYP] Pro monthly coins error:', err);
-      }
-    })();
-  }, []);
-}
+        console.error('[VLYP] Pro monthly coins err

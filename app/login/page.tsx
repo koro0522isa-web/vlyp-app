@@ -34,7 +34,6 @@ function LoginContent() {
     // ログイン成功後にリファラル処理
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_IN') {
-        router.push('/');
         const storedRef = sessionStorage.getItem('vlyp_referral_code');
         if (storedRef) {
           try {
@@ -113,10 +112,4 @@ export default function LoginPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    }>
-      <LoginContent />
-    </Suspense>
-  );
-}
+        <div className="w-10 h-10 border-4 border-blue-500 bor

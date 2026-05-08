@@ -677,27 +677,3 @@ function MessagesInner() {
                 <div className="w-24 h-24 bg-blue-600/10 rounded-[3rem] border border-blue-500/20 flex items-center justify-center mx-auto shadow-2xl">
                   <MessageSquare className="w-10 h-10 text-blue-500" />
                 </div>
-                <div>
-                  <h2 className="text-2xl font-black italic tracking-tighter uppercase text-white mb-2">Direct Messaging</h2>
-                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.3em]">Select a player to begin</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function Messages() {
-  return (
-    <Suspense fallback={
-      <div className="flex h-screen bg-[#09090B] items-center justify-center">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
-      </div>
-    }>
-      <MessagesInner />
-    </Suspense>
-  );
-}

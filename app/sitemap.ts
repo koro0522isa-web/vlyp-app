@@ -22,5 +22,4 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.85,
   }));
 
-  return [...staticRoutes, ...gameTagRoutes];
-}
+  return [...staticRoute

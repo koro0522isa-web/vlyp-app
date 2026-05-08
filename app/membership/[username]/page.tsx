@@ -260,13 +260,4 @@ export default function MembershipPage() {
           <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 text-[11px] text-zinc-500 leading-relaxed space-y-1">
             <p className="font-black text-zinc-400 mb-2">💡 収益の仕組み</p>
             <p>• 月額料金の <strong className="text-white">70%</strong> がクリエイターに入ります</p>
-            <p>• VLYPが <strong className="text-white">30%</strong> の手数料を受け取ります</p>
-            <p>• いつでもキャンセル可能です</p>
-            <p>• 支払いはStripeで安全に処理されます</p>
-          </div>
-        </div>
-      </main>
-      <BottomNav />
-    </div>
-  );
-}
+            <p>• VLYPが <strong className="text-white">30%</str
