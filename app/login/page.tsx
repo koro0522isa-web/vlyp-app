@@ -34,6 +34,7 @@ function LoginContent() {
     // ログイン成功後にリファラル処理
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_IN') {
+        router.push('/');
         const storedRef = sessionStorage.getItem('vlyp_referral_code');
         if (storedRef) {
           try {
