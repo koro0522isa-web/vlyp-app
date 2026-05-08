@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import Link from 'next/link';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
-import { MessageCircle, Heart, Share2, Play, Flame, Trophy, Check, Loader2, Search, X, Link as LinkIcon, Lock, MapPin, ExternalLink, Calendar, Plus, Crown, Star, ChevronLeft, ChevronRight, Video, Send, Gamepad2, AlertTriangle, Gift, Shield, Wifi } from 'lucide-react';
+import { MessageCircle, Heart, Share2, Play, Flame, Trophy, Loader2, Search, X, Link as LinkIcon, Lock, MapPin, ExternalLink, Calendar, Plus, Crown, Star, ChevronLeft, ChevronRight, Video, Send, Gamepad2, AlertTriangle, Gift, Shield, Wifi } from 'lucide-react';
 import AdSlot from './components/AdSlot';
 import { useLanguage } from './contexts/LanguageContext';
 import { useToast } from './contexts/ToastContext';
@@ -20,10 +20,6 @@ export default function Home() {
   const [ranking, setRanking] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [vlypId, setVlypId] = useState<string>('Player');
-  
-  // デイリーミッションの状態
-  const [dailyViews, setDailyViews] = useState(0);
-  const [isRewarded, setIsRewarded] = useState(false);
   
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
@@ -132,16 +128,6 @@ export default function Home() {
 
       await fetchClips(0, currentUser?.id, targetedClip);
       
-      if (currentUser) {
-        // Use JST date for daily missions
-        const jstDate = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const { data: m } = await supabase.from('daily_user_missions').select('*').eq('user_id', currentUser.id).eq('target_date', jstDate).maybeSingle();
-        if (m) {
-          setDailyViews(m.views_count);
-          setIsRewarded(m.is_rewarded);
-        }
-      }
-
       const { data: topClips } = await supabase
         .from('clips')
         .select('*')
@@ -266,12 +252,6 @@ export default function Home() {
             viewedVideos.current.add(id);
             // バッチバッファに追加（5秒間隔でまとめてDB更新）
             viewBufferRef.current.push(id);
-            // デイリーミッション用の視聴カウント
-            if (user) {
-              supabase.rpc('increment_daily_views').then(() => {
-                setDailyViews(prev => prev + 1);
-              });
-            }
           }
         }
       });
@@ -292,40 +272,6 @@ export default function Home() {
       }
     }
   }, [activeVideoId, clips]);
-
-  const claimReward = async () => {
-    if (!user || isRewarded || dailyViews < 10) return;
-    const { data, error } = await supabase.rpc('claim_daily_reward');
-    if (error) {
-      console.error('claim_daily_reward RPC error:', error);
-      // RPCが存在しない場合のフォールバック: ウォレットに直接1コイン付与
-      const jstDate = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
-      await supabase.from('daily_user_missions').upsert(
-        { user_id: user.id, target_date: jstDate, is_rewarded: true, views_count: dailyViews },
-        { onConflict: 'user_id,target_date' }
-      );
-      // wallets テーブルのコインを+1
-      const { error: rpcErr } = await supabase.rpc('increment_coins', { uid: user.id, amount: 1 });
-      if (rpcErr) {
-        const { data: w } = await supabase.from('wallets').select('coins').eq('user_id', user.id).maybeSingle();
-        await supabase.from('wallets').upsert({ user_id: user.id, coins: (w?.coins || 0) + 1 }, { onConflict: 'user_id' });
-      }
-      setIsRewarded(true);
-      confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#22d3ee', '#818cf8', '#fbbf24'] });
-      alert('1コインを獲得しました！');
-      return;
-    }
-    if (data?.success) {
-      setIsRewarded(true);
-      confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#22d3ee', '#818cf8', '#fbbf24']
-      });
-      alert(t('mission.rewarded') || data?.message || '1コインを獲得しました！');
-    }
-  };
 
   const handleLike = async (clipId: number, clipOwnerId: string) => {
     if (!user) return alert(t('auth.loginRequired') || 'Please log in');
@@ -723,47 +669,6 @@ export default function Home() {
         {isLoading && <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-blue-500 w-10 h-10" /></div>}
       </main>
       <aside className="w-80 lg:w-96 border-l border-white/5 bg-[#09090B] p-10 hidden xl:flex flex-col flex-shrink-0">
-        {/* Daily Mission */}
-        {user && (
-          <div className="mb-12 bg-gradient-to-br from-blue-600/20 to-purple-600/10 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl">
-            <div className="flex items-center gap-3 mb-4">
-              <Trophy className="w-5 h-5 text-yellow-400" />
-              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white">{t('mission.title')}</h2>
-            </div>
-            <p className="text-sm font-bold text-zinc-300 mb-4">{t('mission.goal')}</p>
-            <div className="relative h-3 w-full bg-white/5 rounded-full overflow-hidden mb-4">
-              <div 
-                className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-1000 rounded-full" 
-                style={{ width: `${Math.min(100, (dailyViews / 10) * 100)}%` }}
-              />
-              {dailyViews > 0 && dailyViews < 10 && (
-                <div 
-                  className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg pulse-glow transition-all duration-1000"
-                  style={{ left: `calc(${Math.min(100, (dailyViews / 10) * 100)}% - 6px)` }}
-                />
-              )}
-            </div>
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-zinc-500 uppercase">{dailyViews} / 10</span>
-                {dailyViews >= 3 && <span className="text-[10px] font-black text-orange-400 fire-text">🔥 {dailyViews} {t('common.streak')}</span>}
-              </div>
-              {dailyViews >= 10 && !isRewarded ? (
-                <button 
-                  onClick={claimReward}
-                  className="bg-yellow-400 text-black px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter hover:scale-105 transition-all shadow-[0_0_15px_rgba(250,204,21,0.3)] pulse-glow"
-                >
-                  {t('mission.claim')}
-                </button>
-              ) : isRewarded ? (
-                <span className="text-[10px] font-black text-emerald-400 uppercase flex items-center gap-1">
-                  <Check className="w-3 h-3" /> {t('mission.completed')}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        )}
-
         <div className="flex items-center gap-3 mb-10"><Flame className="w-5 h-5 text-orange-500" /><h2 className="text-xs font-black uppercase tracking-widest text-zinc-100">{t('feed.trending')}</h2></div>
         <div className="space-y-8 mb-12">
           {ranking.map((item, index) => (
@@ -896,27 +801,4 @@ export default function Home() {
                 placeholder={replyingTo ? t('comments.placeholderReply') : t('comments.placeholder')} 
                 className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] py-5 px-6 pr-16 text-sm font-medium focus:outline-none focus:border-blue-500/50 transition-all group-hover:bg-white/[0.08] min-h-[60px] max-h-[150px] scrollbar-hide" 
                 value={newComment} 
-                rows={1}
-                onChange={(e) => {
-                  setNewComment(e.target.value);
-                  e.target.style.height = 'auto';
-                  e.target.style.height = e.target.scrollHeight + 'px';
-                }} 
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    postComment();
-                  }
-                }} 
-              />
-              <button 
-                onClick={postComment} 
-                disabled={isCommenting || !newComment.trim()}
-                className="absolute right-3 bottom-3 p-3.5 rounded-xl bg-blue-600 disabled:opacity-30 transition-all hover:bg-blue-500 active:scale-95"
-              >
-                <Send className="w-4 h-4 text-white" />
-              </button>
-            </div>
-          </div>
-        </div>
-  
+    
