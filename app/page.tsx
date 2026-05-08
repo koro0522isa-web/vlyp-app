@@ -97,8 +97,7 @@ function HomeContent() {
     setHasMore(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUser = session?.user ?? null;
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
       setUser(currentUser);
 
       if (currentUser) {
@@ -605,8 +604,8 @@ function HomeContent() {
     <div className="flex h-screen bg-[#09090B] text-zinc-100 overflow-hidden font-sans">
       <Sidebar />
       <main className="flex-1 h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar bg-black relative">
-        {/* ストーリーズバー + フィードモード切り替え */}
-        <div className="sticky top-0 z-30 bg-black/90 backdrop-blur-xl border-b border-white/5">
+        {/* ストーリーズバー + フィードモード切り替え — 動画の上にオーバーレイ */}
+        <div className="absolute top-0 left-0 right-0 z-30 bg-black/80 backdrop-blur-xl border-b border-white/5">
           <div className="flex items-center justify-center gap-1 pt-3 pb-2">
             <button onClick={() => setFeedMode('all')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'all' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>{t('feed.foryou')}</button>
             <button onClick={() => setFeedMode('following')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'following' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>{t('feed.following')}</button>

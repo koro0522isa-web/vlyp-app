@@ -22,7 +22,8 @@ export default function BottomNav() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { user } } = await supabase.auth.getUser();
+      const session = user ? { user } : null;
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
