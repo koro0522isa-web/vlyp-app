@@ -297,6 +297,44 @@ export function useVideoProcessor() {
     }
   };
 
+  /**
+   * 動画から音声を抽出し、MP3形式で返す
+   * Whisper APIに最適化: モノラル16kHz 64kbps
+   */
+  const extractAudio = async (videoFile: File): Promise<Blob> => {
+    if (!isLoaded) await load();
+    const ffmpeg = ffmpegRef.current;
+    if (!ffmpeg) throw new Error('FFmpeg not initialized');
+
+    await ffmpeg.writeFile('input_audio.mp4', await fetchFile(videoFile));
+
+    let lastError = '';
+    const logCb = ({ message }: { message: string }) => {
+      if (message.toLowerCase().includes('error')) lastError = message;
+    };
+    ffmpeg.on('log', logCb);
+
+    try {
+      const code = await ffmpeg.exec([
+        '-i', 'input_audio.mp4',
+        '-vn', // ビデオストリームを無視
+        '-acodec', 'libmp3lame',
+        '-ar', '16000', // 16kHz
+        '-ac', '1', // モノラル
+        '-b:a', '64k', // 64kbps
+        'output_audio.mp3',
+      ]);
+
+      if (code !== 0) {
+        throw new Error(`音声抽出エラー (code ${code}): ${lastError || 'Unknown error'}`);
+      }
+
+      const data = await ffmpeg.readFile('output_audio.mp3');
+      return new Blob([data as any], { type: 'audio/mpeg' });
+    } finally {
+      ffmpeg.off('log', logCb);
+    }
+  };
   return {
     isLoaded,
     progress,
@@ -305,5 +343,6 @@ export function useVideoProcessor() {
     mixVideoWithBgm,
     compressVideo,
     convertToVertical,
+    extractAudio,
   };
 }

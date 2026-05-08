@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import TikTokPlayer from './components/TikTokPlayer';
 import StoriesBar from './components/StoriesBar';
 
-function HomeContent() {
+export default function Home() {
   const [clips, setClips] = useState<any[]>([]);
   const [ranking, setRanking] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -91,13 +91,13 @@ function HomeContent() {
 
   const fetchInitialData = async () => {
     setIsLoading(true);
-    setFetchError(false);
     setPageOffset(0);
     setClips([]);
     setHasMore(true);
 
     try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUser = session?.user ?? null;
       setUser(currentUser);
 
       if (currentUser) {
@@ -604,8 +604,8 @@ function HomeContent() {
     <div className="flex h-screen bg-[#09090B] text-zinc-100 overflow-hidden font-sans">
       <Sidebar />
       <main className="flex-1 h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar bg-black relative">
-        {/* ストーリーズバー + フィードモード切り替え — 動画の上にオーバーレイ */}
-        <div className="absolute top-0 left-0 right-0 z-30 bg-black/80 backdrop-blur-xl border-b border-white/5">
+        {/* ストーリーズバー + フィードモード切り替え */}
+        <div className="sticky top-0 z-30 bg-black/90 backdrop-blur-xl border-b border-white/5">
           <div className="flex items-center justify-center gap-1 pt-3 pb-2">
             <button onClick={() => setFeedMode('all')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'all' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>{t('feed.foryou')}</button>
             <button onClick={() => setFeedMode('following')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'following' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>{t('feed.following')}</button>
@@ -695,7 +695,12 @@ function HomeContent() {
               </div>
               <h2 className="text-xl font-black italic uppercase tracking-tighter text-white mb-2">読み込みに失敗しました</h2>
               <p className="text-sm font-bold text-zinc-500 mb-8 max-w-xs">ネットワーク接続を確認して、もう一度お試しください。</p>
-              <button onClick={() => { setFetchError(false); fetchInitialData(); }} className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-500 transition-colors shadow-[0_0_20px_rgba(37,99,235,0.4)]">再試行</button>
+              <button
+                onClick={() => { setFetchError(false); fetchInitialData(); }}
+                className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-500 transition-colors shadow-[0_0_20px_rgba(37,99,235,0.4)]"
+              >
+                再試行
+              </button>
             </div>
           )}
 
@@ -914,15 +919,4 @@ function HomeContent() {
             </div>
           </div>
         </div>
-      )}
-    </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <Suspense fallback={null}>
-      <HomeContent />
-    </Suspense>
-  );
-}
+  

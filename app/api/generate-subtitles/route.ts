@@ -1,43 +1,87 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+interface Subtitle {
+  startTime: number;
+  endTime: number;
+  text: string;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { videoUrl, language = 'ja' } = await req.json();
+    const formData = await req.formData();
+    const audioBlob = formData.get('audioBlob') as File | null;
+    const language = (formData.get('language') as string) || 'ja';
 
-    if (!videoUrl) {
+    if (!audioBlob) {
       return NextResponse.json(
-        { error: 'videoUrl is required' },
+        { error: 'audioBlob is required' },
         { status: 400 }
       );
     }
 
-    // Google Cloud Speech-to-Text API を使用して字幕を生成
-    const speechToTextKey = process.env.GOOGLE_CLOUD_SPEECH_KEY;
-    if (!speechToTextKey) {
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      console.error('OPENAI_API_KEY is not configured');
       return NextResponse.json(
-        { error: 'Google Cloud Speech-to-Text API key not configured' },
+        { error: 'OpenAI API key is not configured.' },
         { status: 500 }
       );
     }
 
-    // 実際の実装では、ビデオから音声を抽出し、Speech-to-Text API に送信
-    // ここではダミーレスポンスを返す
-    const subtitles = [
-      { startTime: 0, endTime: 2, text: 'ゲーム動画へようこそ！' },
-      { startTime: 2, endTime: 5, text: 'これは自動生成された字幕です。' },
-      { startTime: 5, endTime: 8, text: 'VLYPで素晴らしい動画を共有しましょう！' }
-    ];
+    const audioBuffer = await audioBlob.arrayBuffer();
+
+    const whisperFormData = new FormData();
+    whisperFormData.append(
+      'file',
+      new Blob([audioBuffer], { type: 'audio/mpeg' }),
+      'audio.mp3'
+    );
+    whisperFormData.append('model', 'whisper-1');
+    whisperFormData.append('response_format', 'verbose_json');
+    if (language !== 'auto') {
+      whisperFormData.append('language', language);
+    }
+
+    const whisperResponse = await fetch(
+      'https://api.openai.com/v1/audio/transcriptions',
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${openaiApiKey}` },
+        body: whisperFormData,
+      }
+    );
+
+    if (!whisperResponse.ok) {
+      const errorData = await whisperResponse.json();
+      console.error('Whisper API error:', errorData);
+      return NextResponse.json(
+        { error: 'Whisper API failed', details: errorData },
+        { status: whisperResponse.status }
+      );
+    }
+
+    const whisperData = await whisperResponse.json();
+
+    const subtitles: Subtitle[] = (whisperData.segments || []).map(
+      (seg: { start: number; end: number; text: string }) => ({
+        startTime: seg.start,
+        endTime: seg.end,
+        text: seg.text.trim(),
+      })
+    );
 
     return NextResponse.json({
       success: true,
       subtitles,
-      language,
-      format: 'vtt' // VTT形式で返す
+      language: whisperData.language || language,
     });
   } catch (error) {
     console.error('Subtitle generation error:', error);
     return NextResponse.json(
-      { error: 'Failed to generate subtitles' },
+      {
+        error: 'Failed to generate subtitles',
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
