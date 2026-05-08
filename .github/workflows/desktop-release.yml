@@ -1,0 +1,76 @@
+name: Desktop App Release
+
+on:
+  push:
+    tags:
+      - 'desktop-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows Installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install root dependencies
+        run: npm ci
+        working-directory: .
+
+      - name: Install desktop dependencies
+        run: npm ci
+        working-directory: desktop
+
+      - name: Build renderer + main
+        run: npm run build
+        working-directory: desktop
+
+      - name: Package (NSIS installer + portable)
+        run: npm run package
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.zip
+          retention-days: 7
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: VLYP Clips ${{ github.ref_name }}
+          body: |
+            ## VLYP Clips ${{ github.ref_name }}
+
+            ### インストール方法
+            1. `VLYP-Clips-Setup-*.exe` をダウンロードして実行
+            2. インストール完了後、デスクトップの「VLYP Clips」を起動
+            3. 「ブラウザでログイン」をクリックしてVLYPアカウントでログイン
+
+            ### 必要要件
+            - Windows 10 以上
+            - ffmpeg がインストールされていること ([ffmpeg.org](https://ffmpeg.org))
+
+            ### 対応ゲーム
+            - Valorant (自動キル検知)
+            - League of Legends (自動キル検知)
+            - Apex Legends (プロセス検知 + Ctrl+F9 手動クリップ)
+          files: |
+            desktop/dist/*.exe
+            desktop/dist/*.zip
+          draft: false
+          prerelease: false
