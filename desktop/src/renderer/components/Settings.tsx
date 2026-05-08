@@ -12,6 +12,7 @@ interface AppSettings {
   language: string;
   openaiApiKey: string;
   clipsDir: string;
+  hotkey: string;
 }
 
 function Toggle({
@@ -43,6 +44,7 @@ export function Settings({ onClose }: SettingsProps) {
     language: 'ja',
     openaiApiKey: '',
     clipsDir: '',
+    hotkey: 'Ctrl+F9',
   });
   const [isSaving, setIsSaving] = useState(false);
   const [showKey, setShowKey] = useState(false);
@@ -168,6 +170,26 @@ export function Settings({ onClose }: SettingsProps) {
           </div>
         </section>
 
+        <section className="bg-zinc-900 rounded-xl p-5 space-y-4">
+          <h2 className="font-semibold text-sm uppercase tracking-wider text-zinc-400">ホットキー</h2>
+          <div>
+            <p className="text-sm font-medium mb-1">手動クリップ ショートカット</p>
+            <p className="text-xs text-zinc-500 mb-2">
+              ゲーム中にこのキーを押すと手動でクリップを保存します。
+            </p>
+            <input
+              type="text"
+              value={settings.hotkey}
+              onChange={(e) => update({ hotkey: e.target.value })}
+              placeholder="Ctrl+F9"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-600"
+            />
+            <p className="text-xs text-zinc-600 mt-1.5">
+              例: Ctrl+F9、F10、Ctrl+Shift+C
+            </p>
+          </div>
+        </section>
+
         <section className="bg-zinc-900 rounded-xl p-5 space-y-3">
           <h2 className="font-semibold text-sm uppercase tracking-wider text-zinc-400">ファイル</h2>
           <div>
@@ -175,35 +197,3 @@ export function Settings({ onClose }: SettingsProps) {
             <div className="p-3 bg-zinc-800 rounded-lg text-xs text-zinc-400 break-all font-mono">
               {settings.clipsDir || '未設定'}
             </div>
-          </div>
-        </section>
-
-        <section className="bg-zinc-900 rounded-xl p-5 space-y-2">
-          <h2 className="font-semibold text-sm uppercase tracking-wider text-zinc-400">アプリについて</h2>
-          <p className="text-sm">
-            <span className="font-bold text-white">VLYP Clips</span>
-            <span className="text-zinc-500 ml-2">v0.1.0</span>
-          </p>
-          <p className="text-xs text-zinc-500">ゲーマー向けクリップ自動録画・編集ツール by VLYP</p>
-        </section>
-
-      </div>
-
-      <div className="bg-zinc-900 border-t border-zinc-800 px-6 py-4 flex justify-end gap-3">
-        <button
-          onClick={onClose}
-          className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-semibold text-sm transition-colors"
-        >
-          キャンセル
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:bg-violet-800 disabled:cursor-not-allowed rounded-lg font-semibold text-sm transition-colors"
-        >
-          {isSaving ? '保存中...' : '保存'}
-        </button>
-      </div>
-    </div>
-  );
-}
