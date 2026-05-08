@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import TikTokPlayer from './components/TikTokPlayer';
 import StoriesBar from './components/StoriesBar';
 
-export default function Home() {
+function HomeContent() {
   const [clips, setClips] = useState<any[]>([]);
   const [ranking, setRanking] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -87,13 +87,13 @@ export default function Home() {
 
   const fetchInitialData = async () => {
     setIsLoading(true);
+    setFetchError(false);
     setPageOffset(0);
     setClips([]);
     setHasMore(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUser = session?.user ?? null;
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
       setUser(currentUser);
 
       if (currentUser) {
@@ -128,6 +128,7 @@ export default function Home() {
 
       await fetchClips(0, currentUser?.id, targetedClip);
       
+
       const { data: topClips } = await supabase
         .from('clips')
         .select('*')
@@ -550,8 +551,8 @@ export default function Home() {
     <div className="flex h-screen bg-[#09090B] text-zinc-100 overflow-hidden font-sans">
       <Sidebar />
       <main className="flex-1 h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar bg-black relative">
-        {/* ストーリーズバー + フィードモード切り替え */}
-        <div className="sticky top-0 z-30 bg-black/90 backdrop-blur-xl border-b border-white/5">
+        {/* ストーリーズバー + フィードモード切り替え — 動画の上にオーバーレイ */}
+        <div className="absolute top-0 left-0 right-0 z-30 bg-black/80 backdrop-blur-xl border-b border-white/5">
           <div className="flex items-center justify-center gap-1 pt-3 pb-2">
             <button onClick={() => setFeedMode('all')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'all' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>{t('feed.foryou')}</button>
             <button onClick={() => setFeedMode('following')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${feedMode === 'following' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>{t('feed.following')}</button>
@@ -641,12 +642,7 @@ export default function Home() {
               </div>
               <h2 className="text-xl font-black italic uppercase tracking-tighter text-white mb-2">読み込みに失敗しました</h2>
               <p className="text-sm font-bold text-zinc-500 mb-8 max-w-xs">ネットワーク接続を確認して、もう一度お試しください。</p>
-              <button
-                onClick={() => { setFetchError(false); fetchInitialData(); }}
-                className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-500 transition-colors shadow-[0_0_20px_rgba(37,99,235,0.4)]"
-              >
-                再試行
-              </button>
+              <button onClick={() => { setFetchError(false); fetchInitialData(); }} className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-500 transition-colors shadow-[0_0_20px_rgba(37,99,235,0.4)]">再試行</button>
             </div>
           )}
 
@@ -801,4 +797,38 @@ export default function Home() {
                 placeholder={replyingTo ? t('comments.placeholderReply') : t('comments.placeholder')} 
                 className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] py-5 px-6 pr-16 text-sm font-medium focus:outline-none focus:border-blue-500/50 transition-all group-hover:bg-white/[0.08] min-h-[60px] max-h-[150px] scrollbar-hide" 
                 value={newComment} 
-    
+                rows={1}
+                onChange={(e) => {
+                  setNewComment(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                }} 
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    postComment();
+                  }
+                }} 
+              />
+              <button 
+                onClick={postComment} 
+                disabled={isCommenting || !newComment.trim()}
+                className="absolute right-3 bottom-3 p-3.5 rounded-xl bg-blue-600 disabled:opacity-30 transition-all hover:bg-blue-500 active:scale-95"
+              >
+                <Send className="w-4 h-4 text-white" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
+  );
+}
