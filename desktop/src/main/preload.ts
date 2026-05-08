@@ -4,6 +4,7 @@ const electronAPI = {
   // 録画
   startRecording: () => ipcRenderer.invoke('recorder:start'),
   stopRecording: () => ipcRenderer.invoke('recorder:stop'),
+  manualClip: () => ipcRenderer.invoke('recorder:manual-clip'),
 
   // クリップ
   listClips: () => ipcRenderer.invoke('clip:list'),
@@ -16,15 +17,14 @@ const electronAPI = {
   setSettings: (settings: Record<string, unknown>) =>
     ipcRenderer.invoke('settings:set', settings),
 
+  // ウィンドウ制御 (フレームレス)
+  minimize: () => ipcRenderer.send('window:minimize'),
+  maximize: () => ipcRenderer.send('window:maximize'),
+  close: () => ipcRenderer.send('window:close'),
+
   // イベント購読
   onClipCreated: (callback: (data: any) => void) => {
     ipcRenderer.on('clip:created', (_: IpcRendererEvent, data: any) => callback(data));
   },
   onClipEditComplete: (callback: (data: any) => void) => {
-    ipcRenderer.on('clip:edit_complete', (_: IpcRendererEvent, data: any) => callback(data));
-  },
-  onRecordingStatus: (callback: (data: any) => void) => {
-    ipcRenderer.on('recording:status', (_: IpcRendererEvent, data: any) => callback(data));
-  },
-
-  // リスナー�
+  

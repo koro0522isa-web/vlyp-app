@@ -1,12 +1,14 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, globalShortcut, Notification } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import Store from 'electron-store';
 import { Recorder } from './recorder';
 import { Detector } from './detector';
 import { Clipper } from './clipper';
 import { EditOptions } from './editor';
 
-// 設定スキーマ
+// ─── 設定スキーマ ───────────────────────────────────────────────
+
 interface AppSettings {
   autoClip: boolean;
   autoEdit: boolean;
@@ -15,6 +17,7 @@ interface AppSettings {
   language: string;
   openaiApiKey: string;
   clipsDir: string;
+  hotkey: string;
 }
 
 const store = new Store<AppSettings>({
@@ -26,15 +29,22 @@ const store = new Store<AppSettings>({
     language: 'ja',
     openaiApiKey: '',
     clipsDir: path.join(app.getPath('videos'), 'VLYP Clips'),
+    hotkey: 'Ctrl+F9',
   },
 });
 
+// ─── グローバル変数 ─────────────────────────────────────────────
+
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let isRecording = false;
+
 const recorder = new Recorder();
 const detector = new Detector();
 const clipper = new Clipper();
 
-// 編集完了コールバック — レンダラーへ通知
+// ─── 編集完了コールバック ───────────────────────────────────────
+
 clipper.setEditCompleteCallback((info) => {
   if (mainWindow) {
     mainWindow.webContents.send('clip:edit_complete', {
@@ -43,7 +53,11 @@ clipper.setEditCompleteCallback((info) => {
       event: info.event,
     });
   }
+  // 編集完了通知
+  showNotification('VLYP Clips', '✨ 自動編集が完了しました！');
 });
+
+// ─── ウィンドウ作成 ─────────────────────────────────────────────
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -52,12 +66,14 @@ function createWindow() {
     minWidth: 960,
     minHeight: 680,
     backgroundColor: '#09090B',
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: 'hidden',
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
     },
+    icon: path.join(__dirname, '../../assets/icon.png'),
   });
 
   if (process.env.NODE_ENV === 'development') {
@@ -67,52 +83,15 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
+  // 閉じるボタン → トレイに隠す (完全終了しない)
+  mainWindow.on('close', (e) => {
+    e.preventDefault();
+    mainWindow?.hide();
+    showNotification('VLYP Clips', 'バックグラウンドで録画を継続中です');
   });
 }
 
-// ─── IPC ハンドラ ────────────────────────────────────────────────
+// ─── システムトレイ ─────────────────────────────────────────────
 
-ipcMain.handle('recorder:start', async () => {
-  try {
-    await recorder.startRollingBuffer();
-
-    const autoClip = store.get('autoClip');
-    if (autoClip) {
-      detector.start(async (event) => {
-        const autoEdit = store.get('autoEdit');
-        const editOptions: EditOptions | undefined = autoEdit
-          ? {
-              vertical: store.get('vertical'),
-              captions: store.get('captions'),
-              openaiApiKey: store.get('openaiApiKey'),
-              language: store.get('language'),
-            }
-          : undefined;
-
-        const clipInfo = await clipper.clipFromBuffer(
-          recorder.getBufferPath(),
-          event,
-          editOptions
-        );
-
-        if (mainWindow && clipInfo) {
-          mainWindow.webContents.send('clip:created', {
-            rawPath: clipInfo.rawPath,
-            editedPath: clipInfo.editedPath,
-            editing: clipInfo.editing,
-            event: clipInfo.event,
-          });
-        }
-      });
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error('[Main] Failed to start recording:', error);
-    return { success: false, error: String(error) };
-  }
-});
-
-ipcMain.handle('recorder:stop', async () =
+function createTray() {
+  // 16×16 の最小限アイコン (PNGがなければ空イ
