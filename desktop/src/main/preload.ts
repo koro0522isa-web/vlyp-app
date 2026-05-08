@@ -17,14 +17,14 @@ const electronAPI = {
   setSettings: (settings: Record<string, unknown>) =>
     ipcRenderer.invoke('settings:set', settings),
 
+  // 認証
+  login: () => ipcRenderer.invoke('auth:login'),
+  logout: () => ipcRenderer.invoke('auth:logout'),
+  getSession: () => ipcRenderer.invoke('auth:get-session'),
+  onAuthSession: (callback: (session: any) => void) => {
+    ipcRenderer.on('auth:session', (_: IpcRendererEvent, session: any) => callback(session));
+  },
+
   // ウィンドウ制御 (フレームレス)
   minimize: () => ipcRenderer.send('window:minimize'),
-  maximize: () => ipcRenderer.send('window:maximize'),
-  close: () => ipcRenderer.send('window:close'),
-
-  // イベント購読
-  onClipCreated: (callback: (data: any) => void) => {
-    ipcRenderer.on('clip:created', (_: IpcRendererEvent, data: any) => callback(data));
-  },
-  onClipEditComplete: (callback: (data: any) => void) => {
-  
+  maximi

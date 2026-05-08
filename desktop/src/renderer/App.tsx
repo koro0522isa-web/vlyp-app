@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ClipList } from './components/ClipList';
 import { StatusBar } from './components/StatusBar';
 import { Settings } from './components/Settings';
+import { LoginScreen } from './components/LoginScreen';
 
 interface ClipInfo {
   rawPath: string;
@@ -35,6 +36,10 @@ declare global {
       minimize: () => void;
       maximize: () => void;
       close: () => void;
+      login: () => Promise<any>;
+      logout: () => Promise<any>;
+      getSession: () => Promise<{ accessToken: string; refreshToken: string; email?: string } | null>;
+      onAuthSession: (callback: (session: any) => void) => void;
       onClipCreated: (callback: (data: any) => void) => void;
       onClipEditComplete: (callback: (data: any) => void) => void;
       onRecordingStatus: (callback: (data: any) => void) => void;
@@ -252,8 +257,4 @@ function UploadModal({ clip, onClose }: { clip: ClipInfo; onClose: () => void })
           {state.phase === 'error' && (
             <div className="space-y-4 py-6 text-center">
               <div className="text-4xl">⚠️</div>
-              <p className="font-bold text-red-400">アップロード失敗</p>
-              <p className="text-zinc-400 text-sm break-all">{state.error}</p>
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={() => setState((s) => ({ ...s, phase: 'form', error: undefined }))}
+              <p className="font-bold text-red

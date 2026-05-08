@@ -4,6 +4,7 @@ import fs from 'fs';
 import Store from 'electron-store';
 import { Recorder } from './recorder';
 import { Detector } from './detector';
+import { ApexDetector } from './apex-detector';
 import { Clipper } from './clipper';
 import { EditOptions } from './editor';
 
@@ -20,7 +21,13 @@ interface AppSettings {
   hotkey: string;
 }
 
-const store = new Store<AppSettings>({
+interface AuthSession {
+  accessToken: string;
+  refreshToken: string;
+  email?: string;
+}
+
+const store = new Store<AppSettings & { auth?: AuthSession }>({
   defaults: {
     autoClip: true,
     autoEdit: true,
@@ -33,6 +40,16 @@ const store = new Store<AppSettings>({
   },
 });
 
+// ─── Single Instance Lock (deep link 対応) ──────────────────────
+
+const PROTOCOL = 'vlyp';
+app.setAsDefaultProtocolClient(PROTOCOL);
+
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+}
+
 // ─── グローバル変数 ─────────────────────────────────────────────
 
 let mainWindow: BrowserWindow | null = null;
@@ -41,57 +58,42 @@ let isRecording = false;
 
 const recorder = new Recorder();
 const detector = new Detector();
+const apexDetector = new ApexDetector();
 const clipper = new Clipper();
 
-// ─── 編集完了コールバック ───────────────────────────────────────
+// ─── Deep Link ハンドラ ─────────────────────────────────────────
 
-clipper.setEditCompleteCallback((info) => {
-  if (mainWindow) {
-    mainWindow.webContents.send('clip:edit_complete', {
-      rawPath: info.rawPath,
-      editedPath: info.editedPath,
-      event: info.event,
-    });
+function handleDeepLink(url: string) {
+  console.log('[Main] Deep link:', url);
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === 'auth') {
+      const accessToken = parsed.searchParams.get('access_token');
+      const refreshToken = parsed.searchParams.get('refresh_token');
+      const email = parsed.searchParams.get('email') || undefined;
+      if (accessToken && refreshToken) {
+        const session: AuthSession = { accessToken, refreshToken, email };
+        store.set('auth', session);
+        mainWindow?.webContents.send('auth:session', session);
+        console.log('[Main] Auth session saved:', email);
+      }
+    }
+  } catch (e) {
+    console.error('[Main] Deep link parse error:', e);
   }
-  // 編集完了通知
-  showNotification('VLYP Clips', '✨ 自動編集が完了しました！');
-});
-
-// ─── ウィンドウ作成 ─────────────────────────────────────────────
-
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 960,
-    minHeight: 680,
-    backgroundColor: '#09090B',
-    titleBarStyle: 'hidden',
-    frame: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-    icon: path.join(__dirname, '../../assets/icon.png'),
-  });
-
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
-  }
-
-  // 閉じるボタン → トレイに隠す (完全終了しない)
-  mainWindow.on('close', (e) => {
-    e.preventDefault();
-    mainWindow?.hide();
-    showNotification('VLYP Clips', 'バックグラウンドで録画を継続中です');
-  });
 }
 
-// ─── システムトレイ ─────────────────────────────────────────────
+// Windows: 2番目のインスタンスが起動したらコマンドライン引数からURLを取得
+app.on('second-instance', (_event, commandLine) => {
+  const url = commandLine.find((arg) => arg.startsWith(`${PROTOCOL}://`));
+  if (url) handleDeepLink(url);
+  mainWindow?.show();
+  mainWindow?.focus();
+});
 
-function createTray() {
-  // 16×16 の最小限アイコン (PNGがなければ空イ
+// macOS
+app.on('open-url', (_event, url) => {
+  handleDeepLink(url);
+});
+
+// ─── 編集完了コールバック ─────�
