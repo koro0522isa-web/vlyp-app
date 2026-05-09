@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { randomUUID } from 'crypto';
 import { generateEmbedding } from '@/app/lib/ai';
+
+const r2 = new S3Client({
+  region: 'auto',
+  endpoint: process.env.CLOUDFLARE_R2_ENDPOINT!,
+  credentials: {
+    accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_KEY!,
+  },
+});
+
+const BUCKET = process.env.CLOUDFLARE_R2_BUCKET ?? 'vlyp-uploads';
+const PUBLIC_URL = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? '').replace(/\/$/, '');
 
 export async function POST(request: NextRequest) {
   try {
-    // Authヘッダーからユーザーのアクセストークンを取得
     const authHeader = request.headers.get('Authorization');
     const accessToken = authHeader?.startsWith('Bearer ')
       ? authHeader.slice(7)
@@ -14,14 +27,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // ユーザーのJWTでSupabaseクライアントを作成
     const supabaseUser = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { global: { headers: { Authorization: `Bearer ${accessToken}` } } }
     );
 
-    // トークン検証
     const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -37,7 +48,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No video file provided' }, { status: 400 });
     }
 
-    // Parse VLYP scores
     let vlypScores: number[] = [];
     try {
       vlypScores = JSON.parse(vlypScoresStr || '[]');
@@ -46,25 +56,17 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await videoFile.arrayBuffer());
-    const fileName = `desktop_${Date.now()}_${videoFile.name}`;
+    const key = `video/${user.id}/${randomUUID()}.mp4`;
 
-    // Supabase storageにアップロード
-    const { error: uploadError } = await supabaseUser.storage
-      .from('videos')
-      .upload(`${user.id}/${fileName}`, buffer, {
-        contentType: 'video/mp4',
-        upsert: false,
-      });
+    // R2にアップロード
+    await r2.send(new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: 'video/mp4',
+    }));
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      return NextResponse.json({ error: 'Failed to upload video' }, { status: 500 });
-    }
-
-    // 公開URLを取得
-    const { data: { publicUrl } } = supabaseUser.storage
-      .from('videos')
-      .getPublicUrl(`${user.id}/${fileName}`);
+    const publicUrl = `${PUBLIC_URL}/${key}`;
 
     // 埋め込みベクトル生成
     let embedding: number[] | null = null;
@@ -74,14 +76,12 @@ export async function POST(request: NextRequest) {
       console.error('Embedding generation failed:', e);
     }
 
-    // VLYPスコア集計
     const avgScore = vlypScores.length > 0
       ? vlypScores.reduce((a, b) => a + b, 0) / vlypScores.length
       : 0;
     const maxScore = vlypScores.length > 0 ? Math.max(...vlypScores) : 0;
     const highlightCount = vlypScores.filter(score => score > 75).length;
 
-    // DBに保存
     const insertData: Record<string, unknown> = {
       title: title || 'Desktop Recording Highlight',
       video_url: publicUrl,

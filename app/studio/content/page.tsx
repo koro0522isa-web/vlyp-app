@@ -61,16 +61,32 @@ export default function ContentManagerPage() {
       
       if (dbError) throw dbError;
 
-      // 2. ストレージからもファイルを削除（URLからユーザーID/ファイル名を抽出）
-      if (clip.video_url && clip.video_url.includes('storage')) {
+      // 2. ストレージからファイルを削除（Supabase旧URL / R2新URL 両対応）
+      if (clip.video_url) {
         try {
-          const url = new URL(clip.video_url);
-          const pathParts = url.pathname.split('/object/public/videos/');
-          if (pathParts[1]) {
-            await supabase.storage.from('videos').remove([decodeURIComponent(pathParts[1])]);
+          if (clip.video_url.includes('/storage/')) {
+            // 旧Supabaseストレージ
+            const url = new URL(clip.video_url);
+            const pathParts = url.pathname.split('/object/public/videos/');
+            if (pathParts[1]) {
+              await supabase.storage.from('videos').remove([decodeURIComponent(pathParts[1])]);
+            }
+          } else if (clip.video_url.includes('r2.dev') || clip.video_url.includes('/video/')) {
+            // 新R2ストレージ
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+              await fetch('/api/r2-delete', {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({ url: clip.video_url }),
+              });
+            }
           }
         } catch (e) {
-          console.error('Storage delete path error:', e);
+          console.error('Storage delete error:', e);
         }
       }
 
