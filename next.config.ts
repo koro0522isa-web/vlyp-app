@@ -62,6 +62,23 @@ const nextConfig: NextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=()',
           },
+          {
+            // FFmpeg.wasm (unpkg.com) に必要な CSP
+            // wasm-unsafe-eval: WebAssembly 実行を許可
+            // blob: / unpkg.com: ffmpeg-core.js / .wasm のロードを許可
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://unpkg.com blob:",
+              "worker-src 'self' blob: https://unpkg.com",
+              "connect-src 'self' https: wss: blob: data:",
+              "img-src 'self' https: data: blob:",
+              "media-src 'self' https: blob: data:",
+              "style-src 'self' 'unsafe-inline' https:",
+              "font-src 'self' https: data:",
+              "frame-src 'none'",
+            ].join('; '),
+          },
         ],
       },
     ];

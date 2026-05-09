@@ -204,10 +204,8 @@ export function useVideoProcessor() {
     ffmpeg.on('log', logCallback);
 
     try {
-      const code = await ffmpeg.exec(execArgs);
-      if (code !== 0) {
-        throw new Error(`FFmpeg error (code ${code}): ${lastError || 'Unknown error'}`);
-      }
+      await ffmpeg.exec(execArgs);
+      // v0.12.x: exec() returns void, throws on failure
       const data = await ffmpeg.readFile('output.mp4');
       return new Blob([data as any], { type: 'video/mp4' });
     } finally {
@@ -276,7 +274,7 @@ export function useVideoProcessor() {
     ffmpeg.on('log', logCb);
 
     try {
-      const code = await ffmpeg.exec([
+      await ffmpeg.exec([
         '-i', 'input_vert.mp4',
         '-vf', vf,
         '-c:v', 'libx264',
@@ -285,10 +283,7 @@ export function useVideoProcessor() {
         '-crf', '24',
         'output_vert.mp4',
       ]);
-
-      if (code !== 0) {
-        throw new Error(`縦型変換エラー (code ${code}): ${lastError || 'Unknown error'}`);
-      }
+      // v0.12.x: exec() returns void, throws on failure
 
       const data = await ffmpeg.readFile('output_vert.mp4');
       return new Blob([data as any], { type: 'video/mp4' });
@@ -315,7 +310,7 @@ export function useVideoProcessor() {
     ffmpeg.on('log', logCb);
 
     try {
-      const code = await ffmpeg.exec([
+      await ffmpeg.exec([
         '-i', 'input_audio.mp4',
         '-vn', // ビデオストリームを無視
         '-acodec', 'libmp3lame',
@@ -324,10 +319,7 @@ export function useVideoProcessor() {
         '-b:a', '64k', // 64kbps
         'output_audio.mp3',
       ]);
-
-      if (code !== 0) {
-        throw new Error(`音声抽出エラー (code ${code}): ${lastError || 'Unknown error'}`);
-      }
+      // v0.12.x: exec() returns void, throws on failure
 
       const data = await ffmpeg.readFile('output_audio.mp3');
       return new Blob([data as any], { type: 'audio/mpeg' });
