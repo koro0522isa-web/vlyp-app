@@ -87,7 +87,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-500/40 bg-purple-500/10 px-3 py-1 text-xs font-medium text-purple-400 mb-4">
-              <Zap size={11} /> Medal.tv / Outplayed を超える
+              <Zap size={11} /> ゲーマー向け自動クリップ
             </span>
             <h2 className="text-3xl sm:text-4xl font-black leading-tight">
               キル → 切り抜き → 投稿、<br />
