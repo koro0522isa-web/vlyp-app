@@ -23,15 +23,16 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // vlyp.app へのリダイレクト（旧 vlyp-app.vercel.app からの流入を正規ドメインへ）
+  // vlyp.app へのリダイレクト（カスタムドメイン設定後に有効化）
+  // 注意: vlyp.app ドメインが Vercel で設定されるまではこのリダイレクトを無効化
   async redirects() {
     return [
-      {
-        source: '/:path*',
-        has: [{ type: 'host', value: 'vlyp-app.vercel.app' }],
-        destination: 'https://vlyp.app/:path*',
-        permanent: true,
-      },
+      // {
+      //   source: '/:path*',
+      //   has: [{ type: 'host', value: 'vlyp-app.vercel.app' }],
+      //   destination: 'https://vlyp.app/:path*',
+      //   permanent: true,
+      // },
     ];
   },
 
