@@ -638,4 +638,8 @@ function PostContent() {
 
 export default function Post() {
   return (
-    <Suspense fallback={<div className="flex 
+    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#09090b]"><Loader2 className="w-10 h-10 animate-spin text-blue-500" /></div>}>
+      <PostContent />
+    </Suspense>
+  );
+}

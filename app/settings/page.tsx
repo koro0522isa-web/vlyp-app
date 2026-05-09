@@ -399,4 +399,13 @@ export default function SettingsPage() {
 
           <div className="mt-8 text-center">
             <button onClick={handleLogout} className="text-xs font-bold text-red-500 flex items-center justify-center gap-2 mx-auto hover:text-red-400 p-2">
-              <LogOut className="w-4 h-4" /> {t('nav
+              <LogOut className="w-4 h-4" /> {t('nav.logout')}
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <BottomNav />
+    </div>
+  );
+}

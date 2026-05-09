@@ -157,4 +157,13 @@ export default function CoinsPage() {
             ))}
           </div>
 
-          <p className="text-center text-[10px] text-zinc-600 font-bold mt-12 uppercase tr
+          <p className="text-center text-[10px] text-zinc-600 font-bold mt-12 uppercase tracking-widest">
+            * Payments are securely processed by Stripe.
+          </p>
+        </div>
+      </main>
+      
+      <BottomNav />
+    </div>
+  );
+}
