@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import TikTokPlayer from './components/TikTokPlayer';
 import StoriesBar from './components/StoriesBar';
 
-function HomeContent() {
+export default function Home() {
   const [clips, setClips] = useState<any[]>([]);
   const [ranking, setRanking] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -232,6 +232,8 @@ function HomeContent() {
           setActiveVideoId(targetedClip.id);
         } else {
           setClips(newBatch);
+          // 最初のクリップを自動的にアクティブに設定（初期ロード時の自動再生対応）
+          if (newBatch.length > 0) setActiveVideoId(newBatch[0].id);
         }
       }
       else setClips(prev => [...prev, ...newBatch]);
@@ -912,22 +914,4 @@ function HomeContent() {
               <button 
                 onClick={postComment} 
                 disabled={isCommenting || !newComment.trim()}
-                className="absolute right-3 bottom-3 p-3.5 rounded-xl bg-blue-600 disabled:opacity-30 transition-all hover:bg-blue-500 active:scale-95"
-              >
-                <Send className="w-4 h-4 text-white" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <Suspense fallback={null}>
-      <HomeContent />
-    </Suspense>
-  );
-}
+                className="absolute right-3 bottom-3 p-3.5 rounded-xl bg-blue-600 disabled:opacity-30 transition-
