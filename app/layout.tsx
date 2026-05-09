@@ -110,12 +110,12 @@ export default function RootLayout({
     "@type": "WebSite",
     "name": "VLYP",
     "alternateName": ["VLYP Game Clips"],
-    "url": process.env.NEXT_PUBLIC_SITE_URL || 'https://vlyp.vercel.app',
+    "url": process.env.NEXT_PUBLIC_SITE_URL || 'https://vlyp.app',
     "potentialAction": {
       "@type": "SearchAction",
       "target": {
         "@type": "EntryPoint",
-        "urlTemplate": `${process.env.NEXT_PUBLIC_SITE_URL || 'https://vlyp.vercel.app'}/search?q={search_term_string}`
+        "urlTemplate": `${process.env.NEXT_PUBLIC_SITE_URL || 'https://vlyp.app'}/search?q={search_term_string}`
       },
       "query-input": "required name=search_term_string"
     }
