@@ -272,4 +272,10 @@ export default function Sidebar() {
         `}} />
         
         <div className="pt-2 text-center flex flex-col gap-2">
-          <Link href="/legal" className="text-[9px] font-black text-zinc-600 hover:text-cyan-400 uppercase tracking-widest transition-colors">L
+          <Link href="/legal" className="text-[9px] font-black text-zinc-600 hover:text-cyan-400 uppercase tracking-widest transition-colors">Legal</Link>
+          <Link href="/privacy" className="text-[9px] font-black text-zinc-600 hover:text-cyan-400 uppercase tracking-widest transition-colors">Privacy</Link>
+        </div>
+      </div>
+    </aside>
+  );
+}

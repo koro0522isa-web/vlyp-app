@@ -91,4 +91,34 @@ export async function POST(req: NextRequest) {
 
     const selectedPack = COIN_PACKS[packId];
 
-    const session = await stripe.checkout.sessions.
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'jpy',
+            product_data: {
+              name: `VLYP Coins x${selectedPack.amount}`,
+              description: 'VLYP内でクリエイターへの投げ銭に使用できるコインです。',
+            },
+            unit_amount: selectedPack.price,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/coins?canceled=true`,
+      metadata: {
+        userId: userId,
+        coins: selectedPack.amount.toString(),
+        packId: packId,
+      },
+    });
+
+    return NextResponse.json({ url: session.url });
+  } catch (error: any) {
+    console.error('Stripe checkout error:', error);
+    return NextResponse.json({ error: error.message || '決済セッションの作成に失敗しました。' }, { status: 500 });
+  }
+}
