@@ -60,6 +60,12 @@ function HomeContent() {
   // 支援者ランキング
   const [topSupporters, setTopSupporters] = useState<any[]>([]);
 
+  // 投げ銭モーダル
+  const [giftModalClip, setGiftModalClip] = useState<any>(null);
+  const [giftAmount, setGiftAmount] = useState<number>(100);
+  const [userCoins, setUserCoins] = useState<number>(0);
+  const [isGifting, setIsGifting] = useState(false);
+
   const viewedVideos = useRef<Set<number>>(new Set());
   const observerTarget = useRef<HTMLDivElement>(null);
   /** 同一クリップへのいいね RPC が並列で走ると楽観 UI が壊れるため、進行中クリップ ID を保持する */
