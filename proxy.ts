@@ -26,7 +26,12 @@ export async function proxy(request: NextRequest) {
   );
 
   // セッション自動リフレッシュ（getUser でサーバー検証）
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // 未ログインユーザーが / にアクセスした場合は /landing へリダイレクト
+  if (!user && request.nextUrl.pathname === '/') {
+    return NextResponse.redirect(new URL('/landing', request.url));
+  }
 
   return supabaseResponse;
 }
