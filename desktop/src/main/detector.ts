@@ -3,7 +3,7 @@ import https from 'https';
 export type GameType = 'valorant' | 'lol' | 'none';
 
 export interface GameEvent {
-  type: 'kill' | 'death' | 'ace' | 'multikill' | 'unknown';
+  type: 'kill' | 'death' | 'ace' | 'multikill' | 'manual' | 'unknown';
   killCount?: number;
   timestamp: number;
   gameTime?: number;

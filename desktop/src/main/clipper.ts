@@ -101,7 +101,7 @@ export class Clipper {
     const info: ClipInfo = existing || {
       rawPath,
       timestamp: Date.now(),
-      event: { type: 'manual', killCount: 0 },
+      event: { type: 'manual' as const, killCount: 0, timestamp: Date.now() },
       editing: true,
     };
 
@@ -113,4 +113,66 @@ export class Clipper {
 
   private async runAutoEdit(info: ClipInfo, options: EditOptions): Promise<void> {
     console.log('[Clipper] Starting auto-edit for:', info.rawPath);
-    const result = aw
+    try {
+      const result = await this.editor.edit(info.rawPath, options);
+      if (result.editedPath) {
+        info.editedPath = result.editedPath;
+        console.log('[Clipper] Auto-edit complete:', result.editedPath);
+      } else {
+        console.warn('[Clipper] Auto-edit returned no output:', result.error);
+      }
+    } catch (err) {
+      console.error('[Clipper] Auto-edit error:', err);
+    } finally {
+      info.editing = false;
+      this.onEditComplete?.(info);
+    }
+  }
+
+  /**
+   * セグメントを結合して最後25秒を切り出す
+   */
+  private concatAndTrim(listFile: string, outputPath: string): Promise<string | null> {
+    return new Promise((resolve) => {
+      const proc = spawn('ffmpeg', [
+        '-f', 'concat',
+        '-safe', '0',
+        '-i', listFile,
+        '-sseof', '-25',
+        '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
+        '-c:a', 'aac', '-b:a', '128k',
+        '-movflags', '+faststart',
+        '-y', outputPath,
+      ], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
+      });
+
+      let stderr = '';
+      proc.stderr?.on('data', (d) => (stderr += d.toString()));
+
+      proc.on('close', (code) => {
+        if (code === 0 && fs.existsSync(outputPath)) {
+          console.log('[Clipper] Concat+trim done:', outputPath);
+          resolve(outputPath);
+        } else {
+          console.error('[Clipper] ffmpeg concat failed code=', code, stderr.slice(-300));
+          resolve(null);
+        }
+      });
+
+      proc.on('error', (err) => {
+        console.error('[Clipper] ffmpeg spawn error:', err);
+        resolve(null);
+      });
+    });
+  }
+
+  getClips(): ClipInfo[] {
+    return Array.from(this.clips.values());
+  }
+
+  getClipsDir(): string {
+    return this.clipsDir;
+  }
+}

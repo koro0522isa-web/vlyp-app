@@ -71,4 +71,93 @@ export class Recorder {
     proc.on('close', (code) => {
       if (this.isRecording && code !== 0) {
         console.warn(`[Recorder] ffmpeg closed unexpectedly code=${code}`);
-        // 録画中に落ちたら映像のみで自動再起�
+        // 録画中に落ちたら映像のみで自動再起動
+        this.process = null;
+        setTimeout(() => {
+          if (this.isRecording) {
+            console.log('[Recorder] Auto-restarting video-only...');
+            this.tryStart(false, () => {}, () => {});
+          }
+        }, 500);
+      }
+    });
+  }
+
+  async stopRecording(): Promise<string> {
+    this.isRecording = false;
+    if (this.process) {
+      // ffmpegに'q'を送って正常終了
+      try {
+        this.process.stdin?.write('q');
+      } catch {}
+      // 3秒待って強制終了
+      await new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+          try { this.process?.kill('SIGKILL'); } catch {}
+          resolve();
+        }, 3000);
+        this.process?.on('close', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+      });
+      this.process = null;
+    }
+    return this.bufferDir;
+  }
+
+  getBufferDir(): string {
+    return this.bufferDir;
+  }
+
+  isActive(): boolean {
+    return this.isRecording;
+  }
+
+  /**
+   * 音声付きキャプチャ引数 (Windows: gdigrab + dshow audio)
+   * 10秒ごとのセグメントファイルとしてローリングバッファ
+   */
+  private buildArgsWithAudio(): string[] {
+    return [
+      // デスクトップ映像キャプチャ
+      '-f', 'gdigrab',
+      '-framerate', '30',
+      '-i', 'desktop',
+      // システム音声キャプチャ (DirectShow)
+      '-f', 'dshow',
+      '-i', 'audio=virtual-audio-capturer',
+      // エンコード設定
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
+      '-c:a', 'aac', '-b:a', '128k',
+      '-pix_fmt', 'yuv420p',
+      // セグメント出力 (10秒ごと)
+      '-f', 'segment',
+      '-segment_time', '10',
+      '-segment_format', 'mp4',
+      '-reset_timestamps', '1',
+      '-segment_wrap', '6',  // 最大6セグメント = 60秒バッファ
+      path.join(this.bufferDir, 'seg_%03d.mp4'),
+    ];
+  }
+
+  /**
+   * 映像のみキャプチャ引数 (音声デバイスがない場合のフォールバック)
+   */
+  private buildArgsVideoOnly(): string[] {
+    return [
+      '-f', 'gdigrab',
+      '-framerate', '30',
+      '-i', 'desktop',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
+      '-pix_fmt', 'yuv420p',
+      '-an',  // 音声なし
+      '-f', 'segment',
+      '-segment_time', '10',
+      '-segment_format', 'mp4',
+      '-reset_timestamps', '1',
+      '-segment_wrap', '6',
+      path.join(this.bufferDir, 'seg_%03d.mp4'),
+    ];
+  }
+}

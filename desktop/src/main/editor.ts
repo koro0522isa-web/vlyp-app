@@ -274,4 +274,16 @@ export class Editor {
       ff.stderr?.on('data', (d) => (stderr += d.toString()));
 
       ff.on('close', (code) => {
-        if (code 
+        if (code !== 0) {
+          reject(new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-500)}`));
+        } else {
+          resolve();
+        }
+      });
+
+      ff.on('error', (err) => {
+        reject(new Error(`ffmpeg spawn error: ${err.message}`));
+      });
+    });
+  }
+}

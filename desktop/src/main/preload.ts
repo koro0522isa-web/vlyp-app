@@ -27,4 +27,24 @@ const electronAPI = {
 
   // ウィンドウ制御 (フレームレス)
   minimize: () => ipcRenderer.send('window:minimize'),
-  maximi
+  maximize: () => ipcRenderer.send('window:maximize'),
+  close: () => ipcRenderer.send('window:close'),
+
+  // イベントリスナー
+  onClipCreated: (callback: (data: any) => void) => {
+    ipcRenderer.on('clip:created', (_: IpcRendererEvent, data: any) => callback(data));
+  },
+  onClipEditComplete: (callback: (data: any) => void) => {
+    ipcRenderer.on('clip:edit-complete', (_: IpcRendererEvent, data: any) => callback(data));
+  },
+  onRecordingStatus: (callback: (data: any) => void) => {
+    ipcRenderer.on('recording:status', (_: IpcRendererEvent, data: any) => callback(data));
+  },
+
+  // リスナー解除
+  removeAllListeners: (channel: string) => {
+    ipcRenderer.removeAllListeners(channel);
+  },
+};
+
+contextBridge.exposeInMainWorld('electronAPI', electronAPI);
