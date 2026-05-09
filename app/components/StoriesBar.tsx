@@ -351,4 +351,12 @@ export default function StoriesBar() {
               href={`/profile/${viewing.profile?.username}`}
               onClick={closeStory}
               className="absolute bottom-4 right-4 text-[10px] font-black text-white/60 hover:text-white border border-white/20 px-3 py-1.5 rounded-full"
-     
+            >
+              プロフィール
+            </Link>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}

@@ -914,4 +914,11 @@ export default function Home() {
               <button 
                 onClick={postComment} 
                 disabled={isCommenting || !newComment.trim()}
-                className="absolute right-3 bottom-3 p-3.5 rounded-xl bg-blue-600 disabled:opacity-30 transition-
+                className="absolute right-3 bottom-3 p-3.5 rounded-xl bg-blue-600 disabled:opacity-30 transition-all hover:bg-blue-500 active:scale-95"
+              >
+                <Send className="w-4 h-4 text-white" />
+              </button>
+            </div>
+          </div>
+        </div>
+  

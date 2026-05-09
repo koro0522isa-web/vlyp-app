@@ -80,4 +80,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, coins_granted: 50 });
   } catch (err: any) {
     console.error('[VLYP] Referral claim error:', err);
-    return Next
+    return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 });
+  }
+}

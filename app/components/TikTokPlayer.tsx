@@ -382,4 +382,23 @@ export default function TikTokPlayer({
           <Music className="w-3 h-3 text-white/70 animate-pulse" />
           <div className="whitespace-nowrap flex gap-8 animate-marquee">
             <span className="text-[10px] font-bold text-white/80">
-              {clip.bgm_title ? `${clip.bgm_title} - ${clip.bgm_artist || 'Artist'
+              {clip.bgm_title ? `${clip.bgm_title} - ${clip.bgm_artist || 'Artist'}` : `Original Sound - @${clip.profiles?.display_name || "Player"}`}
+            </span>
+            <span className="text-[10px] font-bold text-white/80">
+              {clip.bgm_title ? `${clip.bgm_title} - ${clip.bgm_artist || 'Artist'}` : `Original Sound - @${clip.profiles?.display_name || "Player"}`}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Real video progress bar — synced to actual playback */}
+      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/10 z-30">
+        <motion.div 
+          className="h-full bg-white/80"
+          style={{ width: `${progress}%` }}
+          transition={{ duration: 0.1, ease: 'linear' }}
+        />
+      </div>
+    </div>
+  );
+}

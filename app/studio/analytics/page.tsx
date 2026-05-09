@@ -410,4 +410,18 @@ export default function Analytics() {
                 style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(9,9,11,0.8))' }}>
                 <div className="flex items-center gap-2 mb-3">
                   <Crown className="w-4 h-4 text-purple-400" />
-                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-w
+                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Pro Active</span>
+                </div>
+                <p className="text-sm font-black italic tracking-tight text-purple-300 uppercase">Full Analytics Unlocked</p>
+                <p className="text-[9px] text-zinc-600 font-black uppercase mt-1">All features available</p>
+              </div>
+            </motion.div>
+          )}
+
+        </div>
+      </main>
+
+      <BottomNav />
+    </div>
+  );
+}

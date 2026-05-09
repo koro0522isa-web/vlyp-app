@@ -144,4 +144,15 @@ export default function NotificationsPage() {
                         )}
                       </div>
                     </Link>
-   
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </main>
+
+      <BottomNav />
+    </div>
+  );
+}

@@ -101,4 +101,11 @@ export async function POST(req: NextRequest) {
     cancel_url: `${siteUrl}/membership/${creator_username}?canceled=true`,
     metadata: {
       type: 'fan_club',
-      tier_id: Stri
+      tier_id: String(tier_id),
+      user_id: user.id,
+      creator_id: tier.creator_id,
+    },
+  });
+
+  return NextResponse.json({ url: session.url });
+}
