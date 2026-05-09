@@ -3,13 +3,20 @@ import { createClient } from '@supabase/supabase-js';
 import { createPresignedUrl, PUBLIC_URL } from '@/lib/r2';
 import { randomUUID } from 'crypto';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// ビルド時に環境変数が未注入のためリクエスト時に初期化
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error('Supabase environment variables not configured');
+  }
+  return createClient(url, key);
+}
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
+
     // 認証チェック
     const authHeader = req.headers.get('authorization') ?? '';
     const token = authHeader.replace('Bearer ', '');
