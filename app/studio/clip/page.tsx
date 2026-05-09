@@ -155,7 +155,7 @@ export default function ClipEditorPage() {
       let outputBlob: Blob;
       if (convertVertical) {
         setProcessingStatus('縦型 (9:16) に変換中...');
-        outputBlob = await (convertToVertical as unknown as (f: File, mode: string) => Promise<Blob>)(videoFile, 'pad');
+        outputBlob = await convertToVertical(videoFile, { mode: 'pad' });
       } else {
         outputBlob = videoFile;
       }
