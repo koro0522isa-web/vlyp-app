@@ -51,7 +51,6 @@ export default function AdminPage() {
   };
 
   const handleReject = async (id: number) => {
-    if (!window.confirm("この動画を削除しますか？")) return;
     setProcessingId(id);
     const { error } = await supabase.from('clips').delete().eq('id', id);
     if (!error) {

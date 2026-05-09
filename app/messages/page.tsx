@@ -627,9 +627,7 @@ function MessagesInner() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => {
-                      if (window.confirm("Send 10 coins as a gift?")) {
-                        setNewMessage("🎁 Sent 10 VLYP Coins!");
-                      }
+                      setNewMessage("🎁 Sent 10 VLYP Coins!");
                     }}
                     className="p-4 bg-yellow-400/10 border border-yellow-400/20 rounded-[1.5rem] text-yellow-500 hover:bg-yellow-400 hover:text-black transition-all group"
                     title="Gift Coins"

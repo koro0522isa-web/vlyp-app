@@ -66,6 +66,11 @@ function HomeContent() {
   const [userCoins, setUserCoins] = useState<number>(0);
   const [isGifting, setIsGifting] = useState(false);
 
+  // レポートモーダル
+  const [reportModalClipId, setReportModalClipId] = useState<number | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [isReporting, setIsReporting] = useState(false);
+
   const viewedVideos = useRef<Set<number>>(new Set());
   const observerTarget = useRef<HTMLDivElement>(null);
   /** 同一クリップへのいいね RPC が並列で走ると楽観 UI が壊れるため、進行中クリップ ID を保持する */
@@ -492,12 +497,19 @@ function HomeContent() {
     });
   };
 
-  const handleReport = async (clipId: number) => {
-    if (!user) return alert(t('auth.loginRequired') || 'Please log in');
-    const reason = window.prompt(t('action.reportReason') || 'Enter the reason for this report:');
-    if (!reason) return;
-    await supabase.rpc('submit_report', { p_clip_id: clipId, p_reporter_id: user.id, p_reason: reason });
-    alert(t('action.reportSubmitted') || 'Report submitted.');
+  const handleReport = (clipId: number) => {
+    if (!user) return toast(t('auth.loginRequired') || 'ログインしてください');
+    setReportReason('');
+    setReportModalClipId(clipId);
+  };
+
+  const handleReportSubmit = async () => {
+    if (!reportModalClipId || !reportReason.trim() || !user) return;
+    setIsReporting(true);
+    await supabase.rpc('submit_report', { p_clip_id: reportModalClipId, p_reporter_id: user.id, p_reason: reportReason.trim() });
+    setIsReporting(false);
+    setReportModalClipId(null);
+    toast(t('action.reportSubmitted') || '報告しました。');
   };
 
   const handleFollow = async (targetId: string) => {
@@ -517,7 +529,7 @@ function HomeContent() {
     setIsUnlocking(null);
     if (error || data?.error) {
       if (data?.error === 'Insufficient coins') {
-        if (window.confirm('コインが不足しています。コインショップへ行きますか？')) window.location.href = '/coins';
+        toast('コインが不足しています。/coins でチャージできます。');
       } else {
         alert('エラーが発生しました: ' + (data?.error || error?.message));
       }
@@ -546,7 +558,7 @@ function HomeContent() {
     setIsGifting(false);
     setGiftModalClip(null);
     if (error || !data) {
-      if (window.confirm(t('gift.insufficientCoins') || 'Insufficient coins. Go to coin shop?')) window.location.href = '/coins';
+      toast(t('gift.insufficientCoins') || 'コインが不足しています。/coins でチャージできます。');
     } else {
       setUserCoins(prev => Math.max(0, prev - giftAmount));
       confetti({
@@ -944,6 +956,38 @@ function HomeContent() {
           </div>
         </div>
         )}
+      {/* レポートモーダル */}
+      {reportModalClipId && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setReportModalClipId(null)}>
+          <div className="bg-[#111] border border-white/10 rounded-3xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-black mb-2">報告する</h3>
+            <p className="text-zinc-400 text-sm mb-4">報告理由を入力してください（最大200文字）</p>
+            <textarea
+              value={reportReason}
+              onChange={e => setReportReason(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white mb-4 text-sm resize-none"
+              placeholder="例: スパム、不適切なコンテンツ、暴力的な表現..."
+              rows={3}
+              maxLength={200}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setReportModalClipId(null)}
+                className="flex-1 py-3 bg-white/5 rounded-xl font-black text-xs"
+              >キャンセル</button>
+              <button
+                onClick={handleReportSubmit}
+                disabled={isReporting || !reportReason.trim()}
+                className="flex-1 py-3 bg-red-500 text-white rounded-xl font-black text-xs disabled:opacity-50"
+              >
+                {isReporting ? '送信中...' : '報告する'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 投げ銭モーダル */}
       {giftModalClip && (
         <div className="fixed inset-0 bg-black/80 flex items-end md:items-center justify-center z-50 p-4">
