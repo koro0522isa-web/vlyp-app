@@ -5,7 +5,7 @@ import { Gamepad2, Coins, Crown, Play, CheckCircle2, Zap, Monitor, Scissors, Typ
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#09090B] text-white overflow-x-hidden">
+    <div className="h-screen overflow-y-auto overflow-x-hidden bg-[#09090B] text-white">
 
       {/* ===== Nav ===== */}
       <nav className="flex items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 z-50 backdrop-blur-xl bg-[#09090B]/80">
