@@ -269,11 +269,14 @@ export default function SettingsPage() {
                     <button 
                       onClick={async () => {
                         const { data: { session } } = await supabase.auth.getSession();
-                        if (!session) return;
+                        if (!session?.access_token) return;
                         const res = await fetch('/api/checkout', {
                           method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ packId: 'pro', userId: session.user.id }),
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${session.access_token}`,
+                          },
+                          body: JSON.stringify({ packId: 'pro' }),
                         });
                         const data = await res.json();
                         if (data.url) window.location.href = data.url;
@@ -396,13 +399,4 @@ export default function SettingsPage() {
 
           <div className="mt-8 text-center">
             <button onClick={handleLogout} className="text-xs font-bold text-red-500 flex items-center justify-center gap-2 mx-auto hover:text-red-400 p-2">
-              <LogOut className="w-4 h-4" /> {t('nav.logout')}
-            </button>
-          </div>
-        </div>
-      </main>
-
-      <BottomNav />
-    </div>
-  );
-}
+              <LogOut className="w-4 h-4" /> {t('nav

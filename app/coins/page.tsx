@@ -64,13 +64,16 @@ export default function CoinsPage() {
     setIsLoading(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Not authenticated');
+
       const response = await fetch('/api/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          packId: packId,
-          userId: user.id,
-        }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ packId }),
       });
 
       const data = await response.json();
@@ -154,13 +157,4 @@ export default function CoinsPage() {
             ))}
           </div>
 
-          <p className="text-center text-[10px] text-zinc-600 font-bold mt-12 uppercase tracking-widest">
-            * Payments are securely processed by Stripe.
-          </p>
-        </div>
-      </main>
-      
-      <BottomNav />
-    </div>
-  );
-}
+          <p className="text-center text-[10px] text-zinc-600 font-bold mt-12 uppercase tr

@@ -79,10 +79,15 @@ function PostContent() {
 
   const handleProUpgrade = async () => {
     if (!user) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
     const response = await fetch('/api/checkout', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ packId: 'pro', userId: user.id }),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ packId: 'pro' }),
     });
     const data = await response.json();
     if (data.url) window.location.href = data.url;
@@ -633,8 +638,4 @@ function PostContent() {
 
 export default function Post() {
   return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#09090b]"><Loader2 className="w-10 h-10 animate-spin text-blue-500" /></div>}>
-      <PostContent />
-    </Suspense>
-  );
-}
+    <Suspense fallback={<div className="flex 

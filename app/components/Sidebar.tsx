@@ -127,10 +127,15 @@ export default function Sidebar() {
   const handleProUpgrade = async () => {
     if (!user) return;
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
       const response = await fetch('/api/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packId: 'pro', userId: user.id }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ packId: 'pro' }),
       });
       const data = await response.json();
       if (data.url) window.location.href = data.url;
@@ -267,10 +272,4 @@ export default function Sidebar() {
         `}} />
         
         <div className="pt-2 text-center flex flex-col gap-2">
-          <Link href="/legal" className="text-[9px] font-black text-zinc-600 hover:text-cyan-400 uppercase tracking-widest transition-colors">Legal & Pricing</Link>
-          <p className="text-[8px] text-zinc-800 font-bold uppercase tracking-widest">© VLYP 2026</p>
-        </div>
-      </div>
-    </aside>
-  );
-}
+          <Link href="/legal" className="text-[9px] font-black text-zinc-600 hover:text-cyan-400 uppercase tracking-widest transition-colors">L

@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
 
 // ビルド時に STRIPE_SECRET_KEY が無いと new Stripe() が失敗するためリクエスト内で初期化
 function getStripe(): Stripe {
@@ -20,20 +21,41 @@ const COIN_PACKS: Record<string, { amount: number, price: number }> = {
   'pack_5000': { amount: 5000, price: 6000 },
 };
 
-export async function POST(req: Request) {
-  try {
-    const stripe = getStripe();
-    const { packId, userId } = await req.json();
+// Proプランの価格ID（環境変数 > フォールバック）
+const PRO_PRICE_ID =
+  process.env.STRIPE_PRO_PRICE_ID ||
+  process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID ||
+  'price_1TRz5FIntgkn2DgcwcW3AQsC';
 
-    if (!packId || !userId) {
+export async function POST(req: NextRequest) {
+  try {
+    // ── 認証チェック ─────────────────────────────
+    const authHeader = req.headers.get('Authorization');
+    const accessToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!accessToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: `Bearer ${accessToken}` } } }
+    );
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    // ────────────────────────────────────────────
+
+    const stripe = getStripe();
+    const { packId } = await req.json();
+    const userId = user.id; // クライアント送信値は使わず、JWTから取得
+
+    if (!packId) {
       return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });
     }
 
     if (packId === 'pro') {
-      const priceId = process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID;
-      if (!priceId) {
-        return NextResponse.json({ error: 'Pro price ID not configured' }, { status: 500 });
-      }
+      const priceId = PRO_PRICE_ID;
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
@@ -69,34 +91,4 @@ export async function POST(req: Request) {
 
     const selectedPack = COIN_PACKS[packId];
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'jpy',
-            product_data: {
-              name: `VLYP Coins x${selectedPack.amount}`,
-              description: 'VLYP内でクリエイターへの投げ銭に使用できるコインです。',
-            },
-            unit_amount: selectedPack.price,
-          },
-          quantity: 1,
-        },
-      ],
-      mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/coins?canceled=true`,
-      metadata: {
-        userId: userId,
-        coins: selectedPack.amount.toString(),
-        packId: packId,
-      },
-    });
-
-    return NextResponse.json({ url: session.url });
-  } catch (error: any) {
-    console.error('Stripe checkout error:', error);
-    return NextResponse.json({ error: error.message || '決済セッションの作成に失敗しました。' }, { status: 500 });
-  }
-}
+    const session = await stripe.checkout.sessions.
