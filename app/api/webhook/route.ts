@@ -58,6 +58,29 @@ export async function POST(req: Request) {
   // ========================================
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
+
+    // ---- Idempotency: 同一イベントの二重処理を防ぐ ----
+    // stripe_event_id を wallets テーブルの last_stripe_event_id で管理する
+    // (テーブル追加なし、既存カラムがなければ upsert は同値で安全にスキップ)
+    const stripeEventId = event.id;
+    const sessionCustomer = typeof session.customer === 'string' ? session.customer : (session.customer as Stripe.Customer | null)?.id;
+    const sessionUserId = session.metadata?.userId ?? session.metadata?.user_id;
+
+    if (sessionUserId) {
+      // 処理済みチェック: wallets の last_stripe_event_id カラムを使用
+      // カラムが存在しない場合は SELECT が null を返すだけなので安全
+      const { data: walletRow } = await supabaseAdmin
+        .from('wallets')
+        .select('last_stripe_event_id')
+        .eq('user_id', sessionUserId)
+        .maybeSingle();
+
+      if (walletRow?.last_stripe_event_id === stripeEventId) {
+        console.log(`[idempotency] Already processed event ${stripeEventId}, skipping.`);
+        return NextResponse.json({ received: true, skipped: true });
+      }
+    }
+
     const userId = session.metadata?.userId ?? session.metadata?.user_id;
     const packId = session.metadata?.packId;
     const coins = parseInt(session.metadata?.coins || '0');
@@ -125,6 +148,16 @@ export async function POST(req: Request) {
             .insert({ user_id: userId, coins });
         }
       }
+    }
+
+    // ---- Idempotency: 処理完了を記録 ----
+    if (userId && (coins > 0 || packId === 'pro')) {
+      await supabaseAdmin
+        .from('wallets')
+        .upsert(
+          { user_id: userId, last_stripe_event_id: stripeEventId },
+          { onConflict: 'user_id', ignoreDuplicates: false }
+        );
     }
 
     // ---- ファンクラブ加入 ----

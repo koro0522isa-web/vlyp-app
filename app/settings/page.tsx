@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [referralCode, setReferralCode] = useState('');
   const [referralCount, setReferralCount] = useState(0);
   const [copiedRef, setCopiedRef] = useState(false);
+  const [billingPortalLoading, setBillingPortalLoading] = useState(false);
   const { lang, setLang, t } = useLanguage();
   const router = useRouter();
   // Pro月50コイン自動付与
@@ -95,6 +96,24 @@ export default function SettingsPage() {
       alert("エラーが発生しました: " + error.message);
     } else {
       alert("プロフィールを更新しました！");
+    }
+  };
+
+  const handleBillingPortal = async () => {
+    setBillingPortalLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const res = await fetch('/api/billing-portal', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch (e) {
+      alert('ポータルの取得に失敗しました');
+    } finally {
+      setBillingPortalLoading(false);
     }
   };
 
@@ -397,7 +416,20 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          <div className="mt-8 text-center">
+          {isPro && (
+            <div className="mt-6 text-center">
+              <button
+                onClick={handleBillingPortal}
+                disabled={billingPortalLoading}
+                className="text-xs font-bold text-purple-400 flex items-center justify-center gap-2 mx-auto hover:text-purple-300 p-2 transition-colors"
+              >
+                {billingPortalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crown className="w-4 h-4" />}
+                プランを管理・解約する
+              </button>
+            </div>
+          )}
+
+          <div className="mt-4 text-center">
             <button onClick={handleLogout} className="text-xs font-bold text-red-500 flex items-center justify-center gap-2 mx-auto hover:text-red-400 p-2">
               <LogOut className="w-4 h-4" /> {t('nav.logout')}
             </button>
