@@ -35,4 +35,6 @@
     "axios": "^1.6.0",
     "electron-store": "^8.1.0",
     "form-data": "^4.0.0",
- 
+    "path-browserify": "^1.0.1"
+  }
+}
