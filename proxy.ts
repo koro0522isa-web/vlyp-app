@@ -29,9 +29,9 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   // 未ログインユーザーが / にアクセスした場合は /landing へリダイレクト
-  if (!user && request.nextUrl.pathname === '/') {
-    return NextResponse.redirect(new URL('/landing', request.url));
-  }
+  // if (!user && request.nextUrl.pathname === '/') {
+  //   return NextResponse.redirect(new URL('/landing', request.url));
+  // }
 
   return supabaseResponse;
 }
