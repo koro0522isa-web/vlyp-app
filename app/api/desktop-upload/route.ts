@@ -118,4 +118,15 @@ export async function POST(request: NextRequest) {
           max: maxScore,
           highlights: highlightCount,
           scores: vlypScores,
-     
+        },
+      },
+    });
+
+  } catch (error) {
+    console.error('Desktop upload error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
