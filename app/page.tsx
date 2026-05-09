@@ -103,6 +103,10 @@ function HomeContent() {
       if (currentUser) {
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
         setVlypId(profile?.display_name || profile?.username || profile?.vlyp_id || 'Player');
+
+        // コイン残高取得
+        const { data: wallet } = await supabase.from('wallets').select('coins').eq('user_id', currentUser.id).maybeSingle();
+        if (wallet) setUserCoins(wallet.coins ?? 0);
         
         // Fetch likes
         const { data: likes } = await supabase.from('clip_likes').select('clip_id').eq('user_id', currentUser.id);
@@ -516,17 +520,29 @@ function HomeContent() {
     }
   };
 
-  const handleGift = async (clip: any) => {
+  const handleGift = (clip: any) => {
     if (!user) return alert(t('auth.loginRequired') || 'Please log in');
     if (user.id === clip.user_id) return alert(t('gift.cantSelf') || 'Cannot gift your own clip');
-    const amountStr = window.prompt(t('gift.howMany') || 'How many VLYP coins to gift?');
-    if (!amountStr) return;
-    const amount = parseInt(amountStr);
-    if (isNaN(amount) || amount <= 0) return alert(t('gift.invalidAmount') || 'Invalid amount');
-    const { data, error } = await supabase.rpc('send_gift', { p_sender: user.id, p_receiver: clip.user_id, p_clip_id: clip.id, p_amount: amount });
+    setGiftAmount(10);
+    setGiftModalClip(clip);
+  };
+
+  const handleGiftSend = async () => {
+    if (!giftModalClip || !user || isGifting) return;
+    if (isNaN(giftAmount) || giftAmount <= 0) return;
+    setIsGifting(true);
+    const { data, error } = await supabase.rpc('send_gift', {
+      p_sender: user.id,
+      p_receiver: giftModalClip.user_id,
+      p_clip_id: giftModalClip.id,
+      p_amount: giftAmount,
+    });
+    setIsGifting(false);
+    setGiftModalClip(null);
     if (error || !data) {
       if (window.confirm(t('gift.insufficientCoins') || 'Insufficient coins. Go to coin shop?')) window.location.href = '/coins';
     } else {
+      setUserCoins(prev => Math.max(0, prev - giftAmount));
       confetti({
         particleCount: 200,
         spread: 160,
@@ -534,7 +550,7 @@ function HomeContent() {
         colors: ['#facc15', '#fde047', '#ffffff'],
         shapes: ['star'],
       });
-      alert(`${amount} ${t('gift.sent') || 'coins gifted!'} 🎉`);
+      toast(`${giftAmount} ${t('gift.sent') || 'コインを贈りました!'}`);
     }
   };
 
@@ -922,6 +938,67 @@ function HomeContent() {
           </div>
         </div>
         )}
+      {/* 投げ銭モーダル */}
+      {giftModalClip && (
+        <div className="fixed inset-0 bg-black/80 flex items-end md:items-center justify-center z-50 p-4">
+          <div className="bg-[#111] border border-white/10 rounded-3xl p-6 w-full max-w-sm">
+            <h3 className="text-lg font-black mb-2">コインを贈る</h3>
+            <p className="text-zinc-400 text-sm mb-4">@{giftModalClip.vlyp_id || giftModalClip.profiles?.display_name || 'ユーザー'} さんへ</p>
+
+            {/* コイン残高表示 */}
+            <p className="text-yellow-400 text-xs mb-4">残高: {userCoins} コイン</p>
+
+            {/* 金額ボタン群 */}
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {[10, 50, 100, 500].map(amt => (
+                <button
+                  key={amt}
+                  onClick={() => setGiftAmount(amt)}
+                  className={`py-3 rounded-xl font-black text-sm border transition-all ${
+                    giftAmount === amt
+                      ? 'bg-yellow-500 border-yellow-500 text-black'
+                      : 'bg-white/5 border-white/10 text-zinc-300'
+                  }`}
+                >
+                  {amt}
+                </button>
+              ))}
+            </div>
+
+            {/* カスタム入力 */}
+            <input
+              type="number"
+              value={giftAmount}
+              onChange={e => setGiftAmount(Number(e.target.value))}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white mb-4 text-sm"
+              placeholder="カスタム金額"
+              min={1}
+              max={userCoins}
+            />
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setGiftModalClip(null)}
+                className="flex-1 py-3 bg-white/5 rounded-xl font-black text-xs"
+              >キャンセル</button>
+              <button
+                onClick={handleGiftSend}
+                disabled={isGifting || giftAmount <= 0 || giftAmount > userCoins}
+                className="flex-1 py-3 bg-yellow-500 text-black rounded-xl font-black text-xs disabled:opacity-50"
+              >
+                {isGifting ? '送信中...' : `${giftAmount}コイン贈る`}
+              </button>
+            </div>
+
+            {giftAmount > userCoins && (
+              <p className="text-red-400 text-xs mt-3 text-center">
+                残高不足です。<a href="/coins" className="underline">コインショップ</a>でチャージできます。
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <BottomNav />
     </div>
   );

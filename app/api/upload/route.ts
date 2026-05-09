@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { filename, contentType, type = 'video' } = await req.json();
+    const { filename, contentType, type = 'video', fileSize } = await req.json();
     if (!filename || !contentType) {
       return NextResponse.json({ error: 'filename and contentType are required' }, { status: 400 });
     }
@@ -30,6 +30,20 @@ export async function POST(req: NextRequest) {
       .eq('id', user.id)
       .maybeSingle();
     const isPro = profile?.is_pro ?? false;
+
+    // ファイルサイズバリデーション
+    if (fileSize !== undefined && fileSize !== null) {
+      const MAX_FREE = 200 * 1024 * 1024; // 200MB
+      const MAX_PRO = 500 * 1024 * 1024;  // 500MB
+      const limit = isPro ? MAX_PRO : MAX_FREE;
+      if (fileSize > limit) {
+        const limitMB = isPro ? 500 : 200;
+        return NextResponse.json(
+          { error: `File size exceeds the ${limitMB}MB limit for your plan.` },
+          { status: 413 }
+        );
+      }
+    }
 
     // 動画ファイルの場合、基本的なバリデーションを実施
     // 注：実際の動画メタデータ検証は、クライアント側で既に実施済み

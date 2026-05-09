@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import {
   UploadCloud, Loader2, ArrowLeft, Crown, Sparkles,
   Wand2, Check, Zap, Video as VideoIcon, Gamepad2, Info, X, Hash, Image as ImageIcon, Lock,
-  Smartphone, Calendar, Clock
+  Smartphone, Calendar, Clock, AlertTriangle
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -27,6 +27,7 @@ function PostContent() {
   const [file, setFile] = useState<File | null>(null);
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const [durationError, setDurationError] = useState<string | null>(null);
+  const [fileSizeError, setFileSizeError] = useState<string | null>(null);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [gameTitle, setGameTitle] = useState('VALORANT');
   const [user, setUser] = useState<any>(null);
@@ -111,7 +112,20 @@ function PostContent() {
 
   const handleFileSelect = (f: File) => {
     setDurationError(null);
+    setFileSizeError(null);
     setVideoDuration(null);
+    // ファイルサイズチェック
+    const MAX_FREE = 200 * 1024 * 1024; // 200MB
+    const MAX_PRO = 500 * 1024 * 1024;  // 500MB
+    const limit = isPro ? MAX_PRO : MAX_FREE;
+    if (f.size > limit) {
+      setFileSizeError(
+        isPro
+          ? `ファイルサイズが500MBを超えています（${(f.size / 1024 / 1024).toFixed(1)}MB）。Proプランで500MBまでアップロードできます。`
+          : `ファイルサイズが200MBを超えています（${(f.size / 1024 / 1024).toFixed(1)}MB）。Proプランにアップグレードすると500MBまでアップロードできます。`
+      );
+      return;
+    }
     const url = URL.createObjectURL(f);
     const vid = document.createElement('video');
     vid.preload = 'metadata';
@@ -155,6 +169,7 @@ function PostContent() {
     if (!user || isSubmitting || !file || !title.trim()) return;
     
     if (durationError) return;
+    if (fileSizeError) return;
     if (videoDuration !== null && videoDuration > maxDurationSec) return;
     const maxUploads = isPro ? 999999 : 30;
     if (monthlyUploads >= maxUploads) {
@@ -177,7 +192,7 @@ function PostContent() {
       const { uploadUrl, publicUrl } = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ filename: file.name, contentType: file.type, type: 'video' }),
+        body: JSON.stringify({ filename: file.name, contentType: file.type, type: 'video', fileSize: file.size }),
       }).then(r => r.json());
 
       if (!uploadUrl) throw new Error('Failed to get upload URL');
@@ -324,6 +339,25 @@ function PostContent() {
               </>
             )}
           </div>
+
+          {/* ファイルサイズエラー表示 */}
+          {fileSizeError && (
+            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-3">
+              <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-black text-red-400">{fileSizeError}</p>
+                {!isPro && (
+                  <button
+                    type="button"
+                    onClick={handleProUpgrade}
+                    className="mt-2 text-[10px] font-black text-purple-400 hover:text-purple-300 underline"
+                  >
+                    Proプランにアップグレード →
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* 縦型変換ツール (動画選択後に表示) */}
           <AnimatePresence>
