@@ -519,6 +519,14 @@ function HomeContent() {
     const isFollowing = followingIds.includes(targetId);
     setFollowingIds(prev => isFollowing ? prev.filter(id => id !== targetId) : [...prev, targetId]);
     await supabase.rpc('toggle_follow', { p_follower_id: user.id, p_following_id: targetId });
+    // フォロー時のみメール通知（アンフォローは送らない）
+    if (!isFollowing) {
+      fetch('/api/email/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'follow', actor_id: user.id, target_id: targetId }),
+      }).catch(() => {});
+    }
   };
 
   const handleUnlockClip = async (clip: any) => {
@@ -569,6 +577,16 @@ function HomeContent() {
         shapes: ['star'],
       });
       toast(`${giftAmount} ${t('gift.sent') || 'コインを贈りました!'}`);
+      // 受信者にメール通知
+      const clipTitle = giftModalClip?.title ?? '動画';
+      const receiverId = giftModalClip?.user_id;
+      if (receiverId) {
+        fetch('/api/email/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'gift', actor_id: user.id, target_id: receiverId, amount: giftAmount, clip_title: clipTitle }),
+        }).catch(() => {});
+      }
     }
   };
 
@@ -632,6 +650,14 @@ function HomeContent() {
       setCurrentClipComments(prev => [data, ...prev]);
       setNewComment('');
       setReplyingTo(null);
+      // 動画オーナーにメール通知（自分のクリップへのコメントは送らない）
+      if (commentClipOwnerId && commentClipOwnerId !== user.id) {
+        fetch('/api/email/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'comment', actor_id: user.id, target_id: commentClipOwnerId, comment: newComment, clip_id: commentClipId }),
+        }).catch(() => {});
+      }
     }
     setIsCommenting(false);
   };

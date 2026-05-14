@@ -34,6 +34,16 @@ function LoginContent() {
     // ログイン成功後にリファラル処理
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_IN') {
+        // ウェルカムメール送信（二重送信はサーバー側で防止）
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user?.id) {
+            fetch('/api/email/welcome', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ user_id: user.id }),
+            }).catch(() => {});
+          }
+        });
         const storedRef = sessionStorage.getItem('vlyp_referral_code');
         if (storedRef) {
           try {
