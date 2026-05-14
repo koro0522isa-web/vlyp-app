@@ -48,7 +48,7 @@ declare global {
   }
 }
 
-const VLYP_API = 'https://vlyp.app/api/desktop-upload';
+const VLYP_API = (import.meta.env.VITE_API_BASE ?? 'https://vlyp-app.vercel.app') + '/api/desktop-upload';
 const GAMES = ['Valorant', 'League of Legends', 'Apex Legends', 'Fortnite', 'その他'];
 
 // ─── タイトルバー ─────────────────────────────────────────────────

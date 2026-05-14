@@ -384,7 +384,10 @@ ipcMain.handle('settings:set', async (_event, settings: Partial<AppSettings>) =>
 
 ipcMain.handle('auth:login', async () => {
   // ブラウザでVLYPのログインページを開く（deep linkで戻ってくる）
-  const loginUrl = 'https://vlyp.app/auth/desktop-login';
+  // TODO: vlyp.app DNS設定後に元に戻す
+  const loginUrl = process.env.VLYP_API_BASE
+    ? `${process.env.VLYP_API_BASE}/auth/desktop-login`
+    : 'https://vlyp-app.vercel.app/auth/desktop-login';
   shell.openExternal(loginUrl);
   return { success: true };
 });
