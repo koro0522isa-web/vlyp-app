@@ -71,7 +71,7 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://unpkg.com blob:",
               "worker-src 'self' blob: https://unpkg.com",
-              "connect-src 'self' https: wss: blob: data:",
+              "connect-src 'self' https: wss: blob: data: https://*.sentry.io",
               "img-src 'self' https: data: blob:",
               "media-src 'self' https: blob: data:",
               "style-src 'self' 'unsafe-inline' https:",
@@ -85,4 +85,14 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+import { withSentryConfig } from '@sentry/nextjs';
+
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: true,         // CI ログを汚さない
+  widenClientFileUpload: true,
+  hideSourceMaps: true, // 本番でソースマップを公開しない
+  disableLogger: true,
+  automaticVercelMonitors: true,
+});
