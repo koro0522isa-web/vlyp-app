@@ -17,6 +17,7 @@ export default function SettingsPage() {
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [isPro, setIsPro] = useState(false);
+  const [proTrialEndsAt, setProTrialEndsAt] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const [referralCode, setReferralCode] = useState('');
   const [referralCount, setReferralCount] = useState(0);
@@ -52,6 +53,7 @@ export default function SettingsPage() {
         setBio(profile.bio || "");
         setAvatarUrl(profile.avatar_url || "");
         setIsPro(profile.is_pro || false);
+        setProTrialEndsAt(profile.pro_trial_ends_at || null);
 
         // リファラルコード: なければ生成してupsert
         if (profile.referral_code) {
@@ -267,10 +269,23 @@ export default function SettingsPage() {
                         <Check className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <p className="text-sm font-black uppercase tracking-widest text-white">Pro Plan Active</p>
-                        <p className="text-[10px] font-bold text-zinc-500 uppercase">You are supporting the platform!</p>
+                        <p className="text-sm font-black uppercase tracking-widest text-white">
+                          {proTrialEndsAt && new Date(proTrialEndsAt) > new Date() ? 'Pro Trial Active' : 'Pro Plan Active'}
+                        </p>
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase">
+                          {proTrialEndsAt && new Date(proTrialEndsAt) > new Date()
+                            ? `無料トライアル残り ${Math.max(0, Math.ceil((new Date(proTrialEndsAt).getTime() - Date.now()) / 86400000))} 日`
+                            : 'You are supporting the platform!'}
+                        </p>
                       </div>
                     </div>
+                    {proTrialEndsAt && new Date(proTrialEndsAt) > new Date() && (
+                      <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-2xl text-center">
+                        <p className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">
+                          トライアル終了後は自動で月額¥980に移行します
+                        </p>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-3 mt-4">
                       <div className="p-3 bg-black/40 rounded-xl border border-white/5">
                         <p className="text-[8px] font-black text-purple-400 uppercase tracking-widest mb-1">AI Narration</p>
@@ -302,7 +317,7 @@ export default function SettingsPage() {
                       }}
                       className="w-full py-4 bg-white/10 hover:bg-white/20 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
                     >
-                      View Pro Benefits
+                      7日間無料トライアルを始める
                     </button>
                   </div>
                 )}

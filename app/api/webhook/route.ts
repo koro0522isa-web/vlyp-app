@@ -96,11 +96,23 @@ export async function POST(req: Request) {
         monthly_uploads: 0,
       };
 
-      if (session.subscription) {
-        updatePayload.stripe_subscription_id =
-          typeof session.subscription === 'string'
-            ? session.subscription
-            : (session.subscription as Stripe.Subscription).id;
+      const subId =
+        typeof session.subscription === 'string'
+          ? session.subscription
+          : (session.subscription as Stripe.Subscription | null)?.id;
+
+      if (subId) {
+        updatePayload.stripe_subscription_id = subId;
+        // トライアル期間を取得してDBに保存
+        try {
+          const sub = await stripe.subscriptions.retrieve(subId);
+          if ((sub as any).trial_end) {
+            updatePayload.pro_trial_ends_at = new Date(
+              (sub as any).trial_end * 1000
+            ).toISOString();
+            updatePayload.pro_trial_used = true;
+          }
+        } catch {}
       }
       if (session.customer) {
         updatePayload.stripe_customer_id =
@@ -358,6 +370,54 @@ export async function POST(req: Request) {
       }
     } catch (e) {
       console.error('Error processing subscription deletion:', e);
+    }
+  }
+
+  // ========================================
+  // トライアル終了3日前の通知
+  // ========================================
+  if (event.type === 'customer.subscription.trial_will_end') {
+    const subscription = event.data.object as Stripe.Subscription;
+    try {
+      const userId = await getUserIdFromSub(stripe, subscription);
+      if (userId) {
+        await supabaseAdmin.from('notifications').insert({
+          user_id: userId,
+          actor_id: userId,
+          type: 'trial_ending_soon',
+        });
+        console.log(`Trial ending soon notification sent to user ${userId}`);
+      }
+    } catch (e) {
+      console.error('Error processing trial_will_end:', e);
+    }
+  }
+
+  // ========================================
+  // トライアル終了 → 有料転換 or 解約
+  // ========================================
+  if (event.type === 'customer.subscription.updated') {
+    const subscription = event.data.object as Stripe.Subscription;
+    const prevAttributes = event.data.previous_attributes as Record<string, unknown> | undefined;
+    try {
+      // トライアルが終わって有料ステータスに移行した場合
+      const wasTrialing = prevAttributes?.status === 'trialing';
+      const isNowActive = subscription.status === 'active';
+      const subType = subscription.metadata?.type;
+
+      if (wasTrialing && isNowActive && !subType) {
+        const userId = await getUserIdFromSub(stripe, subscription);
+        if (userId) {
+          // pro_trial_ends_at をクリア（有料期間に移行完了）
+          await supabaseAdmin
+            .from('profiles')
+            .update({ pro_trial_ends_at: null })
+            .eq('id', userId);
+          console.log(`User ${userId} converted from trial to paid`);
+        }
+      }
+    } catch (e) {
+      console.error('Error processing subscription.updated:', e);
     }
   }
 

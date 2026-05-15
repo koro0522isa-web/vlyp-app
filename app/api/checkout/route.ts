@@ -57,6 +57,19 @@ export async function POST(req: NextRequest) {
     if (packId === 'pro') {
       const priceId = PRO_PRICE_ID;
 
+      // 過去にトライアルを使ったか確認（1アカウント1回限り）
+      const supabaseAdmin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('pro_trial_used')
+        .eq('id', userId)
+        .maybeSingle();
+
+      const trialEligible = !profile?.pro_trial_used;
+
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [
@@ -68,6 +81,8 @@ export async function POST(req: NextRequest) {
         mode: 'subscription',
         // invoice.paid / subscription.deleted の Webhook で userId を取得するため Subscription に載せる
         subscription_data: {
+          // 初回のみ7日間無料トライアル付与
+          ...(trialEligible ? { trial_period_days: 7 } : {}),
           metadata: {
             userId,
             packId: 'pro',
@@ -79,6 +94,7 @@ export async function POST(req: NextRequest) {
         metadata: {
           userId: userId,
           packId: 'pro',
+          trial_eligible: trialEligible ? 'true' : 'false',
         },
       });
 
