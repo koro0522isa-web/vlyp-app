@@ -642,7 +642,7 @@ function MessagesInner() {
                       ref={inputRef}
                       type="text"
                       placeholder="Type your message..."
-                      className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] py-5 px-8 pr-16 text-sm font-medium focus:outline-none focus:border-blue-500/50 transition-all group-hover:bg-white/[0.08]"
+                      className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] py-5 px-8 pr-16 text-base font-medium focus:outline-none focus:border-blue-500/50 transition-all group-hover:bg-white/[0.08]"
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyDown={(e) => {

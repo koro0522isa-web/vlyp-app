@@ -554,7 +554,7 @@ function PostContent() {
                     value={scheduledAt}
                     onChange={(e) => setScheduledAt(e.target.value)}
                     min={new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16)}
-                    className="w-full bg-white/5 border border-blue-500/30 focus:border-blue-500/60 p-3 rounded-2xl outline-none font-bold text-sm text-zinc-300"
+                    className="w-full bg-white/5 border border-blue-500/30 focus:border-blue-500/60 p-3 rounded-2xl outline-none font-bold text-base text-zinc-300"
                     style={{ colorScheme: 'dark' }}
                   />
                 </div>
@@ -591,7 +591,7 @@ function PostContent() {
                   onChange={(e) => setHashtagInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addHashtag())}
                   placeholder="Add tag..."
-                  className="flex-1 bg-white/5 border border-white/10 p-4 rounded-2xl outline-none font-bold placeholder:text-zinc-700 text-sm"
+                  className="flex-1 bg-white/5 border border-white/10 p-4 rounded-2xl outline-none font-bold placeholder:text-zinc-700 text-base"
                 />
                 <motion.button
                   type="button"

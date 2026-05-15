@@ -684,7 +684,7 @@ function HomeContent() {
   return (
     <div className="flex h-screen bg-[#09090B] text-zinc-100 overflow-hidden font-sans">
       <Sidebar />
-      <main className="flex-1 h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar bg-black relative">
+      <main className="flex-1 h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar bg-black relative pb-16 md:pb-0">
         {/* ストーリーズバー + フィードモード切り替え */}
         <div className="sticky top-0 z-30 bg-black/90 backdrop-blur-xl border-b border-white/5">
           <div className="flex items-center justify-center gap-1 pt-3 pb-2">
@@ -975,7 +975,7 @@ function HomeContent() {
             <div className="relative group">
               <textarea 
                 placeholder={replyingTo ? t('comments.placeholderReply') : t('comments.placeholder')} 
-                className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] py-5 px-6 pr-16 text-sm font-medium focus:outline-none focus:border-blue-500/50 transition-all group-hover:bg-white/[0.08] min-h-[60px] max-h-[150px] scrollbar-hide" 
+                className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] py-5 px-6 pr-16 text-base font-medium focus:outline-none focus:border-blue-500/50 transition-all group-hover:bg-white/[0.08] min-h-[60px] max-h-[150px] scrollbar-hide" 
                 value={newComment} 
                 rows={1}
                 onChange={(e) => {
@@ -1010,7 +1010,7 @@ function HomeContent() {
             <textarea
               value={reportReason}
               onChange={e => setReportReason(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white mb-4 text-sm resize-none"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white mb-4 text-base resize-none"
               placeholder="例: スパム、不適切なコンテンツ、暴力的な表現..."
               rows={3}
               maxLength={200}
@@ -1065,7 +1065,7 @@ function HomeContent() {
               type="number"
               value={giftAmount}
               onChange={e => setGiftAmount(Number(e.target.value))}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white mb-4 text-sm"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white mb-4 text-base"
               placeholder="カスタム金額"
               min={1}
               max={userCoins}
