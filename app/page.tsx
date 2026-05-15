@@ -14,6 +14,7 @@ import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'framer-motion';
 import TikTokPlayer from './components/TikTokPlayer';
 import StoriesBar from './components/StoriesBar';
+import OnboardingModal from './components/OnboardingModal';
 
 function HomeContent() {
   const [clips, setClips] = useState<any[]>([]);
@@ -66,6 +67,9 @@ function HomeContent() {
   const [userCoins, setUserCoins] = useState<number>(0);
   const [isGifting, setIsGifting] = useState(false);
 
+  // オンボーディング
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
   // レポートモーダル
   const [reportModalClipId, setReportModalClipId] = useState<number | null>(null);
   const [reportReason, setReportReason] = useState('');
@@ -114,6 +118,10 @@ function HomeContent() {
       if (currentUser) {
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
         setVlypId(profile?.display_name || profile?.username || profile?.vlyp_id || 'Player');
+        // 初回ログイン時にオンボーディング表示
+        if (profile && !profile.onboarding_completed) {
+          setShowOnboarding(true);
+        }
 
         // コイン残高取得
         const { data: wallet } = await supabase.from('wallets').select('coins').eq('user_id', currentUser.id).maybeSingle();
@@ -596,9 +604,20 @@ function HomeContent() {
       await navigator.clipboard.writeText(url);
       setCopiedId(clip.id);
       setTimeout(() => setCopiedId(null), 2000);
+      toast('リンクをコピーしました');
     } catch {
       setCopiedId(clip.id);
       setTimeout(() => setCopiedId(null), 2000);
+    }
+  };
+
+  const handleCopyEmbed = async (clip: any) => {
+    const embedCode = `<iframe src="${typeof window !== 'undefined' ? window.location.origin : 'https://vlyp-app.vercel.app'}/clip/${clip.id}/embed" width="360" height="640" frameborder="0" allowfullscreen allow="autoplay"></iframe>`;
+    try {
+      await navigator.clipboard.writeText(embedCode);
+      toast('埋め込みコードをコピーしました');
+    } catch {
+      toast('コピーに失敗しました');
     }
   };
 
@@ -1073,6 +1092,14 @@ function HomeContent() {
             )}
           </div>
         </div>
+      )}
+
+      {/* オンボーディング */}
+      {showOnboarding && user && (
+        <OnboardingModal
+          userId={user.id}
+          vlypId={vlypId}
+        />
       )}
 
       <BottomNav />
