@@ -1,13 +1,21 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// lazy 初期化: ビルド時(APIキー無し)に new Resend(undefined) で落ちるのを防ぐ
+let _resend: Resend | null = null;
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  if (!_resend) _resend = new Resend(key);
+  return _resend;
+}
 
 const FROM = 'VLYP <noreply@vlyp.app>';
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://vlyp-app.vercel.app';
 
 // ─── ウェルカムメール ───────────────────────────────────────────
 export async function sendWelcomeEmail(to: string, vlypId: string) {
-  if (!process.env.RESEND_API_KEY) return;
+  const resend = getResend();
+  if (!resend) return;
   await resend.emails.send({
     from: FROM,
     to,
@@ -49,7 +57,8 @@ export async function sendWelcomeEmail(to: string, vlypId: string) {
 
 // ─── フォロー通知 ───────────────────────────────────────────────
 export async function sendFollowEmail(to: string, followerVlypId: string) {
-  if (!process.env.RESEND_API_KEY) return;
+  const resend = getResend();
+  if (!resend) return;
   await resend.emails.send({
     from: FROM,
     to,
@@ -77,7 +86,8 @@ export async function sendFollowEmail(to: string, followerVlypId: string) {
 
 // ─── 投げ銭受信通知 ─────────────────────────────────────────────
 export async function sendGiftReceivedEmail(to: string, senderVlypId: string, amount: number, clipTitle: string) {
-  if (!process.env.RESEND_API_KEY) return;
+  const resend = getResend();
+  if (!resend) return;
   await resend.emails.send({
     from: FROM,
     to,
@@ -109,7 +119,8 @@ export async function sendGiftReceivedEmail(to: string, senderVlypId: string, am
 
 // ─── 新規コメント通知 ───────────────────────────────────────────
 export async function sendCommentEmail(to: string, commenterVlypId: string, comment: string, clipId: number) {
-  if (!process.env.RESEND_API_KEY) return;
+  const resend = getResend();
+  if (!resend) return;
   await resend.emails.send({
     from: FROM,
     to,
