@@ -21,10 +21,11 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { DM_UNREAD_EVENT, PROFILE_REFRESH_EVENT, NOTIF_UNREAD_EVENT } from '@/lib/dm-events';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const [user, setUser] = useState<any>(null);
+  const { user } = useAuth();
   const [vlypId, setVlypId] = useState<string>('Player');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
@@ -68,35 +69,19 @@ export default function Sidebar() {
     if (!error && count !== null) setNotifUnread(count);
   };
 
+  // userはAuthContextから取得 → 変化があったときだけプロフィール再取得
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      if (currentUser) {
-        await loadProfileAndWallet(currentUser.id);
-        await loadDmUnread(currentUser.id);
-        await loadNotifUnread(currentUser.id);
-      } else {
-        setDmUnread(0);
-        setNotifUnread(0);
-      }
-    };
-    fetchUser();
+    if (user) {
+      loadProfileAndWallet(user.id);
+      loadDmUnread(user.id);
+      loadNotifUnread(user.id);
+    } else {
+      setDmUnread(0);
+      setNotifUnread(0);
+    }
+  }, [user]);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) {
-        await loadProfileAndWallet(u.id);
-        await loadDmUnread(u.id);
-        await loadNotifUnread(u.id);
-      } else {
-        setDmUnread(0);
-        setNotifUnread(0);
-      }
-    });
-
+  useEffect(() => {
     const onDmUnread = (e: Event) => {
       const t = (e as CustomEvent<{ total: number }>).detail?.total;
       if (typeof t === 'number') setDmUnread(t);
@@ -106,25 +91,20 @@ export default function Sidebar() {
       if (typeof t === 'number') setNotifUnread(t);
     };
     const onProfileRefresh = () => {
-      void (async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        const uid = session?.user?.id;
-        if (uid) {
-          await loadProfileAndWallet(uid);
-          await loadNotifUnread(uid);
-        }
-      })();
+      if (user) {
+        loadProfileAndWallet(user.id);
+        loadNotifUnread(user.id);
+      }
     };
     window.addEventListener(DM_UNREAD_EVENT, onDmUnread);
     window.addEventListener(NOTIF_UNREAD_EVENT, onNotifUnread);
     window.addEventListener(PROFILE_REFRESH_EVENT, onProfileRefresh);
     return () => {
-      subscription.unsubscribe();
       window.removeEventListener(DM_UNREAD_EVENT, onDmUnread);
       window.removeEventListener(NOTIF_UNREAD_EVENT, onNotifUnread);
       window.removeEventListener(PROFILE_REFRESH_EVENT, onProfileRefresh);
     };
-  }, []);
+  }, [user]);
 
   const handleProUpgrade = async () => {
     if (!user) return;
@@ -283,3 +263,4 @@ export default function Sidebar() {
     </aside>
   );
 }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     

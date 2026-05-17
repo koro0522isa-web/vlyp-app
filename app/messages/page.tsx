@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/app/contexts/AuthContext';
 import Link from 'next/link';
 import Sidebar from '@/app/components/Sidebar';
 import BottomNav from '@/app/components/BottomNav';
@@ -34,6 +35,7 @@ interface ChatPartner {
 function MessagesInner() {
   const searchParams = useSearchParams();
   const targetUserId = searchParams.get('u');
+  const { user: authUser, isLoading: authLoading } = useAuth();
 
   const [user, setUser] = useState<any>(null);
   const [chatPartners, setChatPartners] = useState<ChatPartner[]>([]);
@@ -178,15 +180,21 @@ function MessagesInner() {
     }
   }, [fetchChatPartners]);
 
-  // Init: fetch session + partners + target user
+  // Auth contextからuserを同期
+  useEffect(() => {
+    if (!authLoading && authUser) {
+      setUser(authUser);
+      userRef.current = authUser;
+    }
+  }, [authUser, authLoading]);
+
+  // Init: fetch partners + target user
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { window.location.href = '/login'; return; }
-      
-      const currentUser = session.user;
-      setUser(currentUser);
-      userRef.current = currentUser;
+      if (authLoading) return;
+      if (!authUser) { window.location.href = '/login'; return; }
+
+      const currentUser = authUser;
 
       await fetchChatPartners(currentUser.id);
       
@@ -215,7 +223,7 @@ function MessagesInner() {
       setIsLoading(false);
     };
     init();
-  }, [targetUserId, fetchChatPartners, fetchMessages]);
+  }, [authLoading, authUser, targetUserId, fetchChatPartners, fetchMessages]);
 
   // Realtime subscription - uses refs to avoid stale closure
   // 自分宛の受信メッセージのみフィルタして購読する
@@ -691,11 +699,4 @@ function MessagesInner() {
 export default function Messages() {
   return (
     <Suspense fallback={
-      <div className="flex h-screen bg-[#09090B] items-center justify-center">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
-      </div>
-    }>
-      <MessagesInner />
-    </Suspense>
-  );
-}
+      <

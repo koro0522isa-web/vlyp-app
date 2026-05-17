@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import {
   UploadCloud, Loader2, ArrowLeft, Crown, Sparkles,
   Wand2, Check, Zap, Video as VideoIcon, Gamepad2, Info, X, Hash, Image as ImageIcon, Lock,
@@ -23,6 +24,7 @@ function PostContent() {
   const { t } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, isLoading: authLoading } = useAuth();
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
@@ -30,7 +32,6 @@ function PostContent() {
   const [fileSizeError, setFileSizeError] = useState<string | null>(null);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [gameTitle, setGameTitle] = useState('VALORANT');
-  const [user, setUser] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -56,21 +57,20 @@ function PostContent() {
   const [useSchedule, setUseSchedule] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      if (!currentUser) { router.push('/login'); return; }
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_pro, monthly_uploads')
-        .eq('id', currentUser.id)
-        .maybeSingle();
-      if (profile) {
-        setIsPro(profile.is_pro || false);
-        setMonthlyUploads(profile.monthly_uploads || 0);
-      }
-    });
-  }, []);
+    if (authLoading) return;
+    if (!user) { router.push('/login'); return; }
+    supabase
+      .from('profiles')
+      .select('is_pro, monthly_uploads')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data: profile }) => {
+        if (profile) {
+          setIsPro(profile.is_pro || false);
+          setMonthlyUploads(profile.monthly_uploads || 0);
+        }
+      });
+  }, [authLoading, user]);
 
   useEffect(() => {
     if (searchParams.get('success') === 'true') {
@@ -554,7 +554,7 @@ function PostContent() {
                     value={scheduledAt}
                     onChange={(e) => setScheduledAt(e.target.value)}
                     min={new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16)}
-                    className="w-full bg-white/5 border border-blue-500/30 focus:border-blue-500/60 p-3 rounded-2xl outline-none font-bold text-base text-zinc-300"
+                    className="w-full bg-white/5 border border-blue-500/30 focus:border-blue-500/60 p-3 rounded-2xl outline-none font-bold text-sm text-zinc-300"
                     style={{ colorScheme: 'dark' }}
                   />
                 </div>
@@ -591,7 +591,7 @@ function PostContent() {
                   onChange={(e) => setHashtagInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addHashtag())}
                   placeholder="Add tag..."
-                  className="flex-1 bg-white/5 border border-white/10 p-4 rounded-2xl outline-none font-bold placeholder:text-zinc-700 text-base"
+                  className="flex-1 bg-white/5 border border-white/10 p-4 rounded-2xl outline-none font-bold placeholder:text-zinc-700 text-sm"
                 />
                 <motion.button
                   type="button"
@@ -677,3 +677,4 @@ export default function Post() {
     </Suspense>
   );
 }
+                                                        

@@ -25,22 +25,14 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // セッションを必ずリフレッシュ（これがないとトークン切れでログアウトされる）
-  // getUser() はサーバー側で検証するため信頼性が高い
-  await supabase.auth.getUser();
+  // IMPORTANT: getUser() はサーバー側でトークンを検証しセッションをリフレッシュする
+  // これがないとアクセストークンが1時間で期限切れになりログアウトされる
+  const { data: { user } } = await supabase.auth.getUser();
 
-  return supabaseResponse;
-}
+  // 保護されたルートへの未認証アクセスをサーバー側でリダイレクト
+  const { pathname } = request.nextUrl;
+  const protectedPaths = ['/post', '/studio', '/messages', '/settings', '/analytics', '/notifications', '/edit'];
+  const isProtected = protectedPaths.some(p => pathname.startsWith(p));
 
-export const config = {
-  matcher: [
-    /*
-     * 以下を除くすべてのパスにミドルウェアを適用:
-     * - _next/static (静的ファイル)
-     * - _next/image (画像最適化)
-     * - favicon.ico, sitemap.xml, robots.txt
-     * - 公開アセット (png, jpg, svg など)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
-};
+  if (isProtected && !user) {
+    const loginUrl = new URL('/login', requ

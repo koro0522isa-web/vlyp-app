@@ -31,33 +31,21 @@ function LoginContent() {
       if (user) router.push('/');
     });
 
-    // ログイン成功後にリファラル処理
+    // ログイン成功後: リダイレクト + リファラル処理
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_IN') {
-        // ウェルカムメール送信（二重送信はサーバー側で防止）
-        supabase.auth.getUser().then(({ data: { user } }) => {
-          if (user?.id) {
-            fetch('/api/email/welcome', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ user_id: user.id }),
-            }).catch(() => {});
-          }
-        });
+        // リファラルクレームは非同期でサイレント実行（ブロックしない）
         const storedRef = sessionStorage.getItem('vlyp_referral_code');
         if (storedRef) {
-          try {
-            await fetch('/api/referral/claim', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ referral_code: storedRef }),
-            });
-          } catch (e) {
-            // サイレント失敗OK（既にクレーム済みなど）
-          } finally {
-            sessionStorage.removeItem('vlyp_referral_code');
-          }
+          sessionStorage.removeItem('vlyp_referral_code');
+          fetch('/api/referral/claim', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ referral_code: storedRef }),
+          }).catch(() => {/* サイレント失敗OK */});
         }
+        // ログイン後はトップへリダイレクト（メール/パスワード・OAuth共通）
+        router.push('/');
       }
     });
 
@@ -122,10 +110,4 @@ export default function LoginPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    }>
-      <LoginContent />
-    </Suspense>
-  );
-}
+        <div className="w-10 h-10 border-4 border-blue

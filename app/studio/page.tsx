@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Sidebar from '@/app/components/Sidebar';
 import BottomNav from '@/app/components/BottomNav';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Play, Heart, Trash2, Edit3, DollarSign, ArrowLeft, Video, 
   Eye, Wand2, TrendingUp, BarChart3, Clock, Zap, Crown
@@ -14,27 +15,21 @@ import { motion } from 'framer-motion';
 
 export default function Studio() {
   const { t } = useLanguage();
+  const { user, isLoading: authLoading } = useAuth();
   const [myClips, setMyClips] = useState<any[]>([]);
   const [stats, setStats] = useState({ views: 0, likes: 0, count: 0 });
-  const [user, setUser] = useState<any>(null);
   const [isPro, setIsPro] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchStudioData = async () => {
+  const fetchStudioData = async (uid: string) => {
     setIsLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { window.location.href = '/login'; return; }
-    
-    const currentUser = session.user;
-    setUser(currentUser);
-
-    const { data: profile } = await supabase.from('profiles').select('is_pro').eq('id', currentUser.id).maybeSingle();
+    const { data: profile } = await supabase.from('profiles').select('is_pro').eq('id', uid).maybeSingle();
     setIsPro(profile?.is_pro || false);
 
     const { data: clips } = await supabase
       .from('clips')
       .select('*')
-      .eq('user_id', currentUser.id)
+      .eq('user_id', uid)
       .order('created_at', { ascending: false });
 
     if (clips) {
@@ -48,7 +43,11 @@ export default function Studio() {
     setIsLoading(false);
   };
 
-  useEffect(() => { fetchStudioData(); }, []);
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { window.location.href = '/login'; return; }
+    fetchStudioData(user.id);
+  }, [authLoading, user]);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this clip?")) return;
@@ -212,4 +211,4 @@ function StatBox({ icon, label, value, trend, sub, isPro }: any) {
       </div>
     </div>
   );
-}
+}                                    
