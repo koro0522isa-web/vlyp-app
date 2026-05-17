@@ -46,11 +46,22 @@ export async function POST(req: Request) {
 
   let event: Stripe.Event;
 
-  try {
-    event = stripe.webhooks.constructEvent(payload, sig, webhookSecret!);
-  } catch (err: any) {
-    console.error(`Webhook Signature Verification Failed: ${err.message}`);
-    return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 });
+  // STRIPE_WEBHOOK_SECRET が未設定の場合は署名検証をスキップ（開発環境用フォールバック）
+  if (!webhookSecret) {
+    console.warn('[webhook] STRIPE_WEBHOOK_SECRET not set — skipping signature verification (dev mode)');
+    try {
+      event = JSON.parse(payload) as Stripe.Event;
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
+    }
+  } else {
+    try {
+      event = stripe.webhooks.constructEvent(payload, sig, webhookSecret);
+    } catch (err: any) {
+      console.error(`[webhook] Signature verification failed: ${err.message}`);
+      console.error(`[webhook] Make sure STRIPE_WEBHOOK_SECRET in Vercel matches the Stripe Dashboard webhook secret.`);
+      return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 });
+    }
   }
 
   // ========================================
