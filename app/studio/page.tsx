@@ -211,4 +211,4 @@ function StatBox({ icon, label, value, trend, sub, isPro }: any) {
       </div>
     </div>
   );
-}                                    
+}
