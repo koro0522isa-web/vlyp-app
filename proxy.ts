@@ -57,7 +57,13 @@ export async function proxy(request: NextRequest) {
   if (isProtected && !user) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+    const redirectResponse = NextResponse.redirect(loginUrl);
+    // CRITICAL: getUser() でリフレッシュされた cookie を redirect レスポンスに引き継ぐ
+    // これを忘れると Next.js Supabase Auth で「保護ルートにアクセスした瞬間 cookie が消えて完全ログアウト」になる
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value);
+    });
+    return redirectResponse;
   }
 
   return supabaseResponse;

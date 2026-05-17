@@ -271,6 +271,31 @@ function HomeContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchInitialData(); }, [feedMode]);
 
+  // 認証状態の変化を購読してリロード/再訪問でログアウトされる問題を防ぐ
+  // 初回 getSession() の cookie 復元が遅れて user=null で固定されるのを TOKEN_REFRESHED で取り戻す
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
+        const currentUser = session?.user ?? null;
+        // user state が古い null で固定されている場合は再フェッチして全データを取り直す
+        if (currentUser && !user) {
+          fetchInitialData();
+        } else if (currentUser) {
+          setUser(currentUser);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setVlypId('Player');
+        setUserCoins(0);
+        setUserLikes([]);
+        setUserSaves([]);
+        setFollowingIds([]);
+      }
+    });
+    return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && hasMore && !isFetchingMore && !isLoading) {
