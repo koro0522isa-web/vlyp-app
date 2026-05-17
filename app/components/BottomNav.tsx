@@ -11,6 +11,7 @@ import {
   User,
   MessageSquare,
   Trophy,
+  Wand2,
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { DM_UNREAD_EVENT } from '@/lib/dm-events';
@@ -54,6 +55,7 @@ export default function BottomNav() {
     { icon: Search, label: t('nav.search'), href: '/search', badge: 0 },
     { icon: Plus, label: t('nav.post'), href: user ? '/post' : '/login', isCenter: true, badge: 0 },
     { icon: Trophy, label: 'Rank', href: '/leaderboard', badge: 0 },
+    { icon: Wand2, label: 'AI Edit', href: '/edit', badge: 0 },
     { icon: MessageSquare, label: 'DM', href: '/messages', badge: dmUnread },
     { icon: User, label: t('nav.profile'), href: user ? `/profile/${user.id}` : '/login', badge: 0 },
   ];

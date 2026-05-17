@@ -16,7 +16,8 @@ import {
   Trophy,
   Sparkles,
   Bell,
-  BarChart2
+  BarChart2,
+  Wand2,
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { DM_UNREAD_EVENT, PROFILE_REFRESH_EVENT, NOTIF_UNREAD_EVENT } from '@/lib/dm-events';
@@ -154,6 +155,7 @@ export default function Sidebar() {
     { icon: <Trophy />, label: 'ランキング', href: '/leaderboard', badge: 0 },
     { icon: <MessageSquare />, label: t('sidebar.messages'), href: '/messages', badge: dmUnread },
     { icon: <Clapperboard />, label: t('sidebar.studioEdit'), href: '/studio', badge: 0 },
+    { icon: <Wand2 />, label: 'AI Edit', href: '/edit', badge: 0 },
     { icon: <BarChart2 />, label: 'Analytics', href: '/analytics', badge: 0 },
     { icon: <Settings />, label: t('nav.settings'), href: '/settings', badge: 0 },
   ];
