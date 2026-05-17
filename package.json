@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prepare": "husky",
+    "check:integrity": "node scripts/check-source-integrity.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1043.0",
@@ -42,6 +44,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "husky": "^9.1.7"
   }
 }
