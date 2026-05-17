@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
-
-const r2 = new S3Client({
-  region: 'auto',
-  endpoint: process.env.CLOUDFLARE_R2_ENDPOINT!,
-  credentials: {
-    accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_KEY!,
-  },
-});
-
-const BUCKET = process.env.CLOUDFLARE_R2_BUCKET ?? 'vlyp-uploads';
-const PUBLIC_URL = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? '').replace(/\/$/, '');
+import { deleteObject, PUBLIC_URL } from '@/lib/r2';
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -45,7 +33,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+    await deleteObject(key);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
