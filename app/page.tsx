@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useRef, useCallback, useMemo, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from './contexts/AuthContext';
 import Link from 'next/link';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
@@ -15,9 +14,9 @@ import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'framer-motion';
 import TikTokPlayer from './components/TikTokPlayer';
 import StoriesBar from './components/StoriesBar';
+import OnboardingModal from './components/OnboardingModal';
 
 function HomeContent() {
-  const { user: authUser, isLoading: authLoading } = useAuth();
   const [clips, setClips] = useState<any[]>([]);
   const [ranking, setRanking] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -62,6 +61,20 @@ function HomeContent() {
   // 支援者ランキング
   const [topSupporters, setTopSupporters] = useState<any[]>([]);
 
+  // 投げ銭モーダル
+  const [giftModalClip, setGiftModalClip] = useState<any>(null);
+  const [giftAmount, setGiftAmount] = useState<number>(100);
+  const [userCoins, setUserCoins] = useState<number>(0);
+  const [isGifting, setIsGifting] = useState(false);
+
+  // オンボーディング
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // レポートモーダル
+  const [reportModalClipId, setReportModalClipId] = useState<number | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [isReporting, setIsReporting] = useState(false);
+
   const viewedVideos = useRef<Set<number>>(new Set());
   const observerTarget = useRef<HTMLDivElement>(null);
   /** 同一クリップへのいいね RPC が並列で走ると楽観 UI が壊れるため、進行中クリップ ID を保持する */
@@ -91,18 +104,24 @@ function HomeContent() {
     return (match && match[7].length === 11) ? match[7] : null;
   };
 
-  const fetchInitialData = useCallback(async (currentUser: any) => {
+  const fetchInitialData = async () => {
     setIsLoading(true);
     setPageOffset(0);
     setClips([]);
     setHasMore(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUser = session?.user ?? null;
       setUser(currentUser);
 
       if (currentUser) {
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
         setVlypId(profile?.display_name || profile?.username || profile?.vlyp_id || 'Player');
+        // 初回ログイン時にオンボーディング表示
+        if (profile && !profile.onboarding_completed) {
+          setShowOnboarding(true);
+        }
 
         // コイン残高取得
         const { data: wallet } = await supabase.from('wallets').select('coins').eq('user_id', currentUser.id).maybeSingle();
@@ -249,11 +268,8 @@ function HomeContent() {
     }
   };
 
-  // authLoading が解決したら or feedMode が変わったら初期データ取得
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!authLoading) { fetchInitialData(authUser); }
-  }, [authLoading, authUser, feedMode]);
+  useEffect(() => { fetchInitialData(); }, [feedMode]);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -489,12 +505,19 @@ function HomeContent() {
     });
   };
 
-  const handleReport = async (clipId: number) => {
-    if (!user) return alert(t('auth.loginRequired') || 'Please log in');
-    const reason = window.prompt(t('action.reportReason') || 'Enter the reason for this report:');
-    if (!reason) return;
-    await supabase.rpc('submit_report', { p_clip_id: clipId, p_reporter_id: user.id, p_reason: reason });
-    alert(t('action.reportSubmitted') || 'Report submitted.');
+  const handleReport = (clipId: number) => {
+    if (!user) return toast(t('auth.loginRequired') || 'ログインしてください');
+    setReportReason('');
+    setReportModalClipId(clipId);
+  };
+
+  const handleReportSubmit = async () => {
+    if (!reportModalClipId || !reportReason.trim() || !user) return;
+    setIsReporting(true);
+    await supabase.rpc('submit_report', { p_clip_id: reportModalClipId, p_reporter_id: user.id, p_reason: reportReason.trim() });
+    setIsReporting(false);
+    setReportModalClipId(null);
+    toast(t('action.reportSubmitted') || '報告しました。');
   };
 
   const handleFollow = async (targetId: string) => {
@@ -504,6 +527,14 @@ function HomeContent() {
     const isFollowing = followingIds.includes(targetId);
     setFollowingIds(prev => isFollowing ? prev.filter(id => id !== targetId) : [...prev, targetId]);
     await supabase.rpc('toggle_follow', { p_follower_id: user.id, p_following_id: targetId });
+    // フォロー時のみメール通知（アンフォローは送らない）
+    if (!isFollowing) {
+      fetch('/api/email/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'follow', actor_id: user.id, target_id: targetId }),
+      }).catch(() => {});
+    }
   };
 
   const handleUnlockClip = async (clip: any) => {
@@ -514,7 +545,7 @@ function HomeContent() {
     setIsUnlocking(null);
     if (error || data?.error) {
       if (data?.error === 'Insufficient coins') {
-        if (window.confirm('コインが不足しています。コインショップへ行きますか？')) window.location.href = '/coins';
+        toast('コインが不足しています。/coins でチャージできます。');
       } else {
         alert('エラーが発生しました: ' + (data?.error || error?.message));
       }
@@ -543,7 +574,7 @@ function HomeContent() {
     setIsGifting(false);
     setGiftModalClip(null);
     if (error || !data) {
-      if (window.confirm(t('gift.insufficientCoins') || 'Insufficient coins. Go to coin shop?')) window.location.href = '/coins';
+      toast(t('gift.insufficientCoins') || 'コインが不足しています。/coins でチャージできます。');
     } else {
       setUserCoins(prev => Math.max(0, prev - giftAmount));
       confetti({
@@ -554,6 +585,16 @@ function HomeContent() {
         shapes: ['star'],
       });
       toast(`${giftAmount} ${t('gift.sent') || 'コインを贈りました!'}`);
+      // 受信者にメール通知
+      const clipTitle = giftModalClip?.title ?? '動画';
+      const receiverId = giftModalClip?.user_id;
+      if (receiverId) {
+        fetch('/api/email/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'gift', actor_id: user.id, target_id: receiverId, amount: giftAmount, clip_title: clipTitle }),
+        }).catch(() => {});
+      }
     }
   };
 
@@ -563,9 +604,20 @@ function HomeContent() {
       await navigator.clipboard.writeText(url);
       setCopiedId(clip.id);
       setTimeout(() => setCopiedId(null), 2000);
+      toast('リンクをコピーしました');
     } catch {
       setCopiedId(clip.id);
       setTimeout(() => setCopiedId(null), 2000);
+    }
+  };
+
+  const handleCopyEmbed = async (clip: any) => {
+    const embedCode = `<iframe src="${typeof window !== 'undefined' ? window.location.origin : 'https://vlyp-app.vercel.app'}/clip/${clip.id}/embed" width="360" height="640" frameborder="0" allowfullscreen allow="autoplay"></iframe>`;
+    try {
+      await navigator.clipboard.writeText(embedCode);
+      toast('埋め込みコードをコピーしました');
+    } catch {
+      toast('コピーに失敗しました');
     }
   };
 
@@ -617,6 +669,14 @@ function HomeContent() {
       setCurrentClipComments(prev => [data, ...prev]);
       setNewComment('');
       setReplyingTo(null);
+      // 動画オーナーにメール通知（自分のクリップへのコメントは送らない）
+      if (commentClipOwnerId && commentClipOwnerId !== user.id) {
+        fetch('/api/email/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'comment', actor_id: user.id, target_id: commentClipOwnerId, comment: newComment, clip_id: commentClipId }),
+        }).catch(() => {});
+      }
     }
     setIsCommenting(false);
   };
@@ -624,7 +684,7 @@ function HomeContent() {
   return (
     <div className="flex h-screen bg-[#09090B] text-zinc-100 overflow-hidden font-sans">
       <Sidebar />
-      <main className="flex-1 h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar bg-black relative">
+      <main className="flex-1 h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar bg-black relative pb-16 md:pb-0">
         {/* ストーリーズバー + フィードモード切り替え */}
         <div className="sticky top-0 z-30 bg-black/90 backdrop-blur-xl border-b border-white/5">
           <div className="flex items-center justify-center gap-1 pt-3 pb-2">
@@ -717,7 +777,7 @@ function HomeContent() {
               <h2 className="text-xl font-black italic uppercase tracking-tighter text-white mb-2">読み込みに失敗しました</h2>
               <p className="text-sm font-bold text-zinc-500 mb-8 max-w-xs">ネットワーク接続を確認して、もう一度お試しください。</p>
               <button
-                onClick={() => { setFetchError(false); fetchInitialData(authUser); }}
+                onClick={() => { setFetchError(false); fetchInitialData(); }}
                 className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-500 transition-colors shadow-[0_0_20px_rgba(37,99,235,0.4)]"
               >
                 再試行
@@ -915,7 +975,7 @@ function HomeContent() {
             <div className="relative group">
               <textarea 
                 placeholder={replyingTo ? t('comments.placeholderReply') : t('comments.placeholder')} 
-                className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] py-5 px-6 pr-16 text-sm font-medium focus:outline-none focus:border-blue-500/50 transition-all group-hover:bg-white/[0.08] min-h-[60px] max-h-[150px] scrollbar-hide" 
+                className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] py-5 px-6 pr-16 text-base font-medium focus:outline-none focus:border-blue-500/50 transition-all group-hover:bg-white/[0.08] min-h-[60px] max-h-[150px] scrollbar-hide" 
                 value={newComment} 
                 rows={1}
                 onChange={(e) => {
@@ -941,6 +1001,38 @@ function HomeContent() {
           </div>
         </div>
         )}
+      {/* レポートモーダル */}
+      {reportModalClipId && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setReportModalClipId(null)}>
+          <div className="bg-[#111] border border-white/10 rounded-3xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-black mb-2">報告する</h3>
+            <p className="text-zinc-400 text-sm mb-4">報告理由を入力してください（最大200文字）</p>
+            <textarea
+              value={reportReason}
+              onChange={e => setReportReason(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white mb-4 text-base resize-none"
+              placeholder="例: スパム、不適切なコンテンツ、暴力的な表現..."
+              rows={3}
+              maxLength={200}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setReportModalClipId(null)}
+                className="flex-1 py-3 bg-white/5 rounded-xl font-black text-xs"
+              >キャンセル</button>
+              <button
+                onClick={handleReportSubmit}
+                disabled={isReporting || !reportReason.trim()}
+                className="flex-1 py-3 bg-red-500 text-white rounded-xl font-black text-xs disabled:opacity-50"
+              >
+                {isReporting ? '送信中...' : '報告する'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 投げ銭モーダル */}
       {giftModalClip && (
         <div className="fixed inset-0 bg-black/80 flex items-end md:items-center justify-center z-50 p-4">
@@ -973,7 +1065,7 @@ function HomeContent() {
               type="number"
               value={giftAmount}
               onChange={e => setGiftAmount(Number(e.target.value))}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white mb-4 text-sm"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white mb-4 text-base"
               placeholder="カスタム金額"
               min={1}
               max={userCoins}
@@ -999,4 +1091,26 @@ function HomeContent() {
               </p>
             )}
           </div>
-  
+        </div>
+      )}
+
+      {/* オンボーディング */}
+      {showOnboarding && user && (
+        <OnboardingModal
+          userId={user.id}
+          vlypId={vlypId}
+        />
+      )}
+
+      <BottomNav />
+    </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense>
+      <HomeContent />
+    </Suspense>
+  );
+}
