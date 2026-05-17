@@ -78,7 +78,7 @@ function MessagesInner() {
 
       // フォールバック: RPC未作成時の従来方式
       const { data: allMsgs, error } = await supabase
-        .from('messages')
+        .from('direct_messages')
         .select('sender_id, receiver_id, content, created_at')
         .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
         .order('created_at', { ascending: false });
@@ -95,7 +95,7 @@ function MessagesInner() {
       });
 
       const { data: unreadRows } = await supabase
-        .from('messages')
+        .from('direct_messages')
         .select('sender_id')
         .eq('receiver_id', userId)
         .eq('is_read', false);
@@ -143,7 +143,7 @@ function MessagesInner() {
   const fetchMessages = useCallback(async (userId: string, partnerId: string) => {
     try {
       const { data, error } = await supabase
-        .from('messages')
+        .from('direct_messages')
         .select('*')
         .or(`and(sender_id.eq.${userId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${userId})`)
         .order('created_at', { ascending: true });
@@ -161,7 +161,7 @@ function MessagesInner() {
       }
 
       const { error: updateError } = await supabase
-        .from('messages')
+        .from('direct_messages')
         .update({ is_read: true })
         .eq('sender_id', partnerId)
         .eq('receiver_id', userId)
@@ -230,7 +230,7 @@ function MessagesInner() {
         { 
           event: 'INSERT', 
           schema: 'public', 
-          table: 'messages',
+          table: 'direct_messages',
           filter: `receiver_id=eq.${user.id}`
         },
         async (payload) => {
@@ -246,7 +246,7 @@ function MessagesInner() {
             
             // 開いている会話なので即座に既読にする
             const { error: readErr } = await supabase
-              .from('messages')
+              .from('direct_messages')
               .update({ is_read: true })
               .eq('id', newMsg.id);
             if (readErr) console.error('既読更新エラー:', readErr);
@@ -262,7 +262,7 @@ function MessagesInner() {
         { 
           event: 'INSERT', 
           schema: 'public', 
-          table: 'messages',
+          table: 'direct_messages',
           filter: `sender_id=eq.${user.id}`
         },
         (payload) => {
@@ -284,7 +284,7 @@ function MessagesInner() {
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'messages',
+          table: 'direct_messages',
           filter: `sender_id=eq.${user.id}`,
         },
         (payload) => {
@@ -335,7 +335,7 @@ function MessagesInner() {
 
     try {
       const { data, error } = await supabase
-        .from('messages')
+        .from('direct_messages')
         .insert({
           sender_id: user.id,
           receiver_id: selectedPartner.id,
@@ -384,7 +384,7 @@ function MessagesInner() {
 
   const deleteMessage = async (msgId: string) => {
     if (!confirm('このメッセージを削除しますか？')) return;
-    await supabase.from('messages').delete().eq('id', msgId);
+    await supabase.from('direct_messages').delete().eq('id', msgId);
     setMessages(prev => prev.filter(m => m.id !== msgId));
   };
 

@@ -51,7 +51,7 @@ export default function Sidebar() {
 
   const loadDmUnread = async (userId: string) => {
     const { count, error } = await supabase
-      .from('messages')
+      .from('direct_messages')
       .select('*', { count: 'exact', head: true })
       .eq('receiver_id', userId)
       .eq('is_read', false);

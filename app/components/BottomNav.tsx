@@ -28,7 +28,7 @@ export default function BottomNav() {
       setUser(u);
       if (u) {
         const { count } = await supabase
-          .from('messages')
+          .from('direct_messages')
           .select('*', { count: 'exact', head: true })
           .eq('receiver_id', u.id)
           .eq('is_read', false);
