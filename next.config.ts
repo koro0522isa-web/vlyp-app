@@ -36,36 +36,19 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // セキュリティヘッダー（動画再生を妨げない形で復活）
+  // セキュリティヘッダー
   async headers() {
     return [
+      // ── 全ルート共通（embed除く） ──────────────────────
       {
-        source: '/(.*)',
+        source: '/((?!clip/.*/embed).*)',
         headers: [
+          { key: 'X-Frame-Options',        value: 'DENY' },
+          { key: 'X-Content-Type-Options',  value: 'nosniff' },
+          { key: 'Referrer-Policy',         value: 'strict-origin-when-cross-origin' },
+          { key: 'X-DNS-Prefetch-Control',  value: 'on' },
+          { key: 'Permissions-Policy',      value: 'camera=(), microphone=(), geolocation=()' },
           {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
-          },
-          {
-            key: 'X-DNS-Prefetch-Control',
-            value: 'on',
-          },
-          {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
-          },
-          {
-            // FFmpeg.wasm (unpkg.com) に必要な CSP
-            // wasm-unsafe-eval: WebAssembly 実行を許可
-            // blob: / unpkg.com: ffmpeg-core.js / .wasm のロードを許可
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
@@ -79,6 +62,25 @@ const nextConfig: NextConfig = {
               "frame-src 'none'",
             ].join('; '),
           },
+        ],
+      },
+      // ── /clip/[id]/embed: iframe 埋め込み許可 ──────────
+      {
+        source: '/clip/:id/embed',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy',        value: 'strict-origin-when-cross-origin' },
+          // X-Frame-Options を設定しないことで iframe 埋め込みを許可
+          // Content-Security-Policy の frame-ancestors は 'self' のみ許可しない（埋め込み用なので '*'）
+          { key: 'Content-Security-Policy', value: "frame-ancestors *; default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; media-src 'self' https: blob:; img-src 'self' https: data: blob:" },
+        ],
+      },
+      // ── /post: FFmpeg.wasm の SharedArrayBuffer に必要 ──
+      {
+        source: '/post',
+        headers: [
+          { key: 'Cross-Origin-Opener-Policy',   value: 'same-origin' },
+          { key: 'Cross-Origin-Embedder-Policy',  value: 'require-corp' },
         ],
       },
     ];
