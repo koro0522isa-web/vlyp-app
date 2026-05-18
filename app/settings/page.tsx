@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from '@/app/components/Sidebar';
@@ -9,7 +9,7 @@ import { Save, User, ArrowLeft, Loader2, LogOut, MessageSquare, Eye, Globe, Crow
 import { useLanguage } from "../contexts/LanguageContext";
 import { useProMonthlyCoins } from "../hooks/useProMonthlyCoins";
 
-export default function SettingsPage() {
+function SettingsContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [username, setUsername] = useState(""); // @IDになる部分
@@ -486,5 +486,17 @@ export default function SettingsPage() {
 
       <BottomNav />
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <SettingsContent />
+    </Suspense>
   );
 }
