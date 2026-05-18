@@ -55,13 +55,13 @@ export default function LandingPage() {
               <Gamepad2 size={18} />
               今すぐ無料で始める
             </Link>
-            <a
-              href="#desktop-app"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all px-8 py-4 text-sm font-medium text-gray-300"
+            <Link
+              href="/login?intent=pro"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20 transition-all px-8 py-4 text-sm font-medium text-blue-300"
             >
               <Monitor size={18} />
-              デスクトップアプリを見る
-            </a>
+              7日間Pro無料トライアル
+            </Link>
           </div>
 
           {/* social proof */}
@@ -178,7 +178,7 @@ export default function LandingPage() {
             {
               icon: <Crown size={22} className="text-purple-400" />,
               title: 'Proクリエイター',
-              desc: '月額¥1,500でProバッジ、予約投稿、収益ダッシュボードが解放される。',
+              desc: '月額¥980でProバッジ、予約投稿、収益ダッシュボードが解放される。最初の7日間は無料。',
             },
             {
               icon: <Monitor size={22} className="text-cyan-400" />,
@@ -257,7 +257,7 @@ export default function LandingPage() {
                 <Crown size={20} className="text-blue-400" />
                 <h3 className="text-xl font-bold">Pro</h3>
               </div>
-              <p className="text-3xl font-black mb-6">¥1,500<span className="text-sm font-normal text-gray-500">/月</span></p>
+              <div className="mb-6"><p className="text-3xl font-black">¥980<span className="text-sm font-normal text-gray-500">/月</span></p><p className="text-xs font-bold text-blue-400 mt-1">7日間無料 → その後 ¥980/月</p></div>
               <ul className="space-y-3 text-sm">
                 {[
                   { text: '動画投稿無制限', highlight: true },
@@ -278,11 +278,11 @@ export default function LandingPage() {
                 ))}
               </ul>
               <Link
-                href="/login"
+                href="/login?intent=pro"
                 className="mt-8 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 transition-colors px-6 py-3 text-sm font-bold shadow-lg shadow-blue-600/20"
               >
                 <Sparkles size={16} />
-                Proを始める
+                7日間無料でProを試す
               </Link>
             </div>
           </div>

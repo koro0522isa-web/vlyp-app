@@ -26,6 +26,10 @@ function LoginContent() {
       if (stored) setRefCode(stored);
     }
 
+    // Pro 購読意図を sessionStorage に保存して signup フロー中に保持
+    const intent = searchParams.get('intent');
+    if (intent === 'pro') sessionStorage.setItem('vlyp_intent', 'pro');
+
     // すでにログインしてたらトップへ
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) router.push('/');
@@ -57,6 +61,13 @@ function LoginContent() {
           } finally {
             sessionStorage.removeItem('vlyp_referral_code');
           }
+        }
+        // LP の「Proを試す」CTA 経由で来た人は signup 完了後すぐ settings?upgrade=pro に飛ばす
+        const intent = sessionStorage.getItem('vlyp_intent') || searchParams.get('intent');
+        if (intent === 'pro') {
+          sessionStorage.removeItem('vlyp_intent');
+          router.push('/settings?upgrade=pro');
+          return;
         }
       }
     });
