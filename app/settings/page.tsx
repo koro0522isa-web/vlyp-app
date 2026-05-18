@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from '@/app/components/Sidebar';
 import BottomNav from '@/app/components/BottomNav';
 import { Save, User, ArrowLeft, Loader2, LogOut, MessageSquare, Eye, Globe, Crown, Check, Gift, Copy, Users } from 'lucide-react';
@@ -25,8 +25,40 @@ export default function SettingsPage() {
   const [billingPortalLoading, setBillingPortalLoading] = useState(false);
   const { lang, setLang, t } = useLanguage();
   const router = useRouter();
+  const searchParams = useSearchParams();
   // Pro月50コイン自動付与
   useProMonthlyCoins();
+
+  // ── ?upgrade=pro 自動 Checkout ───────────────────────────
+  // LP「7日間Pro無料トライアル」CTA → signup → settings?upgrade=pro
+  // 着地と同時に Stripe Checkout を自動発火させて 1 タップで購入導線を短縮
+  useEffect(() => {
+    if (loading) return;
+    if (isPro) return;
+    if (searchParams.get('upgrade') !== 'pro') return;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      try {
+        const res = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ packId: 'pro' }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          // 二重発火防止: URL から ?upgrade=pro を外す
+          window.history.replaceState({}, '', '/settings');
+          window.location.href = data.url;
+        }
+      } catch (e) {
+        console.error('auto-upgrade checkout error:', e);
+      }
+    })();
+  }, [loading, isPro, searchParams]);
 
   useEffect(() => {
     const fetchProfile = async () => {
