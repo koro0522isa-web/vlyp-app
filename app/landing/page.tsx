@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { Gamepad2, Coins, Crown, Play, CheckCircle2, Zap, Monitor, Scissors, Type, Upload, ArrowRight, Star, Shield, BarChart3, Clock, Sparkles, Target, Video } from 'lucide-react';
+import { Gamepad2, Coins, Crown, Play, CheckCircle2, Zap, Monitor, Scissors, Type, Upload, ArrowRight, Star, Shield, BarChart3, Clock, Sparkles, Target, Video, Wand2, Globe } from 'lucide-react';
 
 export default function LandingPage() {
   return (
@@ -207,6 +207,85 @@ export default function LandingPage() {
               <p className="text-sm text-gray-400 leading-relaxed">{f.desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ===== VLYP Pro Studio (SaaS統合) ===== */}
+      <section className="px-6 py-20 bg-gradient-to-b from-blue-950/20 via-violet-950/20 to-transparent border-y border-white/5">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-500/40 bg-purple-500/10 px-4 py-1.5 text-xs font-medium text-purple-300 mb-4">
+              <Sparkles size={12} />
+              Pro Studio — クリエイターワークフロー全部入り
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black text-white">
+              撮る・切る・編集・投稿を<br className="sm:hidden" />
+              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">1つで完結。</span>
+            </h2>
+            <p className="text-gray-400 mt-3 max-w-xl mx-auto text-sm leading-relaxed">
+              キル検知・自動切り抜き・縦型変換・字幕・投稿まで、海外SaaSが別々のツールでやっている全工程を、日本語UIでまとめて。Proなら無制限。
+            </p>
+          </div>
+
+          {/* Workflow row */}
+          <div className="grid sm:grid-cols-4 gap-3 mb-12">
+            {[
+              { step: '01', icon: <Video size={18} className="text-red-400" />, title: '常時録画', desc: 'バックグラウンドで直近2分をローリング保持' },
+              { step: '02', icon: <Target size={18} className="text-yellow-400" />, title: '自動検知', desc: 'Valorant / LoL / Apex のキル・Aceを検知' },
+              { step: '03', icon: <Scissors size={18} className="text-purple-400" />, title: '自動編集', desc: '音声ピークでハイライト抽出・縦型変換' },
+              { step: '04', icon: <Upload size={18} className="text-green-400" />, title: '1クリック投稿', desc: 'VLYPフィードへ直接投稿。中間ツール無し' },
+            ].map((s) => (
+              <div key={s.step} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 hover:border-purple-500/30 transition-colors">
+                <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-3">{s.step}</p>
+                <div className="flex items-center gap-2 mb-2">{s.icon}<h3 className="text-sm font-bold text-white">{s.title}</h3></div>
+                <p className="text-xs text-gray-500 leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Feature grid */}
+          <div className="grid sm:grid-cols-2 gap-4 mb-10">
+            {[
+              { icon: <Monitor size={18} className="text-cyan-400" />, title: 'デスクトップアプリ', body: 'Windows用Electron版。Valorant/LoL/Apexの Live Client Data APIで安定したキル検知。', badge: 'Pro' },
+              { icon: <Scissors size={18} className="text-violet-400" />, title: 'ブラウザ動画エディタ', body: 'FFmpeg.wasmでブラウザ完結。アップロード不要・処理データはあなたのPC内のみ。', badge: '今すぐ試せる' },
+              { icon: <Sparkles size={18} className="text-pink-400" />, title: '音声ピーク自動ハイライト', body: '500ms RMSウィンドウで叫び・効果音ピークを検出。10秒クリップを自動生成。', badge: 'Pro' },
+              { icon: <Type size={18} className="text-orange-400" />, title: '縦型変換 + 字幕(予定)', body: '9:16ショート最適化。Whisper API字幕は順次対応。', badge: 'Pro' },
+              { icon: <Globe size={18} className="text-blue-400" />, title: '日本語完全対応', body: 'UIから字幕プロンプトまで全て日本語ネイティブ設計。海外ツールにない強み。', badge: 'Free / Pro' },
+              { icon: <Zap size={18} className="text-yellow-400" />, title: '究極の安さ', body: '海外SaaSが月\$5〜10のところ、VLYP Proは月¥980 + 7日無料トライアル。', badge: 'Pro' },
+            ].map((f) => (
+              <div key={f.title} className="rounded-2xl border border-white/10 bg-black/30 p-5 flex gap-4 items-start">
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">{f.icon}</div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <h3 className="text-sm font-bold text-white">{f.title}</h3>
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${f.badge === 'Pro' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : f.badge === '今すぐ試せる' ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'}`}>{f.badge}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 leading-relaxed">{f.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              href="/edit"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-pink-600 hover:from-violet-500 hover:to-pink-500 transition-all px-8 py-4 text-sm font-bold shadow-lg shadow-purple-600/30 hover:scale-[1.02]"
+            >
+              <Wand2 size={18} />
+              ブラウザで今すぐ動画編集を試す
+            </Link>
+            <Link
+              href="/login?intent=pro"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 transition-all px-8 py-4 text-sm font-medium text-purple-300"
+            >
+              <Crown size={18} />
+              全機能をProで開放 (7日無料)
+            </Link>
+          </div>
+
+          <p className="text-center text-[10px] text-gray-600 mt-6 font-medium uppercase tracking-widest">
+            * デスクトップアプリは現在クローズドベータ。Pro登録者から順次招待。
+          </p>
         </div>
       </section>
 
