@@ -21,7 +21,7 @@ import {
   ChevronRight,
   Lock,
   RotateCcw,
-  Download,, Type} from 'lucide-react';
+  Download, Type} from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Types
