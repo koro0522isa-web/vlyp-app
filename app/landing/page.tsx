@@ -223,7 +223,7 @@ export default function LandingPage() {
               <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">1つで完結。</span>
             </h2>
             <p className="text-gray-400 mt-3 max-w-xl mx-auto text-sm leading-relaxed">
-              キル検知・自動切り抜き・縦型変換・AI字幕・透かし制御・投稿まで、海外SaaSが別々のツールでやっている全工程を、日本語UIで完結。Proなら無制限+透かし無し+AI字幕。
+              キル検知・自動切り抜き・縦型変換・AI字幕・BGMミックス・透かし制御・投稿まで、海外SaaSが別々のツールでやっている全工程を、日本語UIで完結。Proなら全部入り。
             </p>
           </div>
 
@@ -250,6 +250,7 @@ export default function LandingPage() {
               { icon: <Scissors size={18} className="text-violet-400" />, title: 'ブラウザ動画エディタ', body: 'FFmpeg.wasmでブラウザ完結。アップロード不要・処理データはあなたのPC内のみ。', badge: '今すぐ試せる' },
               { icon: <Sparkles size={18} className="text-pink-400" />, title: '音声ピーク自動ハイライト', body: '500ms RMSウィンドウで叫び・効果音ピークを検出。10秒クリップを自動生成。', badge: 'Pro' },
               { icon: <Type size={18} className="text-orange-400" />, title: '縦型変換 + AI字幕', body: '9:16ショート最適化 + OpenAI Whisper による自動字幕焼き付け。', badge: 'Pro' },
+              { icon: <Star size={18} className="text-amber-400" />, title: 'BGMミックス', body: '好きな音声を持ち込んで動画音声と重ねる。音量スライダー付き。サーバー送信なし。', badge: 'Pro' },
               { icon: <Globe size={18} className="text-blue-400" />, title: '日本語完全対応', body: 'UI・タイトル焼き付け(NotoSansJP)・AI字幕まで全て日本語ネイティブ。海外SaaSにない強み。', badge: 'Free / Pro' },
               { icon: <Zap size={18} className="text-yellow-400" />, title: '究極の安さ', body: '海外SaaSが月\$5〜10のところ、VLYP Proは月¥980 + 7日無料トライアル。', badge: 'Pro' },
             ].map((f) => (
