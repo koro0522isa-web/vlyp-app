@@ -22,6 +22,7 @@ import {
   Lock,
   RotateCcw,
   Download, Type} from 'lucide-react';
+import ProUpsellModal, { UpsellReason } from '@/app/components/ProUpsellModal';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -321,6 +322,43 @@ async function buildHighlightReel(
 }
 
 // ---------------------------------------------------------------------------
+// Game context: ファイル名 + ハイライト数から自動タイトル提案
+// ---------------------------------------------------------------------------
+const GAME_PATTERNS: Array<{ keywords: string[]; label: string }> = [
+  { keywords: ['valorant', 'vctval', 'vct'], label: 'VALORANT' },
+  { keywords: ['apex', 'legends'], label: 'APEX LEGENDS' },
+  { keywords: ['league', 'lol_', 'lol-', 'leagueoflegends'], label: 'LEAGUE OF LEGENDS' },
+  { keywords: ['overwatch', '_ow_', '-ow-'], label: 'OVERWATCH' },
+  { keywords: ['fortnite', '_fn_', '-fn-'], label: 'FORTNITE' },
+  { keywords: ['counter', 'csgo', 'cs2'], label: 'COUNTER-STRIKE' },
+  { keywords: ['minecraft', 'mc_', 'mc-'], label: 'MINECRAFT' },
+  { keywords: ['pubg'], label: 'PUBG' },
+  { keywords: ['rocketleague', 'rocket-league', '_rl_'], label: 'ROCKET LEAGUE' },
+];
+
+const KILL_LABELS: Record<number, string> = {
+  1: 'BIG PLAY',
+  2: 'DOUBLE KILL',
+  3: 'TRIPLE KILL',
+  4: 'QUADRA KILL',
+  5: 'ACE',
+};
+
+function inferGameFromFilename(name: string): string | null {
+  const n = name.toLowerCase();
+  for (const { keywords, label } of GAME_PATTERNS) {
+    if (keywords.some((k) => n.includes(k))) return label;
+  }
+  return null;
+}
+
+function suggestTitle(fileName: string, highlightCount: number): string {
+  const game = inferGameFromFilename(fileName);
+  const action = KILL_LABELS[highlightCount] || (highlightCount >= 5 ? 'PENTAKILL' : 'HIGHLIGHT');
+  return game ? `${game} - ${action}` : action;
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 export default function AIEditPage() {
@@ -340,6 +378,9 @@ export default function AIEditPage() {
   const [bgmFile, setBgmFile] = useState<File | null>(null);
   const [bgmVolume, setBgmVolume] = useState<number>(0.3);
   const bgmInputRef = useRef<HTMLInputElement>(null);
+  const [upsellOpen, setUpsellOpen] = useState<boolean>(false);
+  const [upsellReason, setUpsellReason] = useState<UpsellReason>('edit_free_used');
+  const [suggestedTitle, setSuggestedTitle] = useState<string>('');
   const [subProgress, setSubProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -393,7 +434,12 @@ export default function AIEditPage() {
 
   const handleProcess = async () => {
     if (!videoFile) return;
-    if (!canUse) return;
+    if (!canUse) {
+      // Free 無料お試し済 → Pro upsell モーダル
+      setUpsellReason('edit_free_used');
+      setUpsellOpen(true);
+      return;
+    }
 
     setStep('loading_ffmpeg');
     setSubProgress(0);
@@ -408,6 +454,10 @@ export default function AIEditPage() {
       setDetectedClips(clips);
       setStep('detecting_highlights');
       setSubProgress(100);
+
+      // ゲーム文脈推測 → 自動タイトル候補をセット (ユーザーが未入力なら placeholder で見せる)
+      const suggestion = suggestTitle(videoFile.name, clips.length);
+      setSuggestedTitle(suggestion);
 
       if (clips.length === 0) {
         throw new Error('ハイライトシーンが検出できませんでした。音声があるゲーム動画を使用してください。');
@@ -499,6 +549,7 @@ export default function AIEditPage() {
   const isProcessing = step !== 'idle' && step !== 'done' && step !== 'error';
 
   return (
+    <>
     <div className="min-h-screen bg-[#06060A] text-white flex flex-col">
       {/* Header */}
       <header className="flex items-center gap-4 px-6 py-5 border-b border-white/5">
@@ -654,12 +705,22 @@ export default function AIEditPage() {
                   type="text"
                   value={customTitle}
                   onChange={(e) => setCustomTitle(e.target.value)}
-                  placeholder="エースクラッチ / 1v5 神プレー..."
+                  placeholder={suggestedTitle || "エースクラッチ / 1v5 神プレー..."}
                   maxLength={40}
                   className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-violet-500/50 transition-colors"
                 />
+                {suggestedTitle && !customTitle && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomTitle(suggestedTitle)}
+                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/30 text-[10px] font-black text-violet-300 uppercase tracking-widest transition-colors"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    AI提案: {suggestedTitle}
+                  </button>
+                )}
                 <p className="text-[9px] text-zinc-700 mt-1.5 font-medium leading-relaxed">
-                  動画の冒頭 2.5秒に表示。日本語・英語・絵文字 OK (最大40文字)。
+                  動画の冒頭 2.5秒に表示。日本語・英語・絵文字 OK (最大40文字)。AI提案はファイル名 + ハイライト数から自動生成。
                 </p>
               </div>
 
@@ -743,15 +804,20 @@ export default function AIEditPage() {
                   </div>
                   </>
                 ) : (
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-purple-500/5 border border-purple-500/20">
+                  <button
+                    type="button"
+                    onClick={() => { setUpsellReason('watermark'); setUpsellOpen(true); }}
+                    className="w-full text-left flex items-start gap-3 p-3 rounded-xl bg-purple-500/5 hover:bg-purple-500/10 border border-purple-500/20 hover:border-purple-500/40 transition-colors"
+                  >
                     <Crown className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                      <p className="text-[10px] font-black text-purple-300 uppercase tracking-widest">VLYP透かしを外すには Pro</p>
+                      <p className="text-[10px] font-black text-purple-300 uppercase tracking-widest">VLYP透かしを外す + AI字幕 + BGM → Pro</p>
                       <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed font-medium">
-                        現在は右下に小さく "VLYP.APP" が入ります。Proなら非表示にできます。
+                        現在は右下に小さく "VLYP.APP" が入ります。Proなら透かし非表示 + AI字幕 + BGMミックス全部開放。
                       </p>
+                      <p className="text-[10px] text-purple-400 mt-2 font-black uppercase tracking-widest">タップして 7日無料で試す →</p>
                     </div>
-                  </div>
+                  </button>
                 )}
               </div>
             </div>
@@ -966,5 +1032,12 @@ export default function AIEditPage() {
         </div>
       </main>
     </div>
+
+      <ProUpsellModal
+        open={upsellOpen}
+        onClose={() => setUpsellOpen(false)}
+        reason={upsellReason}
+      />
+    </>
   );
 }
