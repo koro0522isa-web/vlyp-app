@@ -140,9 +140,26 @@ async function buildHighlightReel(
   videoFile: File,
   clips: HighlightClip[],
   onProgress: (n: number) => void,
-  options?: { customTitle?: string; addWatermark?: boolean }
+  options?: {
+    customTitle?: string;
+    addWatermark?: boolean;
+    enableSubtitles?: boolean;
+    subtitleLanguage?: string;
+  }
 ): Promise<Blob> {
   const { fetchFile } = await import('@ffmpeg/util');
+
+  // 日本語フォント注入 (jsdelivr CDN, SIL OFL 1.1)
+  // 失敗時は default font にフォールバック
+  const FONT_URL = 'https://cdn.jsdelivr.net/gh/notofonts/noto-cjk@main/Sans/SubsetOTF/JP/NotoSansJP-Bold.otf';
+  let hasJpFont = false;
+  try {
+    const fontData = await fetchFile(FONT_URL);
+    await ffmpeg.writeFile('NotoSansJP-Bold.otf', fontData);
+    hasJpFont = true;
+  } catch (err) {
+    console.warn('[buildHighlightReel] Japanese font load failed, falling back to default:', err);
+  }
 
   await ffmpeg.writeFile('source.mp4', await fetchFile(videoFile));
 
@@ -199,19 +216,62 @@ async function buildHighlightReel(
 
   onProgress(80);
 
+  // ── AI字幕 (Whisper) ─────────────────────────────────────────────
+  // options.enableSubtitles=true のときだけ実行。失敗時は字幕無しで続行。
+  let subtitleFilter = '';
+  if (options?.enableSubtitles) {
+    try {
+      // 1) highlight_raw.mp4 から音声抽出 (mp3 mono 16kHz, 1ファイル)
+      await ffmpeg.exec([
+        '-i', 'highlight_raw.mp4',
+        '-vn',
+        '-ac', '1',
+        '-ar', '16000',
+        '-b:a', '32k',
+        '-y',
+        'audio.mp3',
+      ]);
+      const audioData = await ffmpeg.readFile('audio.mp3');
+      const audioBlob = new Blob([audioData as any], { type: 'audio/mpeg' });
+
+      // 2) /api/transcribe へ送信
+      const fd = new FormData();
+      fd.append('audio', new File([audioBlob], 'audio.mp3', { type: 'audio/mpeg' }));
+      fd.append('language', options.subtitleLanguage || 'ja');
+      const res = await fetch('/api/transcribe', { method: 'POST', body: fd });
+      if (res.ok) {
+        const srt = await res.text();
+        if (srt && srt.trim()) {
+          // 3) ffmpeg に SRT を書き込み subtitles filter で焼き付け
+          const enc = new TextEncoder();
+          await ffmpeg.writeFile('subs.srt', enc.encode(srt));
+          // subtitles フィルタはエスケープが必要(filename:option)
+          subtitleFilter = `,subtitles=subs.srt:force_style='FontName=Noto Sans CJK JP,FontSize=18,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=0,Alignment=2,MarginV=80'`;
+        }
+      } else {
+        console.warn('[buildHighlightReel] subtitle API failed', res.status);
+      }
+    } catch (e) {
+      console.warn('[buildHighlightReel] subtitle pipeline failed, continuing without subtitles:', e);
+    }
+  }
+
   // ── テキストオーバーレイ + VLYP 透かし ──────────────────────────────
-  // FFmpeg.wasm 標準フォントは日本語非対応のため、英数記号のみ受け付ける
-  // ユーザーがdrawtext用 special chars を壊さないようサニタイズ
+  // 日本語フォントがロードできた場合は日本語タイトル可、そうでない場合は英数限定にフォールバック
+  // drawtext を破壊する文字 (\\, :, %, ', ") はエスケープ・除去
   const sanitize = (s: string) =>
-    s.replace(/[^\w\s\-!?:.,#\[\]'"+*]/g, '').replace(/[\\:%]/g, '').slice(0, 40);
+    s.replace(/[\\:%]/g, '').replace(/'/g, "\u2019").slice(0, 40);
   const titleText = sanitize(options?.customTitle || 'HIGHLIGHT');
   const addWm = options?.addWatermark !== false;
+  const fontfileClause = hasJpFont ? "fontfile=NotoSansJP-Bold.otf:" : "font=sans-bold:";
 
   // タイトル: 動画の頭 0-2.5秒だけ表示 (enable='lt(t,2.5)')
-  const titleFilter = `drawtext=text='${titleText.replace(/'/g, "\\'") || 'HIGHLIGHT'}':fontcolor=white:fontsize=64:x=(w-text_w)/2:y=h*0.08:box=1:boxcolor=black@0.55:boxborderw=14:font=sans-bold:enable='lt(t,2.5)'`;
+  const titleFilter = `drawtext=${fontfileClause}text='${titleText || 'HIGHLIGHT'}':fontcolor=white:fontsize=64:x=(w-text_w)/2:y=h*0.08:box=1:boxcolor=black@0.55:boxborderw=14:enable='lt(t,2.5)'`;
   // 透かし: 右下に常時 (Free 強制 / Pro オフ可)
-  const watermarkFilter = `drawtext=text='VLYP.APP':fontcolor=white@0.65:fontsize=26:x=w-tw-22:y=h-th-22:font=sans-bold`;
-  const vfChain = addWm ? `${titleFilter},${watermarkFilter}` : titleFilter;
+  const watermarkFilter = `drawtext=${fontfileClause}text='VLYP.APP':fontcolor=white@0.65:fontsize=26:x=w-tw-22:y=h-th-22`;
+  // subtitleFilter は ',subtitles=...' で始まるので vfChain の末尾に直接連結
+  const vfBase = addWm ? `${titleFilter},${watermarkFilter}` : titleFilter;
+  const vfChain = `${vfBase}${subtitleFilter}`;
 
   await ffmpeg.exec([
     '-i', 'highlight_raw.mp4',
@@ -245,6 +305,7 @@ export default function AIEditPage() {
   const [step, setStep] = useState<ProcessStep>('idle');
   const [customTitle, setCustomTitle] = useState<string>('');
   const [removeWatermark, setRemoveWatermark] = useState<boolean>(false);
+  const [enableSubtitles, setEnableSubtitles] = useState<boolean>(false);
   const [subProgress, setSubProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -333,6 +394,9 @@ export default function AIEditPage() {
         customTitle: customTitle.trim() || undefined,
         // Free は強制透かし。Pro のみ removeWatermark=true でオフできる
         addWatermark: !(isPro && removeWatermark),
+        // 字幕は Pro限定機能。OPENAI_API_KEY 未設定なら API が 503 返してフォールバック
+        enableSubtitles: isPro && enableSubtitles,
+        subtitleLanguage: 'ja',
       });
 
       if (!isPro && user) {
@@ -553,17 +617,18 @@ export default function AIEditPage() {
                   type="text"
                   value={customTitle}
                   onChange={(e) => setCustomTitle(e.target.value)}
-                  placeholder="ACE CLUTCH / 1V5 INSANE..."
+                  placeholder="エースクラッチ / 1v5 神プレー..."
                   maxLength={40}
                   className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-violet-500/50 transition-colors"
                 />
                 <p className="text-[9px] text-zinc-700 mt-1.5 font-medium leading-relaxed">
-                  動画の冒頭 2.5秒に表示されます。日本語は今後対応予定。
+                  動画の冒頭 2.5秒に表示。日本語・英語・絵文字 OK (最大40文字)。
                 </p>
               </div>
 
-              <div className="pt-3 border-t border-white/5">
+              <div className="pt-3 border-t border-white/5 space-y-3">
                 {isPro ? (
+                  <>
                   <label className="flex items-start gap-3 cursor-pointer group">
                     <input
                       type="checkbox"
@@ -576,6 +641,21 @@ export default function AIEditPage() {
                       <p className="text-[10px] text-zinc-600 mt-0.5 font-medium">Pro限定: 右下のロゴが消えます</p>
                     </div>
                   </label>
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={enableSubtitles}
+                      onChange={(e) => setEnableSubtitles(e.target.checked)}
+                      className="mt-1 w-4 h-4 rounded border-white/20 bg-black/40 accent-violet-500"
+                    />
+                    <div>
+                      <p className="text-xs font-black text-white flex items-center gap-2">
+                        AI字幕を自動生成 <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[8px] font-black uppercase tracking-widest">Whisper</span>
+                      </p>
+                      <p className="text-[10px] text-zinc-600 mt-0.5 font-medium">日本語/英語自動検出。クラウド処理は音声のみ送信 (約30秒の動画で +10〜30秒)</p>
+                    </div>
+                  </label>
+                  </>
                 ) : (
                   <div className="flex items-start gap-3 p-3 rounded-xl bg-purple-500/5 border border-purple-500/20">
                     <Crown className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
