@@ -89,10 +89,12 @@ function PostContent() {
         const blob = await res.blob();
         const f = new File([blob], 'vlyp_highlight.mp4', { type: blob.type || 'video/mp4' });
         setFile(f);
-        // 自動でタイトル候補を入れる(ユーザーが書き換え可)
-        setTitle((t) => t || 'AIで自動編集したハイライト');
+        // /edit でユーザーが入力したタイトルを優先、無ければデフォルト
+        const editTitle = sessionStorage.getItem('ai_edit_result_title');
+        setTitle((t) => t || editTitle || 'AIで自動編集したハイライト');
         // 二重セット防止: 一回読んだら捨てる
         sessionStorage.removeItem('ai_edit_result_dataurl');
+        sessionStorage.removeItem('ai_edit_result_title');
         // URL から ?from=ai_edit を消す
         window.history.replaceState({}, '', '/post');
       } catch (e) {

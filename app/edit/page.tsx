@@ -21,8 +21,7 @@ import {
   ChevronRight,
   Lock,
   RotateCcw,
-  Download,
-} from 'lucide-react';
+  Download,, Type} from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -140,7 +139,8 @@ async function buildHighlightReel(
   ffmpeg: any,
   videoFile: File,
   clips: HighlightClip[],
-  onProgress: (n: number) => void
+  onProgress: (n: number) => void,
+  options?: { customTitle?: string; addWatermark?: boolean }
 ): Promise<Blob> {
   const { fetchFile } = await import('@ffmpeg/util');
 
@@ -199,10 +199,23 @@ async function buildHighlightReel(
 
   onProgress(80);
 
+  // ── テキストオーバーレイ + VLYP 透かし ──────────────────────────────
+  // FFmpeg.wasm 標準フォントは日本語非対応のため、英数記号のみ受け付ける
+  // ユーザーがdrawtext用 special chars を壊さないようサニタイズ
+  const sanitize = (s: string) =>
+    s.replace(/[^\w\s\-!?:.,#\[\]'"+*]/g, '').replace(/[\\:%]/g, '').slice(0, 40);
+  const titleText = sanitize(options?.customTitle || 'HIGHLIGHT');
+  const addWm = options?.addWatermark !== false;
+
+  // タイトル: 動画の頭 0-2.5秒だけ表示 (enable='lt(t,2.5)')
+  const titleFilter = `drawtext=text='${titleText.replace(/'/g, "\\'") || 'HIGHLIGHT'}':fontcolor=white:fontsize=64:x=(w-text_w)/2:y=h*0.08:box=1:boxcolor=black@0.55:boxborderw=14:font=sans-bold:enable='lt(t,2.5)'`;
+  // 透かし: 右下に常時 (Free 強制 / Pro オフ可)
+  const watermarkFilter = `drawtext=text='VLYP.APP':fontcolor=white@0.65:fontsize=26:x=w-tw-22:y=h-th-22:font=sans-bold`;
+  const vfChain = addWm ? `${titleFilter},${watermarkFilter}` : titleFilter;
+
   await ffmpeg.exec([
     '-i', 'highlight_raw.mp4',
-    '-vf',
-    `drawtext=text='HIGHLIGHT':fontcolor=white:fontsize=72:x=(w-text_w)/2:y=80:box=1:boxcolor=black@0.45:boxborderw=12:font=sans-bold`,
+    '-vf', vfChain,
     '-c:v', 'libx264',
     '-c:a', 'copy',
     '-preset', 'ultrafast',
@@ -230,6 +243,8 @@ export default function AIEditPage() {
   const [dragOver, setDragOver] = useState(false);
 
   const [step, setStep] = useState<ProcessStep>('idle');
+  const [customTitle, setCustomTitle] = useState<string>('');
+  const [removeWatermark, setRemoveWatermark] = useState<boolean>(false);
   const [subProgress, setSubProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -314,6 +329,10 @@ export default function AIEditPage() {
           setStep('compositing');
           setSubProgress(p - 60);
         }
+      }, {
+        customTitle: customTitle.trim() || undefined,
+        // Free は強制透かし。Pro のみ removeWatermark=true でオフできる
+        addWatermark: !(isPro && removeWatermark),
       });
 
       if (!isPro && user) {
@@ -348,6 +367,9 @@ export default function AIEditPage() {
     const reader = new FileReader();
     reader.onload = () => {
       sessionStorage.setItem('ai_edit_result_dataurl', reader.result as string);
+      if (customTitle.trim()) {
+        sessionStorage.setItem('ai_edit_result_title', customTitle.trim());
+      }
       router.push('/post?from=ai_edit');
     };
     reader.readAsDataURL(resultBlob);
@@ -515,6 +537,56 @@ export default function AIEditPage() {
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* タイトル入力 + 透かしオプション (videoFile 選択後) */}
+          {videoFile && step === 'idle' && (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 flex items-center gap-2">
+                  <Type className="w-3 h-3" />
+                  オープニングタイトル (任意・英数のみ)
+                </label>
+                <input
+                  type="text"
+                  value={customTitle}
+                  onChange={(e) => setCustomTitle(e.target.value)}
+                  placeholder="ACE CLUTCH / 1V5 INSANE..."
+                  maxLength={40}
+                  className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-violet-500/50 transition-colors"
+                />
+                <p className="text-[9px] text-zinc-700 mt-1.5 font-medium leading-relaxed">
+                  動画の冒頭 2.5秒に表示されます。日本語は今後対応予定。
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-white/5">
+                {isPro ? (
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={removeWatermark}
+                      onChange={(e) => setRemoveWatermark(e.target.checked)}
+                      className="mt-1 w-4 h-4 rounded border-white/20 bg-black/40 accent-violet-500"
+                    />
+                    <div>
+                      <p className="text-xs font-black text-white">VLYP透かしを外す</p>
+                      <p className="text-[10px] text-zinc-600 mt-0.5 font-medium">Pro限定: 右下のロゴが消えます</p>
+                    </div>
+                  </label>
+                ) : (
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-purple-500/5 border border-purple-500/20">
+                    <Crown className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-[10px] font-black text-purple-300 uppercase tracking-widest">VLYP透かしを外すには Pro</p>
+                      <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed font-medium">
+                        現在は右下に小さく "VLYP.APP" が入ります。Proなら非表示にできます。
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
