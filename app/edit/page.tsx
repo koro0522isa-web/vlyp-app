@@ -145,6 +145,8 @@ async function buildHighlightReel(
     addWatermark?: boolean;
     enableSubtitles?: boolean;
     subtitleLanguage?: string;
+    bgmFile?: File | null;
+    bgmVolume?: number; // 0..1, default 0.3
   }
 ): Promise<Blob> {
   const { fetchFile } = await import('@ffmpeg/util');
@@ -214,6 +216,35 @@ async function buildHighlightReel(
     'highlight_raw.mp4',
   ]);
 
+  // ── BGM ミックス (Pro限定機能) ─────────────────────────────────────
+  // ユーザー指定の音声ファイルを 30% 音量で重ねる (動画音声 70%, BGM 30%)
+  let baseClip = 'highlight_raw.mp4';
+  if (options?.bgmFile) {
+    try {
+      const ext = options.bgmFile.name.split('.').pop()?.toLowerCase() || 'mp3';
+      const bgmName = `bgm.${ext}`;
+      await ffmpeg.writeFile(bgmName, await fetchFile(options.bgmFile));
+      const vol = typeof options.bgmVolume === 'number' ? Math.max(0, Math.min(1, options.bgmVolume)) : 0.3;
+      const mainWeight = (1 - vol).toFixed(2);
+      const bgmWeight = vol.toFixed(2);
+      await ffmpeg.exec([
+        '-i', 'highlight_raw.mp4',
+        '-stream_loop', '-1',  // BGM を必要なだけループ
+        '-i', bgmName,
+        '-filter_complex', `[0:a]volume=${mainWeight}[a0];[1:a]volume=${bgmWeight}[a1];[a0][a1]amix=inputs=2:duration=first[a]`,
+        '-map', '0:v',
+        '-map', '[a]',
+        '-c:v', 'copy',
+        '-c:a', 'aac',
+        '-shortest',
+        'highlight_raw_bgm.mp4',
+      ]);
+      baseClip = 'highlight_raw_bgm.mp4';
+    } catch (e) {
+      console.warn('[buildHighlightReel] BGM mix failed, continuing without BGM:', e);
+    }
+  }
+
   onProgress(80);
 
   // ── AI字幕 (Whisper) ─────────────────────────────────────────────
@@ -223,7 +254,7 @@ async function buildHighlightReel(
     try {
       // 1) highlight_raw.mp4 から音声抽出 (mp3 mono 16kHz, 1ファイル)
       await ffmpeg.exec([
-        '-i', 'highlight_raw.mp4',
+        '-i', baseClip,
         '-vn',
         '-ac', '1',
         '-ar', '16000',
@@ -274,7 +305,7 @@ async function buildHighlightReel(
   const vfChain = `${vfBase}${subtitleFilter}`;
 
   await ffmpeg.exec([
-    '-i', 'highlight_raw.mp4',
+    '-i', baseClip,
     '-vf', vfChain,
     '-c:v', 'libx264',
     '-c:a', 'copy',
@@ -306,6 +337,9 @@ export default function AIEditPage() {
   const [customTitle, setCustomTitle] = useState<string>('');
   const [removeWatermark, setRemoveWatermark] = useState<boolean>(false);
   const [enableSubtitles, setEnableSubtitles] = useState<boolean>(false);
+  const [bgmFile, setBgmFile] = useState<File | null>(null);
+  const [bgmVolume, setBgmVolume] = useState<number>(0.3);
+  const bgmInputRef = useRef<HTMLInputElement>(null);
   const [subProgress, setSubProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -397,6 +431,9 @@ export default function AIEditPage() {
         // 字幕は Pro限定機能。OPENAI_API_KEY 未設定なら API が 503 返してフォールバック
         enableSubtitles: isPro && enableSubtitles,
         subtitleLanguage: 'ja',
+        // BGM ミックスも Pro限定
+        bgmFile: isPro ? bgmFile : null,
+        bgmVolume,
       });
 
       if (!isPro && user) {
@@ -655,6 +692,55 @@ export default function AIEditPage() {
                       <p className="text-[10px] text-zinc-600 mt-0.5 font-medium">日本語/英語自動検出。クラウド処理は音声のみ送信 (約30秒の動画で +10〜30秒)</p>
                     </div>
                   </label>
+
+                  <div className="rounded-xl border border-white/5 p-3 bg-black/30">
+                    <p className="text-xs font-black text-white flex items-center gap-2 mb-2">
+                      BGMミックス <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[8px] font-black uppercase tracking-widest">Pro</span>
+                    </p>
+                    {bgmFile ? (
+                      <div className="flex items-center justify-between gap-2 px-3 py-2 bg-violet-500/10 border border-violet-500/20 rounded-lg">
+                        <span className="text-[10px] font-black text-violet-300 truncate">{bgmFile.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => { setBgmFile(null); if (bgmInputRef.current) bgmInputRef.current.value = ''; }}
+                          className="text-[10px] font-black text-zinc-500 hover:text-zinc-200 uppercase tracking-widest"
+                        >
+                          外す
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => bgmInputRef.current?.click()}
+                        className="w-full px-3 py-2 bg-black/40 border border-dashed border-white/15 hover:border-violet-500/40 rounded-lg text-[10px] font-black text-zinc-500 hover:text-violet-300 uppercase tracking-widest transition-colors"
+                      >
+                        + 音声ファイルを選択 (mp3/m4a/wav)
+                      </button>
+                    )}
+                    <input
+                      ref={bgmInputRef}
+                      type="file"
+                      accept="audio/mpeg,audio/mp4,audio/wav,audio/x-m4a,audio/aac,audio/*"
+                      className="hidden"
+                      onChange={(e) => { if (e.target.files?.[0]) setBgmFile(e.target.files[0]); }}
+                    />
+                    {bgmFile && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-[9px] text-zinc-600 font-black uppercase tracking-widest w-16">音量</span>
+                        <input
+                          type="range"
+                          min="0" max="1" step="0.05"
+                          value={bgmVolume}
+                          onChange={(e) => setBgmVolume(parseFloat(e.target.value))}
+                          className="flex-1 accent-violet-500"
+                        />
+                        <span className="text-[9px] text-zinc-400 font-black w-8 text-right">{Math.round(bgmVolume * 100)}%</span>
+                      </div>
+                    )}
+                    <p className="text-[9px] text-zinc-700 mt-2 font-medium leading-relaxed">
+                      アップロード音声は端末内で重ね合わせます。サーバーには送信されません。
+                    </p>
+                  </div>
                   </>
                 ) : (
                   <div className="flex items-start gap-3 p-3 rounded-xl bg-purple-500/5 border border-purple-500/20">
