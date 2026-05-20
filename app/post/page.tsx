@@ -78,6 +78,29 @@ function PostContent() {
     }
   }, [searchParams]);
 
+  // ── SaaS流入: /edit から came → sessionStorage に保存された生成動画を自動セット ───
+  useEffect(() => {
+    if (searchParams.get('from') !== 'ai_edit') return;
+    const dataurl = sessionStorage.getItem('ai_edit_result_dataurl');
+    if (!dataurl) return;
+    (async () => {
+      try {
+        const res = await fetch(dataurl);
+        const blob = await res.blob();
+        const f = new File([blob], 'vlyp_highlight.mp4', { type: blob.type || 'video/mp4' });
+        setFile(f);
+        // 自動でタイトル候補を入れる(ユーザーが書き換え可)
+        setTitle((t) => t || 'AIで自動編集したハイライト');
+        // 二重セット防止: 一回読んだら捨てる
+        sessionStorage.removeItem('ai_edit_result_dataurl');
+        // URL から ?from=ai_edit を消す
+        window.history.replaceState({}, '', '/post');
+      } catch (e) {
+        console.error('[post] failed to receive ai_edit blob:', e);
+      }
+    })();
+  }, [searchParams]);
+
   const handleProUpgrade = async () => {
     if (!user) return;
     const { data: { session } } = await supabase.auth.getSession();
