@@ -215,3 +215,16 @@ npm run package
 # Distribute installers
 # Windows: .exe installer
 # macOS: .dmg package
+
+## ローカル開発: pre-commit hook を有効化 (推奨)
+
+書きかけコミット事故を防ぐため、各開発者のローカルで pre-commit hook を設定してください。
+
+```bash
+# 一度だけ実行
+ln -sf "$(pwd)/scripts/git-pre-commit.sh" .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+これにより `git commit` 時に NULL バイト・未閉じJSX・未終了文字列リテラル等を自動検出して阻止します。
+手動でチェックだけ走らせたい場合: `npm run check:integrity`
