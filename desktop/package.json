@@ -36,5 +36,13 @@
     "electron-store": "^8.1.0",
     "form-data": "^4.0.0",
     "path-browserify": "^1.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/koro0522isa-web/vlyp-app.git"
+  },
+  "author": {
+    "name": "VLYP Inc.",
+    "email": "ceo@vlyp.app"
   }
 }
