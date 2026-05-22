@@ -90,4 +90,11 @@ export function ClipList({
                 }`}
               >
                 ✕
-       
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
