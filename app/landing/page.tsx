@@ -1,9 +1,26 @@
 "use client";
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { getVariant, track } from '@/lib/ab';
 import { Gamepad2, Coins, Crown, Play, CheckCircle2, Zap, Monitor, Scissors, Type, Upload, ArrowRight, Star, Shield, BarChart3, Clock, Sparkles, Target, Video, Wand2, Globe } from 'lucide-react';
 
+type HeroVariant = 'A' | 'B';
+
+const HERO_CTA_VARIANTS: Record<HeroVariant, { label: string; sub: string }> = {
+  A: { label: '今すぐ無料で始める', sub: '完全無料・クレカ不要・30秒で完了' },
+  B: { label: '30秒でアカウント作成 →', sub: 'クレカ不要・最初の7日間Proが無料' },
+};
+
 export default function LandingPage() {
+  const [heroVariant, setHeroVariant] = useState<HeroVariant>('A');
+
+  useEffect(() => {
+    const v = getVariant<HeroVariant>('lp_hero_cta', ['A', 'B']);
+    setHeroVariant(v);
+    track('lp_hero_view', { variant: v });
+  }, []);
+
   return (
     <div className="h-screen overflow-y-auto overflow-x-hidden bg-[#09090B] text-white">
 
@@ -50,10 +67,11 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row gap-3 mt-2">
             <Link
               href="/login"
+              onClick={() => track('lp_hero_cta_click', { variant: heroVariant })}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 transition-all px-8 py-4 text-sm font-bold shadow-lg shadow-blue-600/30 hover:shadow-blue-500/40 hover:scale-[1.02]"
             >
               <Gamepad2 size={18} />
-              今すぐ無料で始める
+              {HERO_CTA_VARIANTS[heroVariant].label}
             </Link>
             <Link
               href="/login?intent=pro"

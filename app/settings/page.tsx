@@ -26,6 +26,9 @@ function SettingsContent() {
   const { lang, setLang, t } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [betaCode, setBetaCode] = useState('');
+  const [betaMsg, setBetaMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [betaLoading, setBetaLoading] = useState(false);
   // Pro月50コイン自動付与
   useProMonthlyCoins();
 
@@ -355,6 +358,72 @@ function SettingsContent() {
                 )}
               </div>
             </div>
+
+            {/* Beta Invite Code (Pro 30日無料体験) */}
+            {!isPro && (
+              <div className="space-y-4 p-6 rounded-[1.5rem] border border-purple-500/30 bg-gradient-to-b from-purple-500/10 to-transparent">
+                <div className="flex items-center gap-3 pb-3 border-b border-white/5">
+                  <Crown className="w-5 h-5 text-purple-400" />
+                  <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-300">Beta Invite</h2>
+                  <span className="ml-auto px-3 py-1 bg-purple-500/15 border border-purple-500/30 rounded-full text-[9px] font-black text-purple-300 uppercase tracking-widest">Pro 30日</span>
+                </div>
+                <p className="text-xs text-zinc-500 font-bold leading-relaxed">
+                  招待コードを持っている場合、Pro 30日 / 90日無料体験を有効化できます。
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={betaCode}
+                    onChange={(e) => setBetaCode(e.target.value.toUpperCase())}
+                    placeholder="VLYP-BETA-30"
+                    className="flex-1 bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-purple-500/60 transition-colors tracking-[0.15em] font-black"
+                  />
+                  <button
+                    type="button"
+                    disabled={!betaCode.trim() || betaLoading}
+                    onClick={async () => {
+                      setBetaLoading(true);
+                      setBetaMsg(null);
+                      try {
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (!session?.access_token) {
+                          setBetaMsg({ ok: false, text: 'ログインしてください' });
+                          return;
+                        }
+                        const r = await fetch('/api/beta/redeem', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${session.access_token}`,
+                          },
+                          body: JSON.stringify({ code: betaCode.trim() }),
+                        });
+                        const data = await r.json();
+                        if (r.ok && data.ok) {
+                          setBetaMsg({ ok: true, text: `${data.label} を有効化しました! (${data.days}日間)` });
+                          setBetaCode('');
+                          setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                          setBetaMsg({ ok: false, text: data.error || '無効なコード' });
+                        }
+                      } catch (e: any) {
+                        setBetaMsg({ ok: false, text: e?.message || 'エラーが発生しました' });
+                      } finally {
+                        setBetaLoading(false);
+                      }
+                    }}
+                    className="px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 font-black text-[10px] uppercase tracking-widest text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {betaLoading ? '...' : '使う'}
+                  </button>
+                </div>
+                {betaMsg && (
+                  <p className={`text-[10px] font-black leading-relaxed ${betaMsg.ok ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {betaMsg.text}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Referral Program */}
             {referralCode && (
