@@ -189,7 +189,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="h-screen overflow-y-auto overflow-x-hidden bg-black text-white">
       {/* ヘッダー */}
       <div className="sticky top-0 z-10 bg-black/80 backdrop-blur-xl border-b border-white/[0.06] px-4 py-4 flex items-center gap-4">
         <button

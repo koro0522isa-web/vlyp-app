@@ -669,7 +669,7 @@ export default function AIEditPage() {
 
   return (
     <>
-    <div className="min-h-screen bg-[#06060A] text-white flex flex-col">
+    <div className="h-screen overflow-y-auto overflow-x-hidden bg-[#06060A] text-white flex flex-col">
       {/* Header */}
       <header className="flex items-center gap-4 px-6 py-5 border-b border-white/5">
         <Link
