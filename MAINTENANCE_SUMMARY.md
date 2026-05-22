@@ -10,7 +10,6 @@
 - **設定ファイル**: `tsconfig.main.json` の型設定を最適化
 
 #### **2. TypeScriptエラーの修正**
-- **型定義ファイル**: `desktop-recorder/src/types.ts` を新規作成
 - **統一エラーハンドリング**: `app/lib/error-handler.ts` を実装
 - **インターフェース**: APIレスポンス型の命名規則を統一
 

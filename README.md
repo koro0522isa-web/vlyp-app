@@ -99,7 +99,6 @@ npm run db:migrate
 npm run dev
 
 # Desktop recorder (in separate terminal)
-cd desktop-recorder
 npm install
 npm run dev
 ```
@@ -117,7 +116,6 @@ Navigate to [http://localhost:3000](http://localhost:3000)
 - **Music Library**: BGM management
 - **User Profiles**: Creator profiles and portfolios
 
-### Desktop Recorder (`/desktop-recorder`)
 - **Recording Interface**: Real-time recording controls
 - **VLYP Score Display**: Live scoring visualization
 - **Highlight Detection**: Automatic moment marking
@@ -166,7 +164,6 @@ Scores range from 0-100, with highlights automatically detected at 75+ points.
 npm run build
 
 # Build desktop recorder
-cd desktop-recorder && npm run build
 
 # Build everything
 npm run build:all
@@ -212,7 +209,6 @@ npm run start
 ### Desktop Application
 ```bash
 # Build executables
-cd desktop-recorder
 npm run build
 npm run package
 
