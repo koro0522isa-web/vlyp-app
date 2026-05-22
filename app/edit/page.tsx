@@ -21,7 +21,7 @@ import {
   ChevronRight,
   Lock,
   RotateCcw,
-  Download, Type} from 'lucide-react';
+  Download, Type, Check} from 'lucide-react';
 import ProUpsellModal, { UpsellReason } from '@/app/components/ProUpsellModal';
 
 // ---------------------------------------------------------------------------
@@ -66,7 +66,7 @@ const STEP_ORDER: ProcessStep[] = [
 // ---------------------------------------------------------------------------
 // Audio analysis helpers (pure browser, no FFmpeg)
 // ---------------------------------------------------------------------------
-async function analyzeAudioPeaks(file: File): Promise<HighlightClip[]> {
+async function analyzeAudioPeaks(file: File, template: EditTemplate = 'classic'): Promise<HighlightClip[]> {
   const arrayBuffer = await file.arrayBuffer();
   const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
 
@@ -94,20 +94,21 @@ async function analyzeAudioPeaks(file: File): Promise<HighlightClip[]> {
     rmsValues.push({ time: i / sampleRate, rms });
   }
 
-  // Sort by RMS descending, pick top peaks with minimum 8s spacing
+  // Sort by RMS descending, pick top peaks with template-controlled count & spacing
+  const cfg = TEMPLATES[template];
   const sorted = [...rmsValues].sort((a, b) => b.rms - a.rms);
   const peaks: { time: number; rms: number }[] = [];
-  const MIN_SPACING = 8;
+  const MIN_SPACING = Math.max(2, cfg.clipRadius * 1.5);
 
   for (const candidate of sorted) {
-    if (peaks.length >= 5) break;
+    if (peaks.length >= cfg.maxClips) break;
     const tooClose = peaks.some((p) => Math.abs(p.time - candidate.time) < MIN_SPACING);
     if (!tooClose) peaks.push(candidate);
   }
 
   peaks.sort((a, b) => a.time - b.time);
 
-  const CLIP_RADIUS = 5;
+  const CLIP_RADIUS = cfg.clipRadius;
   return peaks.map((p) => ({
     start: Math.max(0, p.time - CLIP_RADIUS),
     end: Math.min(duration, p.time + CLIP_RADIUS),
@@ -150,6 +151,7 @@ async function buildHighlightReel(
     bgmVolume?: number; // 0..1, default 0.3
     stickerBlob?: Blob | null;
     stickerPosition?: StickerPosition;
+    fadeDuration?: number;
   }
 ): Promise<Blob> {
   const { fetchFile } = await import('@ffmpeg/util');
@@ -174,16 +176,17 @@ async function buildHighlightReel(
     const dur = clip.end - clip.start;
     const outName = `seg${i}.mp4`;
 
+    const fd = options?.fadeDuration ?? 0.4;
     const vf = [
       `scale=1080:1920:force_original_aspect_ratio=increase`,
       `crop=1080:1920`,
-      `fade=t=in:st=0:d=0.4`,
-      `fade=t=out:st=${Math.max(0, dur - 0.4).toFixed(2)}:d=0.4`,
+      `fade=t=in:st=0:d=${fd}`,
+      `fade=t=out:st=${Math.max(0, dur - fd).toFixed(2)}:d=${fd}`,
     ].join(',');
 
     const af = [
-      `afade=t=in:ss=0:d=0.4`,
-      `afade=t=out:st=${Math.max(0, dur - 0.4).toFixed(2)}:d=0.4`,
+      `afade=t=in:ss=0:d=${fd}`,
+      `afade=t=out:st=${Math.max(0, dur - fd).toFixed(2)}:d=${fd}`,
     ].join(',');
 
     await ffmpeg.exec([
@@ -368,6 +371,40 @@ const GAME_PATTERNS: Array<{ keywords: string[]; label: string }> = [
   { keywords: ['rocketleague', 'rocket-league', '_rl_'], label: 'ROCKET LEAGUE' },
 ];
 
+type EditTemplate = 'classic' | 'tenz' | 'simple';
+
+interface TemplateConfig {
+  label: string;
+  description: string;
+  maxClips: number;
+  clipRadius: number; // ±秒、ピーク前後の長さ
+  fadeDuration: number;
+}
+
+const TEMPLATES: Record<EditTemplate, TemplateConfig> = {
+  classic: {
+    label: 'クラシック',
+    description: '5シーン × 10秒。バランス重視の標準テンプレ',
+    maxClips: 5,
+    clipRadius: 5,
+    fadeDuration: 0.4,
+  },
+  tenz: {
+    label: 'TenZ風',
+    description: '8シーン × 6秒。速いテンポでテンション最高潮',
+    maxClips: 8,
+    clipRadius: 3,
+    fadeDuration: 0.2,
+  },
+  simple: {
+    label: 'シンプル',
+    description: '3シーン × 12秒。字幕とBGMの効果が引き立つ落ち着き構成',
+    maxClips: 3,
+    clipRadius: 6,
+    fadeDuration: 0.6,
+  },
+};
+
 // 絵文字を Canvas で PNG にレンダリング (ブラウザ標準フォントで Color Emoji 表示)
 async function renderEmojiToPng(emoji: string, size = 192): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -440,6 +477,7 @@ export default function AIEditPage() {
   const [customTitle, setCustomTitle] = useState<string>('');
   const [removeWatermark, setRemoveWatermark] = useState<boolean>(false);
   const [enableSubtitles, setEnableSubtitles] = useState<boolean>(false);
+  const [template, setTemplate] = useState<EditTemplate>('classic');
   const [bgmFile, setBgmFile] = useState<File | null>(null);
   const [bgmVolume, setBgmVolume] = useState<number>(0.3);
   const bgmInputRef = useRef<HTMLInputElement>(null);
@@ -517,7 +555,7 @@ export default function AIEditPage() {
       setStep('analyzing_audio');
       setSubProgress(0);
 
-      const clips = await analyzeAudioPeaks(videoFile);
+      const clips = await analyzeAudioPeaks(videoFile, template);
       setDetectedClips(clips);
       setStep('detecting_highlights');
       setSubProgress(100);
@@ -552,6 +590,7 @@ export default function AIEditPage() {
           setSubProgress(p - 60);
         }
       }, {
+        fadeDuration: TEMPLATES[template].fadeDuration,
         customTitle: customTitle.trim() || undefined,
         // Free は強制透かし。Pro のみ removeWatermark=true でオフできる
         addWatermark: !(isPro && removeWatermark),
@@ -769,6 +808,34 @@ export default function AIEditPage() {
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* テンプレート選択 (videoFile 選択後) */}
+          {videoFile && step === 'idle' && (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3 flex items-center gap-2">
+                <Sparkles className="w-3 h-3" />
+                編集テンプレート
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.entries(TEMPLATES) as [EditTemplate, TemplateConfig][]).map(([k, cfg]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setTemplate(k)}
+                    className={`relative px-3 py-3 rounded-xl text-left transition-all ${template === k ? 'bg-violet-500/15 border-2 border-violet-500 shadow-[0_0_20px_rgba(139,92,246,0.2)]' : 'bg-black/30 border border-white/10 hover:border-white/20'}`}
+                  >
+                    <p className="text-[11px] font-black text-white">{cfg.label}</p>
+                    <p className="text-[9px] text-zinc-500 mt-1 font-medium leading-snug">{cfg.description}</p>
+                    {template === k && (
+                      <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-violet-500 flex items-center justify-center">
+                        <Check className="w-2.5 h-2.5 text-white" />
+                      </div>
+                    )}
+                  </button>
+                ))}
               </div>
             </div>
           )}
