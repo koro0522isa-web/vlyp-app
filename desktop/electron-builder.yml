@@ -5,15 +5,9 @@ directories:
   output: dist
 
 files:
-  - from: dist/main
-    to: main
-    filter:
-      - "**/*"
-  - from: dist/renderer
-    to: renderer
-    filter:
-      - "**/*"
-  - node_modules/**/*
+  - "dist/**/*"
+  - "node_modules/**/*"
+  - "package.json" 
 
 win:
   target:
