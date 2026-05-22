@@ -148,6 +148,8 @@ async function buildHighlightReel(
     subtitleLanguage?: string;
     bgmFile?: File | null;
     bgmVolume?: number; // 0..1, default 0.3
+    stickerBlob?: Blob | null;
+    stickerPosition?: StickerPosition;
   }
 ): Promise<Blob> {
   const { fetchFile } = await import('@ffmpeg/util');
@@ -305,6 +307,8 @@ async function buildHighlightReel(
   const vfBase = addWm ? `${titleFilter},${watermarkFilter}` : titleFilter;
   const vfChain = `${vfBase}${subtitleFilter}`;
 
+  // テキスト+透かし+字幕を焼き付け
+  const textStepOut = options?.stickerBlob ? 'output_with_text.mp4' : 'output_final.mp4';
   await ffmpeg.exec([
     '-i', baseClip,
     '-vf', vfChain,
@@ -312,8 +316,36 @@ async function buildHighlightReel(
     '-c:a', 'copy',
     '-preset', 'ultrafast',
     '-crf', '24',
-    'output_final.mp4',
+    textStepOut,
   ]);
+
+  // ステッカー overlay (Pro限定)
+  if (options?.stickerBlob) {
+    try {
+      const stickerData = new Uint8Array(await options.stickerBlob.arrayBuffer());
+      await ffmpeg.writeFile('sticker.png', stickerData);
+      const pos = POSITION_OVERLAY[options.stickerPosition || 'tr'];
+      await ffmpeg.exec([
+        '-i', 'output_with_text.mp4',
+        '-i', 'sticker.png',
+        '-filter_complex', `[0:v][1:v]overlay=${pos}[v]`,
+        '-map', '[v]',
+        '-map', '0:a',
+        '-c:v', 'libx264',
+        '-c:a', 'copy',
+        '-preset', 'ultrafast',
+        '-crf', '24',
+        'output_final.mp4',
+      ]);
+    } catch (e) {
+      console.warn('[buildHighlightReel] sticker overlay failed, continuing without:', e);
+      // failed: rename output_with_text.mp4 to output_final.mp4
+      try {
+        const tdata = await ffmpeg.readFile('output_with_text.mp4');
+        await ffmpeg.writeFile('output_final.mp4', tdata as any);
+      } catch {}
+    }
+  }
 
   onProgress(100);
 
@@ -335,6 +367,39 @@ const GAME_PATTERNS: Array<{ keywords: string[]; label: string }> = [
   { keywords: ['pubg'], label: 'PUBG' },
   { keywords: ['rocketleague', 'rocket-league', '_rl_'], label: 'ROCKET LEAGUE' },
 ];
+
+// 絵文字を Canvas で PNG にレンダリング (ブラウザ標準フォントで Color Emoji 表示)
+async function renderEmojiToPng(emoji: string, size = 192): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      reject(new Error('Canvas context unavailable'));
+      return;
+    }
+    ctx.clearRect(0, 0, size, size);
+    ctx.font = `${Math.floor(size * 0.85)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, size / 2, size / 2 + size * 0.05);
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error('toBlob failed'));
+    }, 'image/png');
+  });
+}
+
+const STICKER_EMOJIS = ['👑', '🎮', '🔥', '⚡', '💀', '🎯', '🏆', '💎', '⚔️', '🚀', '😎', '👀'];
+type StickerPosition = 'tl' | 'tr' | 'bl' | 'br' | 'center';
+const POSITION_OVERLAY: Record<StickerPosition, string> = {
+  tl: '40:40',
+  tr: 'main_w-overlay_w-40:40',
+  bl: '40:main_h-overlay_h-40',
+  br: 'main_w-overlay_w-40:main_h-overlay_h-40',
+  center: '(main_w-overlay_w)/2:(main_h-overlay_h)/2',
+};
 
 const KILL_LABELS: Record<number, string> = {
   1: 'BIG PLAY',
@@ -378,6 +443,8 @@ export default function AIEditPage() {
   const [bgmFile, setBgmFile] = useState<File | null>(null);
   const [bgmVolume, setBgmVolume] = useState<number>(0.3);
   const bgmInputRef = useRef<HTMLInputElement>(null);
+  const [stickerEmoji, setStickerEmoji] = useState<string | null>(null);
+  const [stickerPosition, setStickerPosition] = useState<StickerPosition>('tr');
   const [upsellOpen, setUpsellOpen] = useState<boolean>(false);
   const [upsellReason, setUpsellReason] = useState<UpsellReason>('edit_free_used');
   const [suggestedTitle, setSuggestedTitle] = useState<string>('');
@@ -466,6 +533,16 @@ export default function AIEditPage() {
       setStep('cutting_clips');
       setSubProgress(0);
 
+      // ステッカーを Canvas で PNG 化 (Pro限定)
+      let stickerBlob: Blob | null = null;
+      if (isPro && stickerEmoji) {
+        try {
+          stickerBlob = await renderEmojiToPng(stickerEmoji, 192);
+        } catch (e) {
+          console.warn('[handleProcess] sticker render failed:', e);
+        }
+      }
+
       const result = await buildHighlightReel(ffmpeg, videoFile, clips, (p) => {
         if (p <= 60) {
           setStep('cutting_clips');
@@ -484,6 +561,9 @@ export default function AIEditPage() {
         // BGM ミックスも Pro限定
         bgmFile: isPro ? bgmFile : null,
         bgmVolume,
+        // ステッカーも Pro限定
+        stickerBlob,
+        stickerPosition,
       });
 
       if (!isPro && user) {
@@ -800,6 +880,45 @@ export default function AIEditPage() {
                     )}
                     <p className="text-[9px] text-zinc-700 mt-2 font-medium leading-relaxed">
                       アップロード音声は端末内で重ね合わせます。サーバーには送信されません。
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-white/5 p-3 bg-black/30">
+                    <p className="text-xs font-black text-white flex items-center gap-2 mb-2">
+                      ステッカー <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[8px] font-black uppercase tracking-widest">Pro</span>
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {STICKER_EMOJIS.map((e) => (
+                        <button
+                          key={e}
+                          type="button"
+                          onClick={() => setStickerEmoji(stickerEmoji === e ? null : e)}
+                          className={`w-9 h-9 rounded-lg text-xl flex items-center justify-center transition-all ${stickerEmoji === e ? 'bg-violet-500/30 border-2 border-violet-500 scale-110' : 'bg-white/5 border border-white/10 hover:bg-white/10'}`}
+                          aria-label={`Sticker ${e}`}
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                    {stickerEmoji && (
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {(['tl', 'tr', 'center', 'bl', 'br'] as StickerPosition[]).map((p) => {
+                          const labels: Record<StickerPosition, string> = { tl: '↖', tr: '↗', center: '●', bl: '↙', br: '↘' };
+                          return (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => setStickerPosition(p)}
+                              className={`py-2 rounded-lg text-xs font-black transition-colors ${stickerPosition === p ? 'bg-violet-500/30 text-violet-200 border border-violet-500' : 'bg-white/5 text-zinc-500 border border-white/10 hover:bg-white/10'}`}
+                            >
+                              {labels[p]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <p className="text-[9px] text-zinc-700 mt-2 font-medium leading-relaxed">
+                      動画の隅にバッジを焼き付け。ゲーマー Tier 表示・ガッツポーズ等に。
                     </p>
                   </div>
                   </>
