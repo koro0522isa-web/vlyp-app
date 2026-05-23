@@ -58,10 +58,22 @@ export async function proxy(request: NextRequest) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     const redirectResponse = NextResponse.redirect(loginUrl);
-    // CRITICAL: getUser() でリフレッシュされた cookie を redirect レスポンスに引き継ぐ
-    // これを忘れると Next.js Supabase Auth で「保護ルートにアクセスした瞬間 cookie が消えて完全ログアウト」になる
+    // CRITICAL: getUser() でリフレッシュされた cookie を redirect レスポンスに完全に引き継ぐ
+    // 以前は name/value のみコピーしており、httpOnly/secure/sameSite などのオプションが落ちて
+    // Set-Cookie ヘッダが無効になっていた → リロードでログアウト扱いになる根本原因
     supabaseResponse.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie.name, cookie.value);
+      // ResponseCookies.set は単一の Cookie オブジェクトを受け取れる (全 options 保持)
+      redirectResponse.cookies.set({
+        name: cookie.name,
+        value: cookie.value,
+        path: cookie.path,
+        domain: cookie.domain,
+        expires: cookie.expires,
+        httpOnly: cookie.httpOnly,
+        secure: cookie.secure,
+        sameSite: cookie.sameSite as any,
+        maxAge: cookie.maxAge,
+      });
     });
     return redirectResponse;
   }

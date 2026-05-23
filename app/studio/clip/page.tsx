@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '@/lib/supabase';
 import { useVideoProcessor } from '@/app/hooks/useVideoProcessor';
 
 interface Subtitle {
@@ -42,10 +42,6 @@ export default function ClipEditorPage() {
   // 認証チェック
   useEffect(() => {
     const checkAuth = async () => {
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) router.push('/login');
     };
