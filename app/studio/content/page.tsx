@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import Sidebar from '@/app/components/Sidebar';
+import StudioTabs from '@/app/studio/StudioTabs';
 import BottomNav from '@/app/components/BottomNav';
 import { 
   ArrowLeft, 
@@ -111,6 +112,8 @@ export default function ContentManagerPage() {
 
       <main className="flex-1 h-full overflow-y-auto no-scrollbar pb-20 md:pb-0 p-6 md:p-12 relative">
         <div className="max-w-6xl mx-auto">
+          <StudioTabs />
+
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
             <div className="flex items-center gap-4">

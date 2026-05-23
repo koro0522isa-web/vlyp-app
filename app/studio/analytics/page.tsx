@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import Sidebar from '@/app/components/Sidebar';
+import StudioTabs from '@/app/studio/StudioTabs';
 import BottomNav from '@/app/components/BottomNav';
 import {
   Eye, Heart, TrendingUp, BarChart3, Crown, ArrowLeft,
@@ -193,6 +194,8 @@ export default function Analytics() {
         `}</style>
 
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8 space-y-8">
+          <StudioTabs />
+
 
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">

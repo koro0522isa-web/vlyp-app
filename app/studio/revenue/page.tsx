@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/app/components/Sidebar';
+import StudioTabs from '@/app/studio/StudioTabs';
 import BottomNav from '@/app/components/BottomNav';
 import { 
   DollarSign, 
@@ -89,6 +90,8 @@ export default function RevenueDashboard() {
 
       <main className="flex-1 h-full overflow-y-auto no-scrollbar pb-20 md:pb-0 p-6 md:p-12 relative">
         <div className="max-w-5xl mx-auto">
+          <StudioTabs />
+
           {/* Header */}
           <div className="flex items-center gap-4 mb-12">
             <Link href="/studio" className="p-3 hover:bg-white/10 rounded-full transition-colors">

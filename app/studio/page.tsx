@@ -12,34 +12,37 @@ import {
   Eye, Wand2, TrendingUp, BarChart3, Clock, Zap, Crown
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import StudioTabs from './StudioTabs';
 
 export default function Studio() {
   const { t } = useLanguage();
   const { user, isLoading: authLoading } = useAuth();
   const [myClips, setMyClips] = useState<any[]>([]);
   const [stats, setStats] = useState({ views: 0, likes: 0, count: 0 });
+  const [earnings, setEarnings] = useState<{ coins: number; jpy: number }>({ coins: 0, jpy: 0 });
   const [isPro, setIsPro] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchStudioData = async (uid: string) => {
     setIsLoading(true);
-    const { data: profile } = await supabase.from('profiles').select('is_pro').eq('id', uid).maybeSingle();
-    setIsPro(profile?.is_pro || false);
+    const [profileRes, clipsRes, walletRes] = await Promise.all([
+      supabase.from('profiles').select('is_pro').eq('id', uid).maybeSingle(),
+      supabase.from('clips').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+      supabase.from('wallets').select('coins').eq('user_id', uid).maybeSingle(),
+    ]);
+    setIsPro(profileRes.data?.is_pro || false);
 
-    const { data: clips } = await supabase
-      .from('clips')
-      .select('*')
-      .eq('user_id', uid)
-      .order('created_at', { ascending: false });
-
-    if (clips) {
-      setMyClips(clips);
+    if (clipsRes.data) {
+      setMyClips(clipsRes.data);
       setStats({
-        views: clips.reduce((acc, c) => acc + (c.views || 0), 0),
-        likes: clips.reduce((acc, c) => acc + (c.likes || 0), 0),
-        count: clips.length
+        views: clipsRes.data.reduce((acc, c) => acc + (c.views || 0), 0),
+        likes: clipsRes.data.reduce((acc, c) => acc + (c.likes || 0), 0),
+        count: clipsRes.data.length,
       });
     }
+    const coins = walletRes.data?.coins || 0;
+    // 100 coins ≈ ¥150 (creator share, simple approximation)
+    setEarnings({ coins, jpy: Math.floor(coins * 1.5) });
     setIsLoading(false);
   };
 
@@ -101,8 +104,8 @@ export default function Studio() {
               <Link href="/studio/revenue" className="flex items-center gap-2 px-5 py-4 glass-panel rounded-2xl hover:bg-white/5 transition-all group">
                 <DollarSign className="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform" />
                 <div>
-                  <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest leading-none mb-1">Total Earnings</p>
-                  <p className="text-xl font-black italic">$0.00</p>
+                  <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest leading-none mb-1">Earnings</p>
+                  <p className="text-xl font-black italic">¥{earnings.jpy.toLocaleString()}</p>
                 </div>
               </Link>
               <Link href="/post" className={`px-8 py-4 ${isPro ? 'bg-gradient-to-r from-purple-600 to-pink-600 shadow-purple-500/20' : 'bg-blue-600 shadow-blue-600/20'} shadow-xl rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3 hover:scale-105 active:scale-95 transition-all`}>
@@ -111,6 +114,8 @@ export default function Studio() {
               </Link>
             </div>
           </div>
+
+          <StudioTabs />
 
           {/* Quick Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
