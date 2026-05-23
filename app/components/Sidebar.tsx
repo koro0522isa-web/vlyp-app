@@ -18,6 +18,7 @@ import {
   Bell,
   BarChart2,
   Wand2,
+  LogOut,
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { DM_UNREAD_EVENT, PROFILE_REFRESH_EVENT, NOTIF_UNREAD_EVENT } from '@/lib/dm-events';
@@ -127,6 +128,19 @@ export default function Sidebar() {
   };
 
   const { t } = useLanguage();
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error('signOut error:', e);
+    }
+    // Clear any leftover storage and force navigate
+    try {
+      Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k));
+    } catch {}
+    window.location.href = '/login?force=1';
+  };
 
   const navItems = [
     { icon: <HomeIcon />, label: t('nav.home'), href: '/', badge: 0 },
@@ -254,6 +268,15 @@ export default function Sidebar() {
           }
         `}} />
         
+        {user && (
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-white/[0.02] hover:bg-red-500/10 hover:text-red-400 border border-white/5 hover:border-red-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-500 transition-all"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden lg:inline">ログアウト</span>
+          </button>
+        )}
         <div className="pt-2 text-center flex flex-col gap-2">
           <Link href="/legal" className="text-[9px] font-black text-zinc-600 hover:text-cyan-400 uppercase tracking-widest transition-colors">Legal</Link>
           <Link href="/privacy" className="text-[9px] font-black text-zinc-600 hover:text-cyan-400 uppercase tracking-widest transition-colors">Privacy</Link>

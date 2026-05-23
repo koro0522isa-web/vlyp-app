@@ -30,10 +30,21 @@ function LoginContent() {
     const intent = searchParams.get('intent');
     if (intent === 'pro') sessionStorage.setItem('vlyp_intent', 'pro');
 
-    // すでにログインしてたらトップへ
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) router.push('/');
-    });
+    // ?signout=1: 強制サインアウト (壊れたセッションをクリアして再ログインしたい時)
+    if (searchParams.get('signout') === '1') {
+      supabase.auth.signOut().then(() => {
+        // signout 後は同じページに戻ってログインフォームを表示
+        router.replace('/login');
+      });
+      return;
+    }
+
+    // ?force=1 が無ければ、既ログインユーザーはトップへ
+    if (searchParams.get('force') !== '1') {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) router.push('/');
+      });
+    }
 
     // ログイン成功後にリファラル処理
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
@@ -125,6 +136,27 @@ function LoginContent() {
               },
             }}
           />
+
+          <div className="mt-6 pt-4 border-t border-zinc-800 text-center">
+            <p className="text-[10px] text-zinc-600 mb-2 uppercase tracking-widest font-bold">セッションがおかしい時</p>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                // localStorage / cookies を念のため明示的にクリアして即リロード
+                try {
+                  Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k));
+                  document.cookie.split(';').forEach(c => {
+                    const name = c.trim().split('=')[0];
+                    if (name.startsWith('sb-')) document.cookie = `${name}=; max-age=0; path=/`;
+                  });
+                } catch {}
+                location.replace('/login?force=1');
+              }}
+              className="text-xs text-zinc-500 hover:text-red-400 underline transition-colors"
+            >
+              既存セッションを破棄してログインしなおす
+            </button>
+          </div>
         </div>
       </div>
     </div>
