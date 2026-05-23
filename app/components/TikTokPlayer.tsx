@@ -223,7 +223,7 @@ export default function TikTokPlayer({
         </motion.button>
       </div>
 
-      {/* 右側アクションバー (TikTok風) */}
+      {/* 右側アクションバー (縦動画フィード用) */}
       <div className="absolute right-4 bottom-24 flex flex-col items-center gap-6 z-20" onClick={(e) => e.stopPropagation()}>
         {/* プロフィール画像 & フォローボタン */}
         <div className="relative mb-2">

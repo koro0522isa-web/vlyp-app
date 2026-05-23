@@ -66,7 +66,7 @@ const STEP_ORDER: ProcessStep[] = [
 // ---------------------------------------------------------------------------
 // Audio analysis helpers (pure browser, no FFmpeg)
 // ---------------------------------------------------------------------------
-async function analyzeAudioPeaks(file: File, template: EditTemplate = 'classic'): Promise<HighlightClip[]> {
+async function analyzeAudioPeaks(file: File, template: EditTemplate = 'standard'): Promise<HighlightClip[]> {
   const arrayBuffer = await file.arrayBuffer();
   const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
 
@@ -371,7 +371,7 @@ const GAME_PATTERNS: Array<{ keywords: string[]; label: string }> = [
   { keywords: ['rocketleague', 'rocket-league', '_rl_'], label: 'ROCKET LEAGUE' },
 ];
 
-type EditTemplate = 'classic' | 'tenz' | 'simple';
+type EditTemplate = 'standard' | 'fast' | 'minimal';
 
 interface TemplateConfig {
   label: string;
@@ -382,23 +382,23 @@ interface TemplateConfig {
 }
 
 const TEMPLATES: Record<EditTemplate, TemplateConfig> = {
-  classic: {
-    label: 'クラシック',
-    description: '5シーン × 10秒。バランス重視の標準テンプレ',
+  standard: {
+    label: 'スタンダード',
+    description: '5シーン × 10秒。バランス重視の汎用構成',
     maxClips: 5,
     clipRadius: 5,
     fadeDuration: 0.4,
   },
-  tenz: {
-    label: 'TenZ風',
-    description: '8シーン × 6秒。速いテンポでテンション最高潮',
+  fast: {
+    label: 'ファストカット',
+    description: '8シーン × 6秒。速いテンポでハイライトを畳みかける',
     maxClips: 8,
     clipRadius: 3,
     fadeDuration: 0.2,
   },
-  simple: {
-    label: 'シンプル',
-    description: '3シーン × 12秒。字幕とBGMの効果が引き立つ落ち着き構成',
+  minimal: {
+    label: 'ミニマル',
+    description: '3シーン × 12秒。字幕とBGMが引き立つ落ち着き構成',
     maxClips: 3,
     clipRadius: 6,
     fadeDuration: 0.6,
@@ -477,7 +477,7 @@ export default function AIEditPage() {
   const [customTitle, setCustomTitle] = useState<string>('');
   const [removeWatermark, setRemoveWatermark] = useState<boolean>(false);
   const [enableSubtitles, setEnableSubtitles] = useState<boolean>(false);
-  const [template, setTemplate] = useState<EditTemplate>('classic');
+  const [template, setTemplate] = useState<EditTemplate>('standard');
   const [bgmFile, setBgmFile] = useState<File | null>(null);
   const [bgmVolume, setBgmVolume] = useState<number>(0.3);
   const bgmInputRef = useRef<HTMLInputElement>(null);

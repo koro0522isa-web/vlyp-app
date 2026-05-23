@@ -91,7 +91,7 @@ export function Settings({ onClose }: SettingsProps) {
         </section>
 
         <section className="bg-zinc-900 rounded-xl p-5 space-y-4">
-          <h2 className="font-semibold text-sm uppercase tracking-wider text-zinc-400">自動編集 (Medal風)</h2>
+          <h2 className="font-semibold text-sm uppercase tracking-wider text-zinc-400">自動編集 (縦動画 + 字幕)</h2>
 
           <div className="flex items-center justify-between">
             <div>

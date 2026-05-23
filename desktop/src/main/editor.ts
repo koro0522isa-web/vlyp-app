@@ -233,7 +233,7 @@ export class Editor {
 
   /**
    * SRT字幕を動画に焼き込む
-   * スタイル: 白文字・黒アウトライン・下部中央 (Medal/TikTok風)
+   * スタイル: 白文字・黒アウトライン・下部中央
    */
   private burnSubtitles(input: string, srtPath: string, output: string): Promise<void> {
     // Windowsパス対応: バックスラッシュをスラッシュに変換 + コロンをエスケープ
