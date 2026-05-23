@@ -48,6 +48,11 @@ function LoginContent() {
 
     // ログイン成功後にリファラル処理
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+      // ?force=1 や ?signout=1 のとき はリダイレクト処理を抑制
+      // (壊れたセッションをクリアするためにこのページに居たい)
+      if (searchParams.get('force') === '1' || searchParams.get('signout') === '1') {
+        return;
+      }
       if (event === 'SIGNED_IN') {
         // ウェルカムメール送信（二重送信はサーバー側で防止）
         supabase.auth.getUser().then(({ data: { user } }) => {
