@@ -11,6 +11,8 @@ const electronAPI = {
   deleteClip: (rawPath: string) => ipcRenderer.invoke('clip:delete', rawPath),
   editClip: (rawPath: string) => ipcRenderer.invoke('clip:edit', rawPath),
   revealClip: (clipPath: string) => ipcRenderer.invoke('clip:reveal', clipPath),
+  uploadClip: (args: { clipPath: string; title?: string; gameTitle?: string }) =>
+    ipcRenderer.invoke('clip:upload', args),
 
   // 設定
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -33,6 +35,9 @@ const electronAPI = {
   // イベントリスナー
   onClipCreated: (callback: (data: any) => void) => {
     ipcRenderer.on('clip:created', (_: IpcRendererEvent, data: any) => callback(data));
+  },
+  onGameStatus: (callback: (data: { game: string; running: boolean }) => void) => {
+    ipcRenderer.on('game:status', (_: IpcRendererEvent, data: any) => callback(data));
   },
   onClipEditComplete: (callback: (data: any) => void) => {
     ipcRenderer.on('clip:edit-complete', (_: IpcRendererEvent, data: any) => callback(data));

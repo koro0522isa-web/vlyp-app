@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ClipList } from './components/ClipList';
 import { StatusBar } from './components/StatusBar';
 import { Settings } from './components/Settings';
+import { useT, useI18n } from './i18n';
 
 interface ClipInfo {
   rawPath: string;
@@ -22,23 +23,31 @@ declare global {
       revealClip: (clipPath: string) => Promise<any>;
       getSettings: () => Promise<any>;
       setSettings: (settings: any) => Promise<any>;
+      uploadClip: (args: { clipPath: string; title?: string; gameTitle?: string }) => Promise<{ success: boolean; error?: string; clip?: any }>;
+      login: () => Promise<any>;
+      logout: () => Promise<any>;
+      getSession: () => Promise<{ accessToken: string; email?: string } | null>;
+      onAuthSession: (callback: (s: any) => void) => void;
       onClipCreated: (callback: (data: any) => void) => void;
       onClipEditComplete: (callback: (data: any) => void) => void;
       onRecordingStatus: (callback: (data: any) => void) => void;
-      removeClipCreatedListener: () => void;
-      removeClipEditCompleteListener: () => void;
-      removeRecordingStatusListener: () => void;
+      onGameStatus: (callback: (data: { game: string; running: boolean }) => void) => void;
+      removeAllListeners?: (channel: string) => void;
     };
   }
 }
 
 export default function App() {
+  const t = useT();
+  const { locale, setLocale } = useI18n();
   const [isRecording, setIsRecording] = useState(false);
   const [clips, setClips] = useState<ClipInfo[]>([]);
   const [selectedClip, setSelectedClip] = useState<ClipInfo | null>(null);
   const [newClipAlert, setNewClipAlert] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'success' | 'failed'>('idle');
+  const [authedEmail, setAuthedEmail] = useState<string | null>(null);
 
   useEffect(() => {
     const loadClips = async () => {
@@ -77,18 +86,61 @@ export default function App() {
         )
       );
       // 選択中クリップが編集完了したら自動更新
-      setSelectedClip((sel) =>
-        sel?.rawPath === data.rawPath
+      setSelectedClip((sel: ClipInfo | null) =>
+        sel && sel.rawPath === data.rawPath
           ? { ...sel, editedPath: data.editedPath, editing: false }
           : sel
       );
     });
 
+    // Load auth state
+    window.electronAPI?.getSession?.().then((s) => {
+      if (s?.email) setAuthedEmail(s.email);
+    });
+    window.electronAPI?.onAuthSession?.((s) => {
+      if (s?.email) setAuthedEmail(s.email);
+    });
+
     return () => {
-      window.electronAPI?.removeClipCreatedListener();
-      window.electronAPI?.removeClipEditCompleteListener();
+      window.electronAPI?.removeAllListeners?.('clip:created');
+      window.electronAPI?.removeAllListeners?.('clip:edit-complete');
     };
   }, []);
+
+  // Reset uploadState when switching clips
+  useEffect(() => {
+    setUploadState('idle');
+  }, [selectedClip?.rawPath]);
+
+  const handleUpload = async () => {
+    if (!selectedClip) return;
+    if (!authedEmail) {
+      // Trigger login flow
+      window.electronAPI?.login?.();
+      return;
+    }
+    const clipPath = selectedClip.editedPath || selectedClip.rawPath;
+    setUploadState('uploading');
+    try {
+      const res = await window.electronAPI?.uploadClip?.({
+        clipPath,
+        title: undefined,
+        gameTitle: selectedClip.event?.type || 'Desktop Recording',
+      });
+      if (res?.success) {
+        setUploadState('success');
+      } else if (res?.error === 'NOT_LOGGED_IN') {
+        setAuthedEmail(null);
+        setUploadState('idle');
+        window.electronAPI?.login?.();
+      } else {
+        setUploadState('failed');
+      }
+    } catch (e) {
+      console.error(e);
+      setUploadState('failed');
+    }
+  };
 
   const toggleRecording = async () => {
     try {
@@ -132,7 +184,7 @@ export default function App() {
       <div className="h-screen bg-zinc-950 text-white flex items-center justify-center">
         <div className="text-center space-y-3">
           <p className="text-2xl font-bold text-violet-400">VLYP Clips</p>
-          <p className="text-zinc-400 text-sm">起動中...</p>
+          <p className="text-zinc-400 text-sm">{t('app.starting')}</p>
         </div>
       </div>
     );
@@ -151,11 +203,11 @@ export default function App() {
         <aside className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col">
           <div className="px-3 py-2.5 border-b border-zinc-800 flex items-center justify-between">
             <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-              クリップ ({clips.length})
+              {t('sidebar.clips')} ({clips.length})
             </span>
             {newClipAlert && (
               <span className="text-xs bg-violet-600 px-2 py-0.5 rounded-full font-bold animate-pulse">
-                NEW!
+                {t('sidebar.new')}
               </span>
             )}
           </div>
@@ -181,15 +233,15 @@ export default function App() {
               {selectedClip.editing && (
                 <div className="bg-amber-900/40 border border-amber-700 rounded-xl px-4 py-3 text-sm text-amber-300 flex items-center gap-2">
                   <span className="animate-spin inline-block">⏳</span>
-                  自動編集中... (縦型変換 + AI字幕)
+                  {t('clip.editing')}
                 </div>
               )}
 
               {/* 編集済みバッジ */}
               {selectedClip.editedPath && !selectedClip.editing && (
                 <div className="bg-emerald-900/40 border border-emerald-700 rounded-xl px-4 py-3 text-sm text-emerald-300 flex items-center justify-between">
-                  <span>✓ 編集済み (縦型 + AI字幕)</span>
-                  <span className="text-xs text-emerald-500">再生中: 編集済みバージョン</span>
+                  <span>{t('clip.edited')}</span>
+                  <span className="text-xs text-emerald-500">{t('clip.playing.edited')}</span>
                 </div>
               )}
 
@@ -204,15 +256,31 @@ export default function App() {
 
               {/* アクションボタン */}
               <div className="flex gap-3">
-                <button className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-lg font-bold text-sm transition-colors">
-                  🚀 VLYPに投稿
+                <button
+                  onClick={handleUpload}
+                  disabled={uploadState === 'uploading'}
+                  className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+                    uploadState === 'success'
+                      ? 'bg-emerald-600 hover:bg-emerald-500'
+                      : uploadState === 'failed'
+                      ? 'bg-amber-600 hover:bg-amber-500'
+                      : 'bg-violet-600 hover:bg-violet-500'
+                  }`}
+                >
+                  {uploadState === 'uploading'
+                    ? t('btn.uploading')
+                    : uploadState === 'success'
+                    ? t('btn.uploaded')
+                    : uploadState === 'failed'
+                    ? t('btn.uploadFailed')
+                    : `🚀 ${t('btn.uploadVlyp')}`}
                 </button>
                 {!selectedClip.editedPath && !selectedClip.editing && (
                   <button
                     onClick={() => handleEdit(selectedClip.rawPath)}
                     className="px-4 py-2.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-semibold text-sm transition-colors"
                   >
-                    ✨ AI編集
+                    {t('btn.aiEdit')}
                   </button>
                 )}
                 <button
@@ -232,13 +300,13 @@ export default function App() {
           ) : (
             <div className="text-center space-y-4 max-w-sm">
               <div className="text-6xl">🎮</div>
-              <p className="text-zinc-300 font-semibold text-lg">録画を開始してください</p>
+              <p className="text-zinc-300 font-semibold text-lg">{t('main.startRecording')}</p>
               <p className="text-zinc-500 text-sm leading-relaxed">
-                Valorantでキルが検知されると自動でクリップが保存され、縦型変換 + AI字幕付きで編集されます
+                {t('main.startRecordingDesc')}
               </p>
               {clips.length > 0 && (
                 <p className="text-zinc-600 text-xs mt-2">
-                  左のリストからクリップを選択して再生できます
+                  {t('main.selectClipHint')}
                 </p>
               )}
             </div>
@@ -248,12 +316,21 @@ export default function App() {
 
       {/* フッター */}
       <footer className="border-t border-zinc-800 px-6 py-4 flex justify-between items-center">
-        <button
-          onClick={() => setShowSettings(true)}
-          className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-semibold text-sm transition-colors text-zinc-300 flex items-center gap-2"
-        >
-          ⚙️ 設定
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSettings(true)}
+            className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-semibold text-sm transition-colors text-zinc-300 flex items-center gap-2"
+          >
+            {t('btn.settings')}
+          </button>
+          <button
+            onClick={() => setLocale(locale === 'ja' ? 'en' : 'ja')}
+            className="px-2.5 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-xs font-bold text-zinc-400 hover:text-white transition-colors"
+            title="Toggle language"
+          >
+            {locale === 'ja' ? 'EN' : 'JA'}
+          </button>
+        </div>
         <button
           onClick={toggleRecording}
           className={`px-12 py-3 rounded-full font-bold text-sm transition-all shadow-lg ${
@@ -262,13 +339,13 @@ export default function App() {
               : 'bg-violet-600 hover:bg-violet-500 shadow-violet-900/50'
           }`}
         >
-          {isRecording ? '⏹ 録画停止' : '⏺ 録画開始'}
+          {isRecording ? t('btn.stopRec') : t('btn.startRec')}
         </button>
         <div className="w-24 flex justify-end">
           {isRecording && (
             <span className="flex items-center gap-1.5 text-xs text-red-400">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              REC
+              {t('btn.rec')}
             </span>
           )}
         </div>

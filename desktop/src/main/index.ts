@@ -5,8 +5,11 @@ import Store from 'electron-store';
 import { Recorder } from './recorder';
 import { Detector } from './detector';
 import { ApexDetector } from './apex-detector';
+import { ProcessDetector } from './process-detector';
 import { Clipper } from './clipper';
 import { EditOptions } from './editor';
+import FormData from 'form-data';
+import https from 'https';
 
 // ─── 設定スキーマ ───────────────────────────────────────────────
 
@@ -59,6 +62,7 @@ let isRecording = false;
 const recorder = new Recorder();
 const detector = new Detector();
 const apexDetector = new ApexDetector();
+const processDetector = new ProcessDetector();
 const clipper = new Clipper();
 
 // ─── Deep Link ハンドラ ─────────────────────────────────────────
@@ -226,6 +230,13 @@ async function startRecording(): Promise<{ success: boolean; error?: string }> {
       }
     });
 
+    // Generic process detector (Fortnite / CS2 / Overwatch / PUBG / Rocket League)
+    // Cannot auto-clip on kill; user uses Ctrl+F9 hotkey for manual clips while in-game.
+    processDetector.start((event) => {
+      console.log(`[Main] Process event: ${event.type} ${event.game}`);
+      mainWindow?.webContents.send('game:status', { game: event.game, running: event.type === 'game-detected' });
+    });
+
     mainWindow?.webContents.send('recording:status', { isRecording: true });
     console.log('[Main] Recording started');
     return { success: true };
@@ -241,6 +252,7 @@ async function stopRecording(): Promise<{ success: boolean }> {
   isRecording = false;
   detector.stop();
   apexDetector.stop();
+  processDetector.stop();
   await recorder.stopRecording();
   mainWindow?.webContents.send('recording:status', { isRecording: false });
   console.log('[Main] Recording stopped');
@@ -360,6 +372,82 @@ ipcMain.handle('clip:reveal', async (_event, clipPath: string) => {
   shell.showItemInFolder(clipPath);
 });
 
+// Upload clip to VLYP. POST to /api/desktop-upload with Bearer auth from stored session.
+ipcMain.handle('clip:upload', async (_event, args: { clipPath: string; title?: string; gameTitle?: string }) => {
+  try {
+    const session = store.get('auth') as AuthSession | undefined;
+    if (!session?.accessToken) {
+      return { success: false, error: 'NOT_LOGGED_IN' };
+    }
+    if (!fs.existsSync(args.clipPath)) {
+      return { success: false, error: 'FILE_NOT_FOUND' };
+    }
+
+    const apiBase = process.env.VLYP_API_BASE || 'https://vlyp.app';
+    const endpoint = `${apiBase}/api/desktop-upload`;
+
+    // Build multipart form
+    const form = new FormData();
+    form.append('video', fs.createReadStream(args.clipPath), {
+      filename: path.basename(args.clipPath),
+      contentType: 'video/mp4',
+    });
+    form.append('title', args.title || path.basename(args.clipPath, '.mp4'));
+    form.append('game_title', args.gameTitle || 'Desktop Recording');
+    form.append('vlyp_scores', '[]');
+
+    // POST via https module to support form-data streams + size headers
+    const result: { success: boolean; status: number; body: string } = await new Promise((resolve) => {
+      const url = new URL(endpoint);
+      const headers: Record<string, string> = {
+        ...form.getHeaders(),
+        Authorization: `Bearer ${session.accessToken}`,
+      };
+      const req = https.request(
+        {
+          method: 'POST',
+          hostname: url.hostname,
+          path: url.pathname + url.search,
+          headers,
+        },
+        (res) => {
+          let body = '';
+          res.on('data', (chunk) => (body += chunk.toString()));
+          res.on('end', () => {
+            resolve({ success: (res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300, status: res.statusCode ?? 0, body });
+          });
+        }
+      );
+      req.on('error', (err) => {
+        console.error('[Upload] request error:', err);
+        resolve({ success: false, status: 0, body: String(err) });
+      });
+
+      // form-data needs to write the multipart body to the request stream
+      form.pipe(req);
+    });
+
+    if (!result.success) {
+      console.warn('[Upload] failed', result.status, result.body.slice(0, 200));
+      // 401 = stale token. Tell renderer to re-auth.
+      if (result.status === 401) {
+        return { success: false, error: 'NOT_LOGGED_IN' };
+      }
+      return { success: false, error: `HTTP_${result.status}` };
+    }
+
+    try {
+      const parsed = JSON.parse(result.body);
+      return { success: true, clip: parsed.clip };
+    } catch {
+      return { success: true };
+    }
+  } catch (err: any) {
+    console.error('[Upload] exception:', err);
+    return { success: false, error: err?.message || 'UNKNOWN' };
+  }
+});
+
 ipcMain.handle('settings:get', async () => {
   return {
     autoClip: store.get('autoClip'),
@@ -385,9 +473,9 @@ ipcMain.handle('settings:set', async (_event, settings: Partial<AppSettings>) =>
 ipcMain.handle('auth:login', async () => {
   // ブラウザでVLYPのログインページを開く（deep linkで戻ってくる）
   // TODO: vlyp.app DNS設定後に元に戻す
-  const loginUrl = process.env.VLYP_API_BASE
-    ? `${process.env.VLYP_API_BASE}/auth/desktop-login`
-    : 'https://vlyp-app.vercel.app/auth/desktop-login';
+  // vlyp.app is the canonical production domain. Fallback to Vercel only via env override.
+  const apiBase = process.env.VLYP_API_BASE || 'https://vlyp.app';
+  const loginUrl = `${apiBase}/auth/desktop-login`;
   shell.openExternal(loginUrl);
   return { success: true };
 });
@@ -457,5 +545,6 @@ app.on('will-quit', () => {
     recorder.stopRecording();
     detector.stop();
     apexDetector.stop();
+    processDetector.stop();
   }
 });

@@ -1,6 +1,6 @@
 {
   "name": "vlyp-clips",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "VLYP Clips - Auto game clip recorder and editor",
   "main": "dist/main/index.js",
   "homepage": "./",
