@@ -28,6 +28,10 @@ export default function LandingPage() {
       <nav className="flex items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 z-50 backdrop-blur-xl bg-[#09090B]/80">
         <span className="text-xl font-black tracking-tight text-blue-500">VLYP</span>
         <div className="flex items-center gap-4">
+          <Link href="/en/landing" className="text-xs text-gray-500 hover:text-white transition-colors">
+            English
+          </Link>
+          <span className="text-xs text-gray-700">·</span>
           <Link href="/login" className="text-sm text-gray-400 hover:text-white transition-colors">
             ログイン
           </Link>

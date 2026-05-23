@@ -136,7 +136,7 @@ export class Recorder {
       '-segment_time', '10',
       '-segment_format', 'mp4',
       '-reset_timestamps', '1',
-      '-segment_wrap', '6',  // 最大6セグメント = 60秒バッファ
+      '-segment_wrap', '12',  // 最大12セグメント = 120秒バッファ (Medal並)
       path.join(this.bufferDir, 'seg_%03d.mp4'),
     ];
   }
@@ -156,7 +156,7 @@ export class Recorder {
       '-segment_time', '10',
       '-segment_format', 'mp4',
       '-reset_timestamps', '1',
-      '-segment_wrap', '6',
+      '-segment_wrap', '12',
       path.join(this.bufferDir, 'seg_%03d.mp4'),
     ];
   }
