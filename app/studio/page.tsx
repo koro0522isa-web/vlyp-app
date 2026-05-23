@@ -22,28 +22,41 @@ export default function Studio() {
   const [earnings, setEarnings] = useState<{ coins: number; jpy: number }>({ coins: 0, jpy: 0 });
   const [isPro, setIsPro] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchStudioData = async (uid: string) => {
     setIsLoading(true);
-    const [profileRes, clipsRes, walletRes] = await Promise.all([
-      supabase.from('profiles').select('is_pro').eq('id', uid).maybeSingle(),
-      supabase.from('clips').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-      supabase.from('wallets').select('coins').eq('user_id', uid).maybeSingle(),
-    ]);
-    setIsPro(profileRes.data?.is_pro || false);
+    setLoadError(null);
+    try {
+      // Use Promise.allSettled so one failed query doesn't kill the whole page (e.g. RLS on wallets)
+      const [profileRes, clipsRes, walletRes] = await Promise.allSettled([
+        supabase.from('profiles').select('is_pro').eq('id', uid).maybeSingle(),
+        supabase.from('clips').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+        supabase.from('wallets').select('coins').eq('user_id', uid).maybeSingle(),
+      ]);
 
-    if (clipsRes.data) {
-      setMyClips(clipsRes.data);
-      setStats({
-        views: clipsRes.data.reduce((acc, c) => acc + (c.views || 0), 0),
-        likes: clipsRes.data.reduce((acc, c) => acc + (c.likes || 0), 0),
-        count: clipsRes.data.length,
-      });
+      const profile = profileRes.status === 'fulfilled' ? profileRes.value.data : null;
+      const clips = clipsRes.status === 'fulfilled' ? clipsRes.value.data : null;
+      const wallet = walletRes.status === 'fulfilled' ? walletRes.value.data : null;
+
+      setIsPro(profile?.is_pro || false);
+      if (clips) {
+        setMyClips(clips);
+        setStats({
+          views: clips.reduce((acc, c) => acc + (c.views || 0), 0),
+          likes: clips.reduce((acc, c) => acc + (c.likes || 0), 0),
+          count: clips.length,
+        });
+      }
+      const coins = wallet?.coins || 0;
+      setEarnings({ coins, jpy: Math.floor(coins * 1.5) });
+    } catch (err: any) {
+      console.error('[Studio] fetchStudioData error:', err);
+      setLoadError(err?.message || 'Failed to load studio data');
+    } finally {
+      // CRITICAL: this must always run — previously a thrown error meant isLoading stayed true forever
+      setIsLoading(false);
     }
-    const coins = walletRes.data?.coins || 0;
-    // 100 coins ≈ ¥150 (creator share, simple approximation)
-    setEarnings({ coins, jpy: Math.floor(coins * 1.5) });
-    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -51,6 +64,18 @@ export default function Studio() {
     if (!user) { window.location.href = '/login'; return; }
     fetchStudioData(user.id);
   }, [authLoading, user]);
+
+  // Safety net: if isLoading is stuck true after 10s, surface an error instead of an eternal spinner
+  useEffect(() => {
+    if (!isLoading) return;
+    const timer = setTimeout(() => {
+      if (isLoading) {
+        setLoadError('読み込みに時間がかかっています。リロードして再試行してください。');
+        setIsLoading(false);
+      }
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this clip?")) return;
@@ -61,6 +86,18 @@ export default function Studio() {
   if (isLoading) return (
     <div className="h-screen bg-[#09090B] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+
+  if (loadError) return (
+    <div className="h-screen bg-[#09090B] text-zinc-300 flex items-center justify-center px-6">
+      <div className="max-w-md text-center space-y-4">
+        <p className="text-xl font-black uppercase tracking-widest text-red-400">読み込みに失敗しました</p>
+        <p className="text-sm text-zinc-500">{loadError}</p>
+        <button onClick={() => location.reload()} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-sm transition-colors">
+          リロード
+        </button>
+      </div>
     </div>
   );
 
