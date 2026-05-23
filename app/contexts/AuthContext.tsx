@@ -29,24 +29,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 初回: 現在のセッションを1回だけ取得
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    let resolved = false;
+    const finish = (session: Session | null) => {
+      if (resolved) return;
+      resolved = true;
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
-    });
+    };
 
-    // 認証状態変化をアプリ全体で共有（1箇所に集約）
-    // SIGNED_IN / SIGNED_OUT / TOKEN_REFRESHED / USER_UPDATED etc.
+    // 初回: getSession() を試みる
+    // CRITICAL: cookie 破損 / refresh hang / Supabase Auth 遅延などで getSession() が
+    // 永久に resolve しないケースが報告されている (ユーザー体験 = 永久ローディング)。
+    // 5秒以内に応答が無ければ未認証として進める。
+    const safety = setTimeout(() => {
+      if (!resolved) {
+        console.warn('[Auth] getSession timeout — treating as logged out');
+        finish(null);
+      }
+    }, 5000);
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        clearTimeout(safety);
+        finish(session);
+      })
+      .catch((err) => {
+        clearTimeout(safety);
+        console.error('[Auth] getSession error:', err);
+        finish(null);
+      });
+
+    // 認証状態変化をアプリ全体で共有
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
+      // ここでも resolved を更新するように finish を経由
+      resolved = false; // re-allow setting state on event
+      finish(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(safety);
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
