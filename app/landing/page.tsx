@@ -311,9 +311,7 @@ export default function LandingPage() {
           </p>
           <div className="flex justify-center mt-3">
             <a
-              href="https://github.com/koro0522isa-web/vlyp-app/releases/latest"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/api/download/windows"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 transition-all text-sm font-bold text-cyan-300"
             >
               <Monitor size={16} />
