@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Upload, FolderOpen, Trash2, Sparkles, Settings as SettingsIcon, Play, Square,
   Loader2, Check, AlertTriangle, LogOut, LogIn,
@@ -7,6 +7,7 @@ import { ClipList, ClipMeta } from './components/ClipList';
 import { StatusBar } from './components/StatusBar';
 import { Settings } from './components/Settings';
 import { GameStatusHero } from './components/GameStatusHero';
+import { ToastStack, ToastItem } from './components/Toast';
 import { useT, useI18n } from './i18n';
 
 interface ClipInfo extends ClipMeta {
@@ -51,12 +52,22 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [clips, setClips] = useState<ClipInfo[]>([]);
   const [selectedClip, setSelectedClip] = useState<ClipInfo | null>(null);
-  const [newClipAlert, setNewClipAlert] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'success' | 'failed'>('idle');
   const [authedEmail, setAuthedEmail] = useState<string | null>(null);
   const [currentGame, setCurrentGame] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const toastIdRef = useRef(0);
+
+  const pushToast = (toast: Omit<ToastItem, 'id'>) => {
+    toastIdRef.current++;
+    const id = toastIdRef.current;
+    setToasts((prev) => [...prev, { ...toast, id }]);
+  };
+  const dismissToast = (id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   useEffect(() => {
     const loadClips = async () => {
@@ -81,8 +92,16 @@ export default function App() {
         editing: data.editing,
       };
       setClips((prev) => [info, ...prev]);
-      setNewClipAlert(true);
-      setTimeout(() => setNewClipAlert(false), 4000);
+      const evt = data.event?.type || 'unknown';
+      const evtLabel = ({ kill: 'キル', multikill: 'マルチキル', ace: 'エース', manual: '手動' } as any)[evt] || 'クリップ';
+      pushToast({
+        message: locale === 'ja' ? `${evtLabel}クリップ保存` : `${evt.toUpperCase()} clip saved`,
+        subMessage: data.editing
+          ? (locale === 'ja' ? 'AI 編集中…' : 'AI editing…')
+          : (locale === 'ja' ? '左パネルに追加' : 'Added to sidebar'),
+        type: 'clip',
+        eventType: evt,
+      });
     });
 
     window.electronAPI?.onClipEditComplete((data) => {
@@ -98,6 +117,11 @@ export default function App() {
           ? { ...sel, editedPath: data.editedPath, editing: false }
           : sel
       );
+      pushToast({
+        message: locale === 'ja' ? 'AI 編集完了' : 'AI Edit Complete',
+        subMessage: locale === 'ja' ? '縦型 + 字幕入り版を生成' : 'Vertical + captions ready',
+        type: 'edit',
+      });
     });
 
     window.electronAPI?.onRecordingStatus?.((data) => {
@@ -109,6 +133,11 @@ export default function App() {
     window.electronAPI?.onGameStatus?.((data) => {
       if (data?.running) {
         setCurrentGame(data.game);
+        pushToast({
+          message: locale === 'ja' ? `${data.game.toUpperCase()} 検知` : `${data.game.toUpperCase()} Detected`,
+          subMessage: locale === 'ja' ? '自動録画開始' : 'Auto-recording started',
+          type: 'clip',
+        });
       } else if (currentGame === data?.game) {
         setCurrentGame(null);
       }
@@ -127,6 +156,7 @@ export default function App() {
       window.electronAPI?.removeAllListeners?.('recording:status');
       window.electronAPI?.removeAllListeners?.('game:status');
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -160,6 +190,11 @@ export default function App() {
     setClips((prev) =>
       prev.map((c) => (c.rawPath === rawPath ? { ...c, editing: true } : c))
     );
+    pushToast({
+      message: locale === 'ja' ? 'AI 編集開始' : 'AI Edit Started',
+      subMessage: locale === 'ja' ? '縦型変換 + 字幕生成中' : 'Vertical + captions',
+      type: 'edit',
+    });
     await window.electronAPI?.editClip(rawPath);
   };
 
@@ -183,12 +218,22 @@ export default function App() {
       });
       if (res?.success) {
         setUploadState('success');
+        pushToast({
+          message: locale === 'ja' ? 'VLYP に投稿完了' : 'Posted to VLYP',
+          subMessage: locale === 'ja' ? 'クリップ公開済み' : 'Live now',
+          type: 'upload',
+        });
       } else if (res?.error === 'NOT_LOGGED_IN') {
         setAuthedEmail(null);
         setUploadState('idle');
         window.electronAPI?.login?.();
       } else {
         setUploadState('failed');
+        pushToast({
+          message: locale === 'ja' ? '投稿失敗' : 'Upload failed',
+          subMessage: res?.error || 'Try again',
+          type: 'error',
+        });
       }
     } catch (e) {
       console.error(e);
@@ -229,16 +274,15 @@ export default function App() {
       style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       className="h-screen text-white flex flex-col select-none overflow-hidden bg-black"
     >
-      {/* Subtle ambient gradient background */}
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute top-0 left-1/3 w-[600px] h-[400px] rounded-full bg-violet-600/10 blur-[120px]" />
         <div className="absolute bottom-0 right-1/4 w-[500px] h-[350px] rounded-full bg-blue-600/10 blur-[100px]" />
       </div>
 
       <StatusBar isRecording={isRecording} currentGame={currentGame} />
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
         <aside className="w-80 border-r border-white/5 bg-black/40 backdrop-blur-xl flex flex-col">
           <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -249,11 +293,6 @@ export default function App() {
                 {clips.length}
               </span>
             </div>
-            {newClipAlert && (
-              <span className="text-[9px] bg-gradient-to-r from-violet-600 to-pink-600 text-white px-2 py-0.5 rounded-full font-black animate-pulse uppercase tracking-widest shadow-lg">
-                {t('sidebar.new')}
-              </span>
-            )}
           </div>
           <div className="flex-1 overflow-y-auto">
             <ClipList
@@ -267,11 +306,9 @@ export default function App() {
           </div>
         </aside>
 
-        {/* Main area */}
         <main className="flex-1 flex flex-col items-center justify-center gap-6 p-8 overflow-y-auto">
           {selectedClip ? (
             <div className="w-full max-w-3xl space-y-4">
-              {/* Editing banner */}
               {selectedClip.editing && (
                 <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-2xl px-4 py-3 text-sm text-amber-300 flex items-center gap-3 backdrop-blur-xl">
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -289,7 +326,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Player with gradient border */}
               <div className="relative rounded-2xl p-[1px] bg-gradient-to-br from-violet-500/40 via-blue-500/40 to-pink-500/40 shadow-[0_0_40px_rgba(168,85,247,0.15)]">
                 <video
                   key={playPath}
@@ -300,7 +336,6 @@ export default function App() {
                 />
               </div>
 
-              {/* Action row */}
               <div className="flex gap-2">
                 <button
                   onClick={handleUpload}
@@ -361,7 +396,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* Footer */}
       <footer className="border-t border-white/5 bg-black/60 backdrop-blur-xl px-5 py-3 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <button

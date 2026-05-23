@@ -1,4 +1,4 @@
-import { Gamepad2, Zap, Sparkles } from 'lucide-react';
+import { Gamepad2, Zap, Sparkles, Crosshair, Sword, Flame, Snowflake, Target, Building2 } from 'lucide-react';
 
 interface Props {
   game: string | null;
@@ -7,34 +7,97 @@ interface Props {
   locale: 'ja' | 'en';
 }
 
-const GAME_LABEL: Record<string, string> = {
-  valorant: 'VALORANT',
-  lol: 'League of Legends',
-  league: 'League of Legends',
-  tft: 'Teamfight Tactics',
-  apex: 'Apex Legends',
-  cs2: 'Counter-Strike 2',
-  fortnite: 'Fortnite',
-  overwatch: 'Overwatch',
+interface GameTheme {
+  label: string;
+  gradient: string;      // tailwind from-x via-y to-z
+  glow: string;          // tailwind shadow color rgb
+  textGradient: string;  // tailwind text gradient classes
+  Icon: any;
+}
+
+const GAME_THEMES: Record<string, GameTheme> = {
+  valorant: {
+    label: 'VALORANT',
+    gradient: 'from-red-600/20 via-rose-600/10 to-pink-600/20',
+    glow: 'shadow-[0_0_80px_rgba(244,63,94,0.3)]',
+    textGradient: 'bg-gradient-to-r from-red-300 via-rose-300 to-pink-300',
+    Icon: Crosshair,
+  },
+  lol: {
+    label: 'League of Legends',
+    gradient: 'from-yellow-500/20 via-amber-600/10 to-orange-600/20',
+    glow: 'shadow-[0_0_80px_rgba(245,158,11,0.3)]',
+    textGradient: 'bg-gradient-to-r from-yellow-300 via-amber-300 to-orange-300',
+    Icon: Sword,
+  },
+  league: {
+    label: 'League of Legends',
+    gradient: 'from-yellow-500/20 via-amber-600/10 to-orange-600/20',
+    glow: 'shadow-[0_0_80px_rgba(245,158,11,0.3)]',
+    textGradient: 'bg-gradient-to-r from-yellow-300 via-amber-300 to-orange-300',
+    Icon: Sword,
+  },
+  tft: {
+    label: 'Teamfight Tactics',
+    gradient: 'from-cyan-500/20 via-teal-600/10 to-blue-600/20',
+    glow: 'shadow-[0_0_80px_rgba(6,182,212,0.3)]',
+    textGradient: 'bg-gradient-to-r from-cyan-300 via-teal-300 to-blue-300',
+    Icon: Target,
+  },
+  apex: {
+    label: 'Apex Legends',
+    gradient: 'from-orange-600/20 via-red-700/10 to-zinc-800/20',
+    glow: 'shadow-[0_0_80px_rgba(234,88,12,0.3)]',
+    textGradient: 'bg-gradient-to-r from-orange-300 via-red-300 to-amber-300',
+    Icon: Flame,
+  },
+  cs2: {
+    label: 'Counter-Strike 2',
+    gradient: 'from-orange-700/20 via-yellow-800/10 to-zinc-900/20',
+    glow: 'shadow-[0_0_80px_rgba(180,83,9,0.3)]',
+    textGradient: 'bg-gradient-to-r from-orange-300 via-yellow-300 to-amber-300',
+    Icon: Crosshair,
+  },
+  fortnite: {
+    label: 'Fortnite',
+    gradient: 'from-blue-500/20 via-purple-600/10 to-pink-600/20',
+    glow: 'shadow-[0_0_80px_rgba(59,130,246,0.3)]',
+    textGradient: 'bg-gradient-to-r from-blue-300 via-purple-300 to-pink-300',
+    Icon: Building2,
+  },
+  overwatch: {
+    label: 'Overwatch',
+    gradient: 'from-orange-500/20 via-amber-500/10 to-yellow-500/20',
+    glow: 'shadow-[0_0_80px_rgba(249,115,22,0.3)]',
+    textGradient: 'bg-gradient-to-r from-orange-300 via-amber-300 to-yellow-300',
+    Icon: Snowflake,
+  },
+};
+
+const DEFAULT_THEME: GameTheme = {
+  label: 'Unknown',
+  gradient: 'from-violet-600/20 via-blue-600/10 to-pink-600/20',
+  glow: 'shadow-[0_0_80px_rgba(168,85,247,0.25)]',
+  textGradient: 'bg-gradient-to-r from-blue-300 via-violet-300 to-pink-300',
+  Icon: Gamepad2,
 };
 
 export function GameStatusHero({ game, isRecording, clipsCount, locale }: Props) {
-  const gameLabel = game ? (GAME_LABEL[game.toLowerCase()] || game) : null;
-
-  // Game detected — show vibrant hero card
   if (game) {
+    const theme = GAME_THEMES[game.toLowerCase()] || { ...DEFAULT_THEME, label: game };
+    const IconC = theme.Icon;
     return (
       <div className="relative w-full max-w-2xl">
         <div className="absolute -top-6 left-8 px-4 py-1.5 rounded-full bg-gradient-to-r from-violet-600 to-pink-600 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-violet-500/40">
           {locale === 'ja' ? '検知済み' : 'Detected'}
         </div>
-        <div className="relative p-10 rounded-[2rem] border border-white/10 bg-gradient-to-br from-violet-600/20 via-blue-600/10 to-pink-600/20 backdrop-blur-xl shadow-[0_0_80px_rgba(168,85,247,0.25)]">
-          <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-violet-500/5 to-transparent pointer-events-none" />
-          <Gamepad2 className="w-14 h-14 text-violet-300 mb-5" strokeWidth={1.5} />
-          <h1 className="text-4xl font-black bg-gradient-to-r from-blue-300 via-violet-300 to-pink-300 bg-clip-text text-transparent mb-3 leading-none">
-            {gameLabel}
+        <div className={`relative p-10 rounded-[2rem] border border-white/10 bg-gradient-to-br ${theme.gradient} backdrop-blur-xl ${theme.glow}`}>
+          <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+          <IconC className="w-14 h-14 text-white/70 mb-5" strokeWidth={1.5} />
+          <h1 className={`text-4xl font-black ${theme.textGradient} bg-clip-text text-transparent mb-3 leading-none`}>
+            {theme.label}
           </h1>
-          <div className="flex items-center gap-2 text-sm text-zinc-300">
+          <div className="flex items-center gap-2 text-sm">
             {isRecording ? (
               <>
                 <span className="inline-flex relative">
@@ -61,7 +124,6 @@ export function GameStatusHero({ game, isRecording, clipsCount, locale }: Props)
     );
   }
 
-  // Standby — no game running
   return (
     <div className="text-center space-y-6 max-w-md">
       <div className="relative w-28 h-28 mx-auto">
