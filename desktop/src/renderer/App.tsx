@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
-import { ClipList } from './components/ClipList';
+import {
+  Upload, FolderOpen, Trash2, Sparkles, Settings as SettingsIcon, Play, Square,
+  Loader2, Check, AlertTriangle, Gamepad2,
+} from 'lucide-react';
+import { ClipList, ClipMeta } from './components/ClipList';
 import { StatusBar } from './components/StatusBar';
 import { Settings } from './components/Settings';
 import { useT, useI18n } from './i18n';
 
-interface ClipInfo {
-  rawPath: string;
+interface ClipInfo extends ClipMeta {
   editedPath?: string;
-  timestamp: number;
-  event: { type: string; killCount: number };
   editing: boolean;
+  event: { type: string; killCount?: number };
 }
 
 declare global {
@@ -17,13 +19,15 @@ declare global {
     electronAPI?: {
       startRecording: () => Promise<any>;
       stopRecording: () => Promise<any>;
+      manualClip?: (args?: { lengthSeconds?: number }) => Promise<any>;
       listClips: () => Promise<ClipInfo[]>;
       deleteClip: (rawPath: string) => Promise<any>;
       editClip: (rawPath: string) => Promise<any>;
       revealClip: (clipPath: string) => Promise<any>;
+      uploadClip: (args: { clipPath: string; title?: string; gameTitle?: string }) =>
+        Promise<{ success: boolean; error?: string; clip?: any }>;
       getSettings: () => Promise<any>;
       setSettings: (settings: any) => Promise<any>;
-      uploadClip: (args: { clipPath: string; title?: string; gameTitle?: string }) => Promise<{ success: boolean; error?: string; clip?: any }>;
       login: () => Promise<any>;
       logout: () => Promise<any>;
       getSession: () => Promise<{ accessToken: string; email?: string } | null>;
@@ -53,7 +57,7 @@ export default function App() {
     const loadClips = async () => {
       try {
         const list = await window.electronAPI?.listClips();
-        setClips(list || []);
+        setClips((list as ClipInfo[]) || []);
       } catch (e) {
         console.error('Failed to load clips:', e);
       } finally {
@@ -62,11 +66,11 @@ export default function App() {
     };
     loadClips();
 
-    // 新規クリップ作成イベント
     window.electronAPI?.onClipCreated((data) => {
       const info: ClipInfo = {
         rawPath: data.rawPath,
         editedPath: data.editedPath,
+        thumbPath: data.thumbPath,
         timestamp: Date.now(),
         event: data.event,
         editing: data.editing,
@@ -76,7 +80,6 @@ export default function App() {
       setTimeout(() => setNewClipAlert(false), 4000);
     });
 
-    // 編集完了イベント
     window.electronAPI?.onClipEditComplete((data) => {
       setClips((prev) =>
         prev.map((c) =>
@@ -85,7 +88,6 @@ export default function App() {
             : c
         )
       );
-      // 選択中クリップが編集完了したら自動更新
       setSelectedClip((sel: ClipInfo | null) =>
         sel && sel.rawPath === data.rawPath
           ? { ...sel, editedPath: data.editedPath, editing: false }
@@ -93,7 +95,6 @@ export default function App() {
       );
     });
 
-    // Load auth state
     window.electronAPI?.getSession?.().then((s) => {
       if (s?.email) setAuthedEmail(s.email);
     });
@@ -107,40 +108,9 @@ export default function App() {
     };
   }, []);
 
-  // Reset uploadState when switching clips
   useEffect(() => {
     setUploadState('idle');
   }, [selectedClip?.rawPath]);
-
-  const handleUpload = async () => {
-    if (!selectedClip) return;
-    if (!authedEmail) {
-      // Trigger login flow
-      window.electronAPI?.login?.();
-      return;
-    }
-    const clipPath = selectedClip.editedPath || selectedClip.rawPath;
-    setUploadState('uploading');
-    try {
-      const res = await window.electronAPI?.uploadClip?.({
-        clipPath,
-        title: undefined,
-        gameTitle: selectedClip.event?.type || 'Desktop Recording',
-      });
-      if (res?.success) {
-        setUploadState('success');
-      } else if (res?.error === 'NOT_LOGGED_IN') {
-        setAuthedEmail(null);
-        setUploadState('idle');
-        window.electronAPI?.login?.();
-      } else {
-        setUploadState('failed');
-      }
-    } catch (e) {
-      console.error(e);
-      setUploadState('failed');
-    }
-  };
 
   const toggleRecording = async () => {
     try {
@@ -176,7 +146,35 @@ export default function App() {
     window.electronAPI?.revealClip(clipPath);
   };
 
-  // 再生するパス: 編集済みがあればそちらを優先
+  const handleUpload = async () => {
+    if (!selectedClip) return;
+    if (!authedEmail) {
+      window.electronAPI?.login?.();
+      return;
+    }
+    const clipPath = selectedClip.editedPath || selectedClip.rawPath;
+    setUploadState('uploading');
+    try {
+      const res = await window.electronAPI?.uploadClip?.({
+        clipPath,
+        title: undefined,
+        gameTitle: selectedClip.event?.type || 'Desktop Recording',
+      });
+      if (res?.success) {
+        setUploadState('success');
+      } else if (res?.error === 'NOT_LOGGED_IN') {
+        setAuthedEmail(null);
+        setUploadState('idle');
+        window.electronAPI?.login?.();
+      } else {
+        setUploadState('failed');
+      }
+    } catch (e) {
+      console.error(e);
+      setUploadState('failed');
+    }
+  };
+
   const playPath = selectedClip?.editedPath || selectedClip?.rawPath;
 
   if (isLoading) {
@@ -184,7 +182,10 @@ export default function App() {
       <div className="h-screen bg-zinc-950 text-white flex items-center justify-center">
         <div className="text-center space-y-3">
           <p className="text-2xl font-bold text-violet-400">VLYP Clips</p>
-          <p className="text-zinc-400 text-sm">{t('app.starting')}</p>
+          <p className="text-zinc-400 text-sm flex items-center gap-2 justify-center">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            {t('app.starting')}
+          </p>
         </div>
       </div>
     );
@@ -194,72 +195,75 @@ export default function App() {
     return <Settings onClose={() => setShowSettings(false)} />;
   }
 
+  const editingPaths = clips.filter((c) => c.editing).map((c) => c.rawPath);
+  const editedPaths = clips.filter((c) => !!c.editedPath).map((c) => c.rawPath);
+
   return (
     <div className="h-screen bg-zinc-950 text-white flex flex-col select-none overflow-hidden">
       <StatusBar isRecording={isRecording} />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* サイドバー */}
-        <aside className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col">
+        {/* Sidebar */}
+        <aside className="w-72 bg-zinc-900/70 border-r border-zinc-800 flex flex-col">
           <div className="px-3 py-2.5 border-b border-zinc-800 flex items-center justify-between">
             <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
               {t('sidebar.clips')} ({clips.length})
             </span>
             {newClipAlert && (
-              <span className="text-xs bg-violet-600 px-2 py-0.5 rounded-full font-bold animate-pulse">
+              <span className="text-[10px] bg-violet-600 text-white px-1.5 py-0.5 rounded-full font-bold animate-pulse uppercase tracking-wider">
                 {t('sidebar.new')}
               </span>
             )}
           </div>
           <div className="flex-1 overflow-y-auto">
             <ClipList
-              clips={clips.map((c) => c.rawPath)}
+              clips={clips}
               selected={selectedClip?.rawPath ?? null}
-              onSelect={(path) =>
-                setSelectedClip(clips.find((c) => c.rawPath === path) ?? null)
-              }
+              onSelect={(p) => setSelectedClip(clips.find((c) => c.rawPath === p) ?? null)}
               onDelete={handleDelete}
-              editingPaths={clips.filter((c) => c.editing).map((c) => c.rawPath)}
-              editedPaths={clips.filter((c) => !!c.editedPath).map((c) => c.rawPath)}
+              editingPaths={editingPaths}
+              editedPaths={editedPaths}
             />
           </div>
         </aside>
 
-        {/* メインエリア */}
-        <main className="flex-1 flex flex-col items-center justify-center gap-6 p-8 overflow-y-auto">
+        {/* Main area */}
+        <main className="flex-1 flex flex-col items-center justify-center gap-6 p-6 overflow-y-auto">
           {selectedClip ? (
-            <div className="w-full max-w-2xl space-y-4">
-              {/* 編集中バナー */}
+            <div className="w-full max-w-2xl space-y-3">
+              {/* Editing banner */}
               {selectedClip.editing && (
-                <div className="bg-amber-900/40 border border-amber-700 rounded-xl px-4 py-3 text-sm text-amber-300 flex items-center gap-2">
-                  <span className="animate-spin inline-block">⏳</span>
+                <div className="bg-amber-500/10 border border-amber-500/40 rounded-lg px-3 py-2 text-xs text-amber-300 flex items-center gap-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   {t('clip.editing')}
                 </div>
               )}
 
-              {/* 編集済みバッジ */}
               {selectedClip.editedPath && !selectedClip.editing && (
-                <div className="bg-emerald-900/40 border border-emerald-700 rounded-xl px-4 py-3 text-sm text-emerald-300 flex items-center justify-between">
-                  <span>{t('clip.edited')}</span>
-                  <span className="text-xs text-emerald-500">{t('clip.playing.edited')}</span>
+                <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-lg px-3 py-2 text-xs text-emerald-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5" />
+                    {t('clip.edited')}
+                  </span>
+                  <span className="text-[10px] text-emerald-500/80">{t('clip.playing.edited')}</span>
                 </div>
               )}
 
-              {/* ビデオプレイヤー */}
+              {/* Player */}
               <video
                 key={playPath}
                 src={playPath ? `file://${playPath}` : undefined}
-                className="w-full rounded-xl border border-zinc-800 bg-black"
+                className="w-full rounded-xl border border-zinc-800 bg-black aspect-video"
                 controls
                 autoPlay
               />
 
-              {/* アクションボタン */}
-              <div className="flex gap-3">
+              {/* Action row */}
+              <div className="flex gap-2">
                 <button
                   onClick={handleUpload}
                   disabled={uploadState === 'uploading'}
-                  className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+                  className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
                     uploadState === 'success'
                       ? 'bg-emerald-600 hover:bg-emerald-500'
                       : uploadState === 'failed'
@@ -267,45 +271,54 @@ export default function App() {
                       : 'bg-violet-600 hover:bg-violet-500'
                   }`}
                 >
+                  {uploadState === 'uploading' && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {uploadState === 'success' && <Check className="w-4 h-4" />}
+                  {uploadState === 'failed' && <AlertTriangle className="w-4 h-4" />}
+                  {uploadState === 'idle' && <Upload className="w-4 h-4" />}
                   {uploadState === 'uploading'
                     ? t('btn.uploading')
                     : uploadState === 'success'
                     ? t('btn.uploaded')
                     : uploadState === 'failed'
                     ? t('btn.uploadFailed')
-                    : `🚀 ${t('btn.uploadVlyp')}`}
+                    : t('btn.uploadVlyp')}
                 </button>
                 {!selectedClip.editedPath && !selectedClip.editing && (
                   <button
                     onClick={() => handleEdit(selectedClip.rawPath)}
-                    className="px-4 py-2.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-semibold text-sm transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-semibold text-sm transition-colors"
                   >
-                    {t('btn.aiEdit')}
+                    <Sparkles className="w-4 h-4 text-violet-300" />
+                    {locale === 'ja' ? 'AI編集' : 'AI Edit'}
                   </button>
                 )}
                 <button
                   onClick={() => handleReveal(selectedClip.editedPath || selectedClip.rawPath)}
-                  className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-semibold text-sm transition-colors"
+                  className="p-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-colors"
+                  title="Reveal in folder"
                 >
-                  📂
+                  <FolderOpen className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => handleDelete(selectedClip.rawPath)}
-                  className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-semibold text-sm transition-colors text-zinc-400"
+                  className="p-2.5 bg-zinc-800 hover:bg-red-900/40 hover:text-red-300 rounded-lg text-zinc-500 transition-colors"
+                  title="Delete clip"
                 >
-                  🗑️
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
           ) : (
-            <div className="text-center space-y-4 max-w-sm">
-              <div className="text-6xl">🎮</div>
-              <p className="text-zinc-300 font-semibold text-lg">{t('main.startRecording')}</p>
-              <p className="text-zinc-500 text-sm leading-relaxed">
+            <div className="text-center space-y-3 max-w-md">
+              <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto">
+                <Gamepad2 className="w-7 h-7 text-zinc-600" strokeWidth={1.5} />
+              </div>
+              <p className="text-zinc-300 font-semibold text-base">{t('main.startRecording')}</p>
+              <p className="text-zinc-500 text-xs leading-relaxed">
                 {t('main.startRecordingDesc')}
               </p>
               {clips.length > 0 && (
-                <p className="text-zinc-600 text-xs mt-2">
+                <p className="text-zinc-600 text-[11px] mt-2">
                   {t('main.selectClipHint')}
                 </p>
               )}
@@ -314,37 +327,41 @@ export default function App() {
         </main>
       </div>
 
-      {/* フッター */}
-      <footer className="border-t border-zinc-800 px-6 py-4 flex justify-between items-center">
+      {/* Footer */}
+      <footer className="border-t border-zinc-800 bg-zinc-900/40 px-4 py-3 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSettings(true)}
-            className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-semibold text-sm transition-colors text-zinc-300 flex items-center gap-2"
+            className="inline-flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-semibold text-xs transition-colors text-zinc-300"
           >
-            {t('btn.settings')}
+            <SettingsIcon className="w-3.5 h-3.5" />
+            {locale === 'ja' ? '設定' : 'Settings'}
           </button>
           <button
             onClick={() => setLocale(locale === 'ja' ? 'en' : 'ja')}
-            className="px-2.5 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-xs font-bold text-zinc-400 hover:text-white transition-colors"
+            className="px-2.5 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-[10px] font-bold text-zinc-400 hover:text-white transition-colors uppercase tracking-wider"
             title="Toggle language"
           >
             {locale === 'ja' ? 'EN' : 'JA'}
           </button>
         </div>
+
         <button
           onClick={toggleRecording}
-          className={`px-12 py-3 rounded-full font-bold text-sm transition-all shadow-lg ${
+          className={`inline-flex items-center gap-2 px-8 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all shadow-lg ${
             isRecording
-              ? 'bg-red-600 hover:bg-red-500 shadow-red-900/50'
-              : 'bg-violet-600 hover:bg-violet-500 shadow-violet-900/50'
+              ? 'bg-red-600 hover:bg-red-500 shadow-red-900/40'
+              : 'bg-violet-600 hover:bg-violet-500 shadow-violet-900/40'
           }`}
         >
-          {isRecording ? t('btn.stopRec') : t('btn.startRec')}
+          {isRecording ? <Square className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+          {isRecording ? t('btn.stopRec').replace('⏹ ', '') : t('btn.startRec').replace('⏺ ', '')}
         </button>
+
         <div className="w-24 flex justify-end">
           {isRecording && (
-            <span className="flex items-center gap-1.5 text-xs text-red-400">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-red-400 uppercase tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
               {t('btn.rec')}
             </span>
           )}

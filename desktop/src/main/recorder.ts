@@ -3,11 +3,28 @@ import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
 import { FFMPEG_PATH } from './ffmpeg-path';
+import { detectBestEncoder, buildEncoderArgs, VideoEncoder } from './hw-encoder';
+
+export interface RecorderOptions {
+  bufferSeconds?: number;       // total rolling buffer (default 120s = 2min)
+  segmentSeconds?: number;      // each segment duration (default 10s)
+  quality?: number;             // CRF/CQ 18-28, default 23
+  framerate?: number;           // default 60 (was 30 — Medal/Outplayed are 60+)
+  preferredEncoder?: VideoEncoder | 'auto';
+}
 
 export class Recorder {
   private process: ChildProcess | null = null;
   private bufferDir: string;
   private isRecording = false;
+  private options: Required<RecorderOptions> = {
+    bufferSeconds: 120,
+    segmentSeconds: 10,
+    quality: 23,
+    framerate: 60,
+    preferredEncoder: 'auto',
+  };
+  private resolvedEncoder: VideoEncoder = 'libx264';
 
   constructor() {
     this.bufferDir = path.join(app.getPath('temp'), 'vlyp-buffer');
@@ -16,18 +33,29 @@ export class Recorder {
     }
   }
 
+  setOptions(opts: RecorderOptions): void {
+    this.options = { ...this.options, ...opts } as Required<RecorderOptions>;
+  }
+
   async startRollingBuffer(): Promise<void> {
     if (this.isRecording) return;
     this.isRecording = true;
 
-    // 古いバッファをクリア
+    // Resolve encoder (auto-detect or user-pinned)
+    if (this.options.preferredEncoder === 'auto') {
+      this.resolvedEncoder = await detectBestEncoder();
+    } else {
+      this.resolvedEncoder = this.options.preferredEncoder;
+    }
+    console.log(`[Recorder] using encoder: ${this.resolvedEncoder}`);
+
+    // Clear old buffer
     try {
       fs.readdirSync(this.bufferDir).forEach((f) => {
         try { fs.unlinkSync(path.join(this.bufferDir, f)); } catch {}
       });
     } catch {}
 
-    // まず音声付きで試みて、失敗したら映像のみにフォールバック
     return new Promise<void>((resolve, reject) => {
       this.tryStart(true, resolve, reject);
     });
@@ -56,14 +84,13 @@ export class Recorder {
 
     proc.on('spawn', () => {
       this.process = proc;
-      // 1秒後に即死していないか確認
       setTimeout(() => {
         if (proc.exitCode !== null && proc.exitCode !== 0 && withAudio) {
           console.warn('[Recorder] Audio capture exited early, retrying video-only');
           this.process = null;
           this.tryStart(false, resolve, reject);
         } else if (proc.exitCode === null) {
-          console.log(`[Recorder] Started (audio=${withAudio})`);
+          console.log(`[Recorder] Started (audio=${withAudio}, encoder=${this.resolvedEncoder})`);
           resolve();
         }
       }, 1000);
@@ -72,7 +99,7 @@ export class Recorder {
     proc.on('close', (code) => {
       if (this.isRecording && code !== 0) {
         console.warn(`[Recorder] ffmpeg closed unexpectedly code=${code}`);
-        // 録画中に落ちたら映像のみで自動再起動
+        console.warn('[Recorder] stderr tail:', stderr.slice(-400));
         this.process = null;
         setTimeout(() => {
           if (this.isRecording) {
@@ -87,11 +114,7 @@ export class Recorder {
   async stopRecording(): Promise<string> {
     this.isRecording = false;
     if (this.process) {
-      // ffmpegに'q'を送って正常終了
-      try {
-        this.process.stdin?.write('q');
-      } catch {}
-      // 3秒待って強制終了
+      try { this.process.stdin?.write('q'); } catch {}
       await new Promise<void>((resolve) => {
         const timeout = setTimeout(() => {
           try { this.process?.kill('SIGKILL'); } catch {}
@@ -107,57 +130,51 @@ export class Recorder {
     return this.bufferDir;
   }
 
-  getBufferDir(): string {
-    return this.bufferDir;
+  getBufferDir(): string { return this.bufferDir; }
+  isActive(): boolean { return this.isRecording; }
+  getResolvedEncoder(): VideoEncoder { return this.resolvedEncoder; }
+  getOptions(): Required<RecorderOptions> { return this.options; }
+
+  /** segment_wrap = ceil(bufferSeconds / segmentSeconds) */
+  private get segmentWrap(): number {
+    return Math.max(2, Math.ceil(this.options.bufferSeconds / this.options.segmentSeconds));
   }
 
-  isActive(): boolean {
-    return this.isRecording;
-  }
-
-  /**
-   * 音声付きキャプチャ引数 (Windows: gdigrab + dshow audio)
-   * 10秒ごとのセグメントファイルとしてローリングバッファ
-   */
+  /** Windows: gdigrab desktop + dshow audio + selected encoder */
   private buildArgsWithAudio(): string[] {
+    const encArgs = buildEncoderArgs(this.resolvedEncoder, this.options.quality);
     return [
-      // デスクトップ映像キャプチャ
       '-f', 'gdigrab',
-      '-framerate', '30',
+      '-framerate', String(this.options.framerate),
       '-i', 'desktop',
-      // システム音声キャプチャ (DirectShow)
       '-f', 'dshow',
       '-i', 'audio=virtual-audio-capturer',
-      // エンコード設定
-      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
+      ...encArgs,
       '-c:a', 'aac', '-b:a', '128k',
       '-pix_fmt', 'yuv420p',
-      // セグメント出力 (10秒ごと)
       '-f', 'segment',
-      '-segment_time', '10',
+      '-segment_time', String(this.options.segmentSeconds),
       '-segment_format', 'mp4',
       '-reset_timestamps', '1',
-      '-segment_wrap', '12',  // 最大12セグメント = 120秒バッファ (Medal並)
+      '-segment_wrap', String(this.segmentWrap),
       path.join(this.bufferDir, 'seg_%03d.mp4'),
     ];
   }
 
-  /**
-   * 映像のみキャプチャ引数 (音声デバイスがない場合のフォールバック)
-   */
   private buildArgsVideoOnly(): string[] {
+    const encArgs = buildEncoderArgs(this.resolvedEncoder, this.options.quality);
     return [
       '-f', 'gdigrab',
-      '-framerate', '30',
+      '-framerate', String(this.options.framerate),
       '-i', 'desktop',
-      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
+      ...encArgs,
       '-pix_fmt', 'yuv420p',
-      '-an',  // 音声なし
+      '-an',
       '-f', 'segment',
-      '-segment_time', '10',
+      '-segment_time', String(this.options.segmentSeconds),
       '-segment_format', 'mp4',
       '-reset_timestamps', '1',
-      '-segment_wrap', '12',
+      '-segment_wrap', String(this.segmentWrap),
       path.join(this.bufferDir, 'seg_%03d.mp4'),
     ];
   }

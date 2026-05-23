@@ -4,11 +4,13 @@ import fs from 'fs';
 import { app } from 'electron';
 import { GameEvent } from './detector';
 import { Editor, EditOptions } from './editor';
+import { generateThumbnail } from './thumbnail';
 import { FFMPEG_PATH } from './ffmpeg-path';
 
 export interface ClipInfo {
   rawPath: string;
   editedPath?: string;
+  thumbPath?: string;
   timestamp: number;
   event: GameEvent;
   editing: boolean;
@@ -80,6 +82,13 @@ export class Clipper {
         editing: false,
       };
       this.clips.set(rawPath, clipInfo);
+
+      // Generate thumbnail asynchronously (don't block return)
+      generateThumbnail(rawPath).then((thumbPath) => {
+        if (thumbPath) {
+          clipInfo.thumbPath = thumbPath;
+        }
+      }).catch(() => {/* non-fatal */});
 
       // 自動編集が有効なら非同期で編集開始
       if (editOptions && (editOptions.vertical || editOptions.captions)) {

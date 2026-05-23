@@ -21,6 +21,19 @@ interface AppSettings {
   language: string;
   openaiApiKey: string;
   clipsDir: string;
+  // Recording quality
+  bufferSeconds: number;        // 30-600, default 120 (2 min)
+  framerate: number;            // 30 or 60, default 60
+  encoderQuality: number;       // 18-28, default 23 (lower = better quality)
+  preferredEncoder: 'auto' | 'h264_nvenc' | 'h264_amf' | 'h264_qsv' | 'libx264';
+  // Clip hotkeys (3 lengths)
+  hotkeyShort: string;          // default Ctrl+F9  -> shortClipSeconds
+  hotkeyMid: string;            // default Ctrl+F10 -> midClipSeconds
+  hotkeyLong: string;           // default Ctrl+F11 -> longClipSeconds
+  shortClipSeconds: number;     // default 15
+  midClipSeconds: number;       // default 30
+  longClipSeconds: number;      // default 60
+  // Legacy single-hotkey field (kept for back-compat reads)
   hotkey: string;
 }
 
@@ -39,6 +52,16 @@ const store = new Store<AppSettings & { auth?: AuthSession }>({
     language: 'ja',
     openaiApiKey: '',
     clipsDir: path.join(app.getPath('videos'), 'VLYP Clips'),
+    bufferSeconds: 120,
+    framerate: 60,
+    encoderQuality: 23,
+    preferredEncoder: 'auto',
+    hotkeyShort: 'Ctrl+F9',
+    hotkeyMid: 'Ctrl+F10',
+    hotkeyLong: 'Ctrl+F11',
+    shortClipSeconds: 15,
+    midClipSeconds: 30,
+    longClipSeconds: 60,
     hotkey: 'Ctrl+F9',
   },
 });
@@ -212,6 +235,12 @@ function createTray() {
 async function startRecording(): Promise<{ success: boolean; error?: string }> {
   if (isRecording) return { success: true };
   try {
+    recorder.setOptions({
+      bufferSeconds: store.get('bufferSeconds'),
+      framerate: store.get('framerate'),
+      quality: store.get('encoderQuality'),
+      preferredEncoder: store.get('preferredEncoder') as any,
+    });
     await recorder.startRollingBuffer();
     isRecording = true;
 
@@ -287,10 +316,10 @@ async function handleAutoClip(event: any): Promise<void> {
   }
 }
 
-async function handleManualClip(): Promise<{ success: boolean; error?: string }> {
+async function handleManualClip(clipLengthSeconds?: number): Promise<{ success: boolean; error?: string }> {
   if (!isRecording) return { success: false, error: 'Not recording' };
   const bufferDir = recorder.getBufferDir();
-  const manualEvent = { type: 'manual' as const, killCount: 0, timestamp: Date.now() };
+  const manualEvent: any = { type: 'manual' as const, killCount: 0, timestamp: Date.now(), clipLengthSeconds };
 
   const editOptions: EditOptions | undefined = store.get('autoEdit')
     ? {
@@ -318,7 +347,7 @@ async function handleManualClip(): Promise<{ success: boolean; error?: string }>
 
 ipcMain.handle('recorder:start', async () => startRecording());
 ipcMain.handle('recorder:stop', async () => stopRecording());
-ipcMain.handle('recorder:manual-clip', async () => handleManualClip());
+ipcMain.handle('recorder:manual-clip', async (_e, args?: { lengthSeconds?: number }) => handleManualClip(args?.lengthSeconds));
 
 ipcMain.handle('clip:list', async () => {
   const clipsDir = clipper.getClipsDir();
@@ -332,11 +361,18 @@ ipcMain.handle('clip:list', async () => {
       const fullPath = path.join(clipsDir, f);
       const stats = fs.statSync(fullPath);
       const editedPath = path.join(clipsDir, f.replace('.mp4', '_edited.mp4'));
+      const thumbPath = fullPath.replace(/\.mp4$/, '.jpg');
+      // Best-effort parse: filename pattern is clip_<ts>_<eventtype>.mp4
+      let detectedEvent = 'unknown';
+      const m = f.match(/^clip_\d+_([a-z]+)/i);
+      if (m) detectedEvent = m[1];
       return {
         rawPath: fullPath,
         editedPath: fs.existsSync(editedPath) ? editedPath : undefined,
+        thumbPath: fs.existsSync(thumbPath) ? thumbPath : undefined,
+        sizeBytes: stats.size,
         timestamp: stats.mtimeMs,
-        event: { type: 'unknown', killCount: 0, timestamp: stats.mtimeMs },
+        event: { type: detectedEvent, killCount: 0, timestamp: stats.mtimeMs },
         editing: false,
       };
     });
@@ -457,6 +493,16 @@ ipcMain.handle('settings:get', async () => {
     language: store.get('language'),
     openaiApiKey: store.get('openaiApiKey'),
     clipsDir: store.get('clipsDir'),
+    bufferSeconds: store.get('bufferSeconds'),
+    framerate: store.get('framerate'),
+    encoderQuality: store.get('encoderQuality'),
+    preferredEncoder: store.get('preferredEncoder'),
+    hotkeyShort: store.get('hotkeyShort'),
+    hotkeyMid: store.get('hotkeyMid'),
+    hotkeyLong: store.get('hotkeyLong'),
+    shortClipSeconds: store.get('shortClipSeconds'),
+    midClipSeconds: store.get('midClipSeconds'),
+    longClipSeconds: store.get('longClipSeconds'),
     hotkey: store.get('hotkey'),
   };
 });
@@ -507,17 +553,21 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
 
-  // グローバルホットキー登録
-  const hotkey = store.get('hotkey') || 'Ctrl+F9';
-  try {
-    globalShortcut.register(hotkey, () => {
-      if (isRecording) {
-        handleManualClip();
-      }
-    });
-    console.log(`[Main] Hotkey registered: ${hotkey}`);
-  } catch (err) {
-    console.warn('[Main] Failed to register hotkey:', err);
+  // グローバルホットキー登録 (3つのクリップ長)
+  const hotkeys: [string, number][] = [
+    [store.get('hotkeyShort') || 'Ctrl+F9', store.get('shortClipSeconds') || 15],
+    [store.get('hotkeyMid')   || 'Ctrl+F10', store.get('midClipSeconds')   || 30],
+    [store.get('hotkeyLong')  || 'Ctrl+F11', store.get('longClipSeconds')  || 60],
+  ];
+  for (const [key, len] of hotkeys) {
+    try {
+      const ok = globalShortcut.register(key, () => {
+        if (isRecording) handleManualClip(len);
+      });
+      console.log(`[Main] Hotkey registered: ${key} -> ${len}s (ok=${ok})`);
+    } catch (err) {
+      console.warn(`[Main] Failed to register hotkey ${key}:`, err);
+    }
   }
 
   // コマンドライン引数からdeep linkを処理
