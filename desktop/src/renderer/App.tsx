@@ -36,6 +36,9 @@ declare global {
       onClipEditComplete: (callback: (data: any) => void) => void;
       onRecordingStatus: (callback: (data: any) => void) => void;
       onGameStatus: (callback: (data: { game: string; running: boolean }) => void) => void;
+      minimize: () => void;
+      maximize: () => void;
+      close: () => void;
       removeAllListeners?: (channel: string) => void;
     };
   }
@@ -199,7 +202,7 @@ export default function App() {
   const editedPaths = clips.filter((c) => !!c.editedPath).map((c) => c.rawPath);
 
   return (
-    <div className="h-screen bg-zinc-950 text-white flex flex-col select-none overflow-hidden">
+    <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties} className="h-screen bg-zinc-950 text-white flex flex-col select-none overflow-hidden">
       <StatusBar isRecording={isRecording} />
 
       <div className="flex flex-1 overflow-hidden">

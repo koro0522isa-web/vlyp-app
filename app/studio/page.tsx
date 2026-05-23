@@ -90,8 +90,15 @@ export default function Studio() {
               <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Manage your empire and edit with Pro tools</p>
             </div>
             
-            <div className="flex items-center gap-4">
-              <Link href="/studio/revenue" className="flex items-center gap-2 px-6 py-4 glass-panel rounded-2xl hover:bg-white/5 transition-all group">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Link href="/studio/analytics" className="flex items-center gap-2 px-5 py-4 glass-panel rounded-2xl hover:bg-white/5 transition-all group">
+                <BarChart3 className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
+                <div>
+                  <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest leading-none mb-1">Analytics</p>
+                  <p className="text-sm font-black italic">View Details</p>
+                </div>
+              </Link>
+              <Link href="/studio/revenue" className="flex items-center gap-2 px-5 py-4 glass-panel rounded-2xl hover:bg-white/5 transition-all group">
                 <DollarSign className="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform" />
                 <div>
                   <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest leading-none mb-1">Total Earnings</p>

@@ -136,7 +136,6 @@ export default function Sidebar() {
     { icon: <MessageSquare />, label: t('sidebar.messages'), href: '/messages', badge: dmUnread },
     { icon: <Clapperboard />, label: t('sidebar.studioEdit'), href: '/studio', badge: 0 },
     { icon: <Wand2 />, label: 'AI Edit', href: '/edit', badge: 0 },
-    { icon: <BarChart2 />, label: 'Analytics', href: '/analytics', badge: 0 },
     { icon: <Settings />, label: t('nav.settings'), href: '/settings', badge: 0 },
   ];
 

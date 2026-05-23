@@ -15,6 +15,7 @@ import https from 'https';
 
 interface AppSettings {
   autoClip: boolean;
+  autoStartOnGame: boolean;   // start recording automatically when a supported game is detected
   autoEdit: boolean;
   vertical: boolean;
   captions: boolean;
@@ -41,11 +42,13 @@ interface AuthSession {
   accessToken: string;
   refreshToken: string;
   email?: string;
+  expiresAt?: number;       // unix ms when accessToken expires
 }
 
 const store = new Store<AppSettings & { auth?: AuthSession }>({
   defaults: {
     autoClip: true,
+    autoStartOnGame: true,
     autoEdit: true,
     vertical: true,
     captions: true,
@@ -81,6 +84,14 @@ if (!gotTheLock) {
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isRecording = false;
+let isAutoStartedRecording = false;        // true when recording was triggered by game detection
+let activeGames = new Set<string>();       // games currently detected as running (valorant/apex/lol/fortnite/etc)
+let backgroundDetector: NodeJS.Timeout | null = null;
+
+// Detectors that run BEFORE recording to auto-trigger it
+const bgDetector = new Detector();
+const bgApexDetector = new ApexDetector();
+const bgProcessDetector = new ProcessDetector();
 
 const recorder = new Recorder();
 const detector = new Detector();
@@ -99,7 +110,13 @@ function handleDeepLink(url: string) {
       const refreshToken = parsed.searchParams.get('refresh_token');
       const email = parsed.searchParams.get('email') || undefined;
       if (accessToken && refreshToken) {
-        const session: AuthSession = { accessToken, refreshToken, email };
+        // Supabase JWTs default to 1 hour expiry
+        const expiresInParam = parsed.searchParams.get('expires_in');
+        const expiresIn = expiresInParam ? parseInt(expiresInParam, 10) : 3600;
+        const session: AuthSession = {
+          accessToken, refreshToken, email,
+          expiresAt: Date.now() + expiresIn * 1000,
+        };
         store.set('auth', session);
         mainWindow?.webContents.send('auth:session', session);
         console.log('[Main] Auth session saved:', email);
@@ -124,6 +141,66 @@ app.on('open-url', (_event, url) => {
 });
 
 // ─── 編集完了コールバック ───────────────────────────────────────
+
+// Background game watcher: starts at app launch, auto-triggers recording when a game appears.
+function startGameWatcher() {
+  const onGameDetected = (gameId: string) => {
+    if (activeGames.has(gameId)) return;
+    activeGames.add(gameId);
+    console.log(`[Watcher] Game detected: ${gameId}, activeGames=${[...activeGames]}`);
+    mainWindow?.webContents.send('game:status', { game: gameId, running: true });
+    // If auto-start is enabled and we're not already recording, start now
+    if (store.get('autoStartOnGame') && !isRecording) {
+      console.log(`[Watcher] Auto-starting recording due to ${gameId}`);
+      isAutoStartedRecording = true;
+      startRecording().catch((e) => console.error('[Watcher] auto-start failed', e));
+    }
+  };
+  const onGameClosed = (gameId: string) => {
+    activeGames.delete(gameId);
+    console.log(`[Watcher] Game closed: ${gameId}, activeGames=${[...activeGames]}`);
+    mainWindow?.webContents.send('game:status', { game: gameId, running: false });
+    // If no games are running and recording was auto-started, stop
+    if (activeGames.size === 0 && isAutoStartedRecording && isRecording) {
+      console.log('[Watcher] Auto-stopping recording (no games detected)');
+      isAutoStartedRecording = false;
+      stopRecording().catch((e) => console.error('[Watcher] auto-stop failed', e));
+    }
+  };
+
+  // Valorant / LoL via Live Client API (port 2999)
+  bgDetector.start((ev) => {
+    if (ev.game && ev.game !== 'none') onGameDetected(ev.game);
+  });
+  // Apex via process check
+  bgApexDetector.start(() => onGameDetected('apex'));
+  // Fortnite / CS2 / Overwatch / PUBG / Rocket League via process
+  bgProcessDetector.start((ev) => {
+    if (ev.type === 'game-detected') onGameDetected(ev.game);
+    else if (ev.type === 'game-closed') onGameClosed(ev.game);
+  });
+
+  // Apex doesn't emit close events through its detector — poll its running state separately
+  if (backgroundDetector) clearInterval(backgroundDetector);
+  backgroundDetector = setInterval(() => {
+    if (!bgApexDetector.isApexRunning() && activeGames.has('apex')) onGameClosed('apex');
+    if (bgDetector.getCurrentGame() === 'none' && (activeGames.has('valorant') || activeGames.has('lol'))) {
+      activeGames.delete('valorant');
+      activeGames.delete('lol');
+      if (activeGames.size === 0 && isAutoStartedRecording && isRecording) {
+        isAutoStartedRecording = false;
+        stopRecording().catch(()=>{});
+      }
+    }
+  }, 5000);
+}
+
+function stopGameWatcher() {
+  bgDetector.stop();
+  bgApexDetector.stop();
+  bgProcessDetector.stop();
+  if (backgroundDetector) { clearInterval(backgroundDetector); backgroundDetector = null; }
+}
 
 clipper.setEditCompleteCallback((info) => {
   console.log('[Main] Edit complete:', info.rawPath, '->', info.editedPath);
@@ -411,7 +488,7 @@ ipcMain.handle('clip:reveal', async (_event, clipPath: string) => {
 // Upload clip to VLYP. POST to /api/desktop-upload with Bearer auth from stored session.
 ipcMain.handle('clip:upload', async (_event, args: { clipPath: string; title?: string; gameTitle?: string }) => {
   try {
-    const session = store.get('auth') as AuthSession | undefined;
+    const session = await refreshSessionIfNeeded();
     if (!session?.accessToken) {
       return { success: false, error: 'NOT_LOGGED_IN' };
     }
@@ -531,8 +608,70 @@ ipcMain.handle('auth:logout', async () => {
   return { success: true };
 });
 
+async function refreshSessionIfNeeded(): Promise<AuthSession | null> {
+  const session = store.get('auth') as AuthSession | undefined;
+  if (!session?.accessToken) return null;
+  const now = Date.now();
+  // If expiresAt is unknown OR expires within next 5 minutes, refresh
+  const needsRefresh = !session.expiresAt || session.expiresAt - now < 5 * 60 * 1000;
+  if (!needsRefresh) return session;
+  if (!session.refreshToken) return session; // can't refresh without refresh_token
+
+  try {
+    const apiBase = process.env.VLYP_API_BASE || 'https://vlyp.app';
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hpozodliggxykeroudtx.supabase.co';
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    // Call Supabase token refresh endpoint directly (doesn't need anon key as Authorization)
+    const url = new URL(`${supabaseUrl}/auth/v1/token?grant_type=refresh_token`);
+    const body = JSON.stringify({ refresh_token: session.refreshToken });
+    const result: { status: number; body: string } = await new Promise((resolve) => {
+      const req = https.request({
+        method: 'POST',
+        hostname: url.hostname,
+        path: url.pathname + url.search,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(supabaseAnonKey ? { 'apikey': supabaseAnonKey } : {}),
+          'Content-Length': Buffer.byteLength(body).toString(),
+        },
+      }, (res) => {
+        let buf = '';
+        res.on('data', (c) => buf += c.toString());
+        res.on('end', () => resolve({ status: res.statusCode || 0, body: buf }));
+      });
+      req.on('error', () => resolve({ status: 0, body: '' }));
+      req.write(body);
+      req.end();
+    });
+    if (result.status >= 200 && result.status < 300) {
+      const json = JSON.parse(result.body);
+      if (json.access_token && json.refresh_token) {
+        const updated: AuthSession = {
+          accessToken: json.access_token,
+          refreshToken: json.refresh_token,
+          email: session.email,
+          expiresAt: Date.now() + (json.expires_in || 3600) * 1000,
+        };
+        store.set('auth', updated);
+        mainWindow?.webContents.send('auth:session', updated);
+        console.log('[Auth] Session refreshed');
+        return updated;
+      }
+    } else if (result.status === 401 || result.status === 400) {
+      // refresh token invalid — clear session and trigger re-login
+      console.warn('[Auth] Refresh failed, clearing session', result.status);
+      store.delete('auth');
+      return null;
+    }
+  } catch (e) {
+    console.error('[Auth] Refresh error', e);
+  }
+  return session;
+}
+
 ipcMain.handle('auth:get-session', async () => {
-  return store.get('auth') || null;
+  return await refreshSessionIfNeeded();
 });
 
 // ─── ウィンドウ制御 IPC ─────────────────────────────────────────
@@ -552,6 +691,7 @@ ipcMain.on('window:close', () => mainWindow?.hide());
 app.whenReady().then(() => {
   createWindow();
   createTray();
+  startGameWatcher();
 
   // グローバルホットキー登録 (3つのクリップ長)
   const hotkeys: [string, number][] = [
@@ -597,4 +737,5 @@ app.on('will-quit', () => {
     apexDetector.stop();
     processDetector.stop();
   }
+  stopGameWatcher();
 });
