@@ -17,7 +17,6 @@ asarUnpack:
 win:
   target:
     - nsis
-    - portable
   certificateFile: null
   certificatePassword: null
   signingHashAlgorithms:
