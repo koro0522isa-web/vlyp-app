@@ -2,6 +2,7 @@
 'use client'
 import posthog from 'posthog-js'
 import { PostHogProvider } from 'posthog-js/react'
+import { AuthProvider } from './contexts/AuthContext'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ToastProvider } from './contexts/ToastContext'
@@ -17,16 +18,18 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
 
 export function PHProvider({ children }: { children: React.ReactNode }) {
   return (
-    <LanguageProvider>
-      <ThemeProvider>
-        <ToastProvider>
-          <PostHogProvider client={posthog}>
-            <PlayerProvider>
-              {children}
-            </PlayerProvider>
-          </PostHogProvider>
-        </ToastProvider>
-      </ThemeProvider>
-    </LanguageProvider>
+    <AuthProvider>
+      <LanguageProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <PostHogProvider client={posthog}>
+              <PlayerProvider>
+                {children}
+              </PlayerProvider>
+            </PostHogProvider>
+          </ToastProvider>
+        </ThemeProvider>
+      </LanguageProvider>
+    </AuthProvider>
   )
 }
