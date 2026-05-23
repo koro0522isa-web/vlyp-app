@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import https from 'https';
 import FormData from 'form-data';
+import { FFMPEG_PATH } from './ffmpeg-path';
 
 export interface EditOptions {
   vertical: boolean;       // 16:9 → 9:16 縦型変換
@@ -265,7 +266,7 @@ export class Editor {
    */
   private runFFmpeg(args: string[]): Promise<void> {
     return new Promise((resolve, reject) => {
-      const ff = spawn('ffmpeg', args, {
+      const ff = spawn(FFMPEG_PATH, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
       });

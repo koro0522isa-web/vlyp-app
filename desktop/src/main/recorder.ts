@@ -2,6 +2,7 @@ import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
+import { FFMPEG_PATH } from './ffmpeg-path';
 
 export class Recorder {
   private process: ChildProcess | null = null;
@@ -35,7 +36,7 @@ export class Recorder {
   private tryStart(withAudio: boolean, resolve: () => void, reject: (e: Error) => void): void {
     const args = withAudio ? this.buildArgsWithAudio() : this.buildArgsVideoOnly();
 
-    const proc = spawn('ffmpeg', args, {
+    const proc = spawn(FFMPEG_PATH, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });

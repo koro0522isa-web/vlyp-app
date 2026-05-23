@@ -4,6 +4,7 @@ import fs from 'fs';
 import { app } from 'electron';
 import { GameEvent } from './detector';
 import { Editor, EditOptions } from './editor';
+import { FFMPEG_PATH } from './ffmpeg-path';
 
 export interface ClipInfo {
   rawPath: string;
@@ -134,7 +135,7 @@ export class Clipper {
    */
   private concatAndTrim(listFile: string, outputPath: string): Promise<string | null> {
     return new Promise((resolve) => {
-      const proc = spawn('ffmpeg', [
+      const proc = spawn(FFMPEG_PATH, [
         '-f', 'concat',
         '-safe', '0',
         '-i', listFile,

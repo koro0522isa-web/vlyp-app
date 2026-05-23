@@ -12,9 +12,13 @@
 ## 要件
 
 - Windows 10/11
-- Node.js 18+
-- ffmpeg（システムPATHに追加）
-- Valorant（クライアント起動時のみ）
+- ffmpeg は同梱済み (別途インストール不要)
+- 自動キル検知対応ゲーム: Valorant / League of Legends / Apex Legends
+- 手動クリップ対応ゲーム: Fortnite / CS2 / Overwatch / PUBG / Rocket League (Ctrl+F9)
+
+## 開発者向け
+
+- Node.js 18+ (開発時のみ。一般ユーザーは .exe を実行するだけ)
 
 ## インストール
 
