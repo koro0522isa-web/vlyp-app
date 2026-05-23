@@ -2,17 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import {
   BarChart2, Eye, Heart, Users, PlaySquare, Coins,
   TrendingUp, Crown, Lock, ArrowLeft, MessageCircle,
   Trophy, Star
 } from 'lucide-react';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface AnalyticsData {
   totalViews: number;

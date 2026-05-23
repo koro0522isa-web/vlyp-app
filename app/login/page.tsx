@@ -69,6 +69,8 @@ function LoginContent() {
           router.push('/settings?upgrade=pro');
           return;
         }
+        // 通常のサインイン: ホームへリダイレクト
+        router.push('/');
       }
     });
 
