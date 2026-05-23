@@ -1,5 +1,5 @@
 import path from 'path-browserify';
-import { Film, Loader2, Check, Trash2, Sparkles } from 'lucide-react';
+import { Film, Loader2, Check, Trash2, Sparkles, Zap, Target, Flame } from 'lucide-react';
 import { useT } from '../i18n';
 
 export interface ClipMeta {
@@ -27,12 +27,12 @@ function formatBytes(bytes?: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
-const EVENT_LABEL: Record<string, string> = {
-  kill: 'Kill',
-  multikill: 'Multikill',
-  ace: 'Ace',
-  manual: 'Manual',
-  unknown: 'Clip',
+const EVENT_META: Record<string, { label: string; color: string; Icon: any }> = {
+  kill:      { label: 'KILL',      color: 'from-blue-500 to-cyan-500',     Icon: Target },
+  multikill: { label: 'MULTIKILL', color: 'from-violet-500 to-purple-500', Icon: Zap },
+  ace:       { label: 'ACE',       color: 'from-yellow-400 to-orange-500', Icon: Flame },
+  manual:    { label: 'MANUAL',    color: 'from-zinc-500 to-zinc-700',     Icon: Film },
+  unknown:   { label: 'CLIP',      color: 'from-zinc-600 to-zinc-800',     Icon: Film },
 };
 
 export function ClipList({
@@ -47,10 +47,10 @@ export function ClipList({
 
   if (clips.length === 0) {
     return (
-      <div className="p-8 text-center text-zinc-500 space-y-3">
-        <Film className="w-10 h-10 mx-auto opacity-50" strokeWidth={1.5} />
-        <p className="text-sm text-zinc-400">No clips yet</p>
-        <p className="text-xs text-zinc-600 leading-relaxed">
+      <div className="p-10 text-center text-zinc-500 space-y-3">
+        <Film className="w-12 h-12 mx-auto opacity-30" strokeWidth={1.2} />
+        <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">No clips yet</p>
+        <p className="text-[11px] text-zinc-600 leading-relaxed">
           {t('main.startRecording')}
         </p>
       </div>
@@ -58,88 +58,93 @@ export function ClipList({
   }
 
   return (
-    <div className="space-y-1 p-2">
+    <div className="space-y-2 p-3">
       {clips.map((c) => {
         const rawPath = c.rawPath;
-        const fileName = path.basename(rawPath, '.mp4');
         const isSelected = selected === rawPath;
         const isEditing = editingPaths.includes(rawPath);
         const isEdited = editedPaths.includes(rawPath);
 
         const time = new Date(c.timestamp).toLocaleTimeString(undefined, {
-          hour: '2-digit', minute: '2-digit', second: '2-digit',
+          hour: '2-digit', minute: '2-digit',
         });
         const evtKey = c.event?.type || 'unknown';
-        const eventLabel = EVENT_LABEL[evtKey] || EVENT_LABEL.unknown;
+        const meta = EVENT_META[evtKey] || EVENT_META.unknown;
+        const IconC = meta.Icon;
 
         return (
           <div
             key={rawPath}
             onClick={() => onSelect(rawPath)}
-            className={`group relative rounded-lg cursor-pointer transition-all overflow-hidden border ${
+            className={`group relative rounded-xl cursor-pointer transition-all overflow-hidden border ${
               isSelected
-                ? 'border-violet-500 bg-violet-500/10 ring-1 ring-violet-500/40'
-                : 'border-transparent bg-zinc-900/40 hover:bg-zinc-800/60'
+                ? 'border-violet-500/60 bg-violet-500/10 shadow-[0_0_20px_rgba(168,85,247,0.2)]'
+                : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10'
             }`}
           >
-            <div className="flex gap-3 p-2">
-              {/* Thumbnail (16:9 ratio) */}
-              <div className="relative w-24 h-[54px] bg-black rounded overflow-hidden flex-shrink-0">
-                {c.thumbPath ? (
-                  <img
-                    src={`file://${c.thumbPath}`}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-zinc-700">
-                    <Film className="w-5 h-5" strokeWidth={1.5} />
-                  </div>
-                )}
-                {isEditing && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 text-amber-300 animate-spin" />
-                  </div>
-                )}
-                {isEdited && !isEditing && (
-                  <div className="absolute bottom-0 left-0 right-0 bg-emerald-700/80 px-1 py-0.5 flex items-center gap-1 justify-center">
-                    <Check className="w-2.5 h-2.5" strokeWidth={3} />
-                    <span className="text-[9px] font-bold uppercase tracking-wide leading-none">Edit</span>
-                  </div>
-                )}
+            {/* Thumbnail 16:9, full width of card */}
+            <div className="relative w-full aspect-video bg-black overflow-hidden">
+              {c.thumbPath ? (
+                <img
+                  src={`file://${c.thumbPath}`}
+                  alt=""
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-zinc-700">
+                  <Film className="w-8 h-8" strokeWidth={1.2} />
+                </div>
+              )}
+
+              {/* Event badge top-left */}
+              <div className={`absolute top-1.5 left-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gradient-to-r ${meta.color} shadow-lg`}>
+                <IconC className="w-2.5 h-2.5 text-white" strokeWidth={2.5} />
+                <span className="text-[9px] font-black text-white uppercase tracking-wider">{meta.label}</span>
               </div>
 
-              {/* Meta */}
-              <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-zinc-300'}`}>
-                    {eventLabel}
-                  </span>
-                  {evtKey === 'ace' && <Sparkles className="w-3 h-3 text-yellow-400" strokeWidth={2.5} />}
-                </div>
-                <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
-                  <span>{time}</span>
-                  {c.sizeBytes && <>
-                    <span className="text-zinc-700">·</span>
-                    <span>{formatBytes(c.sizeBytes)}</span>
-                  </>}
-                </div>
+              {/* Time badge bottom-right */}
+              <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-sm">
+                <span className="text-[9px] font-bold text-white">{time}</span>
               </div>
 
-              {/* Delete (revealed on hover) */}
+              {/* Editing overlay */}
+              {isEditing && (
+                <div className="absolute inset-0 bg-black/70 flex items-center justify-center backdrop-blur-sm">
+                  <div className="flex items-center gap-2 text-amber-300">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">AI Edit…</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Edited badge */}
+              {isEdited && !isEditing && (
+                <div className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-600/90 backdrop-blur-sm">
+                  <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                  <span className="text-[9px] font-black text-white uppercase tracking-wider">AI</span>
+                </div>
+              )}
+
+              {/* Delete on hover */}
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(rawPath);
-                }}
-                className={`self-start opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md ${
-                  isSelected ? 'hover:bg-violet-500/30 text-white' : 'hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300'
-                }`}
+                onClick={(e) => { e.stopPropagation(); onDelete(rawPath); }}
+                className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md bg-black/70 hover:bg-red-600 text-zinc-300 hover:text-white backdrop-blur-sm"
                 aria-label="Delete clip"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-3 h-3" />
               </button>
+            </div>
+
+            {/* Meta footer below thumbnail */}
+            <div className="flex items-center justify-between px-2.5 py-1.5">
+              <span className={`text-[11px] font-bold truncate ${isSelected ? 'text-white' : 'text-zinc-300'}`}>
+                {meta.label}
+                {c.event?.killCount && c.event.killCount > 1 && ` ×${c.event.killCount}`}
+              </span>
+              {c.sizeBytes && (
+                <span className="text-[10px] text-zinc-500 font-medium">{formatBytes(c.sizeBytes)}</span>
+              )}
             </div>
           </div>
         );

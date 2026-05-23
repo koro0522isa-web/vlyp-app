@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
   Upload, FolderOpen, Trash2, Sparkles, Settings as SettingsIcon, Play, Square,
-  Loader2, Check, AlertTriangle, Gamepad2,
+  Loader2, Check, AlertTriangle, LogOut, LogIn,
 } from 'lucide-react';
 import { ClipList, ClipMeta } from './components/ClipList';
 import { StatusBar } from './components/StatusBar';
 import { Settings } from './components/Settings';
+import { GameStatusHero } from './components/GameStatusHero';
 import { useT, useI18n } from './i18n';
 
 interface ClipInfo extends ClipMeta {
@@ -55,6 +56,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'success' | 'failed'>('idle');
   const [authedEmail, setAuthedEmail] = useState<string | null>(null);
+  const [currentGame, setCurrentGame] = useState<string | null>(null);
 
   useEffect(() => {
     const loadClips = async () => {
@@ -98,6 +100,20 @@ export default function App() {
       );
     });
 
+    window.electronAPI?.onRecordingStatus?.((data) => {
+      if (typeof data?.isRecording === 'boolean') {
+        setIsRecording(data.isRecording);
+      }
+    });
+
+    window.electronAPI?.onGameStatus?.((data) => {
+      if (data?.running) {
+        setCurrentGame(data.game);
+      } else if (currentGame === data?.game) {
+        setCurrentGame(null);
+      }
+    });
+
     window.electronAPI?.getSession?.().then((s) => {
       if (s?.email) setAuthedEmail(s.email);
     });
@@ -108,6 +124,8 @@ export default function App() {
     return () => {
       window.electronAPI?.removeAllListeners?.('clip:created');
       window.electronAPI?.removeAllListeners?.('clip:edit-complete');
+      window.electronAPI?.removeAllListeners?.('recording:status');
+      window.electronAPI?.removeAllListeners?.('game:status');
     };
   }, []);
 
@@ -182,11 +200,16 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="h-screen bg-zinc-950 text-white flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <p className="text-2xl font-bold text-violet-400">VLYP Clips</p>
-          <p className="text-zinc-400 text-sm flex items-center gap-2 justify-center">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+      <div className="h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-blue-600 via-violet-600 to-pink-600 mx-auto flex items-center justify-center shadow-[0_0_40px_rgba(168,85,247,0.4)] animate-pulse">
+            <span className="text-2xl font-black text-white">V</span>
+          </div>
+          <p className="text-xl font-black bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent tracking-wider">
+            VLYP CLIPS
+          </p>
+          <p className="text-zinc-500 text-xs flex items-center gap-2 justify-center uppercase tracking-widest">
+            <Loader2 className="w-3 h-3 animate-spin" />
             {t('app.starting')}
           </p>
         </div>
@@ -202,18 +225,32 @@ export default function App() {
   const editedPaths = clips.filter((c) => !!c.editedPath).map((c) => c.rawPath);
 
   return (
-    <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties} className="h-screen bg-zinc-950 text-white flex flex-col select-none overflow-hidden">
-      <StatusBar isRecording={isRecording} />
+    <div
+      style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+      className="h-screen text-white flex flex-col select-none overflow-hidden bg-black"
+    >
+      {/* Subtle ambient gradient background */}
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute top-0 left-1/3 w-[600px] h-[400px] rounded-full bg-violet-600/10 blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[350px] rounded-full bg-blue-600/10 blur-[100px]" />
+      </div>
+
+      <StatusBar isRecording={isRecording} currentGame={currentGame} />
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-72 bg-zinc-900/70 border-r border-zinc-800 flex flex-col">
-          <div className="px-3 py-2.5 border-b border-zinc-800 flex items-center justify-between">
-            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-              {t('sidebar.clips')} ({clips.length})
-            </span>
+        <aside className="w-80 border-r border-white/5 bg-black/40 backdrop-blur-xl flex flex-col">
+          <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.25em]">
+                {t('sidebar.clips')}
+              </span>
+              <span className="text-[10px] font-bold text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded">
+                {clips.length}
+              </span>
+            </div>
             {newClipAlert && (
-              <span className="text-[10px] bg-violet-600 text-white px-1.5 py-0.5 rounded-full font-bold animate-pulse uppercase tracking-wider">
+              <span className="text-[9px] bg-gradient-to-r from-violet-600 to-pink-600 text-white px-2 py-0.5 rounded-full font-black animate-pulse uppercase tracking-widest shadow-lg">
                 {t('sidebar.new')}
               </span>
             )}
@@ -231,47 +268,49 @@ export default function App() {
         </aside>
 
         {/* Main area */}
-        <main className="flex-1 flex flex-col items-center justify-center gap-6 p-6 overflow-y-auto">
+        <main className="flex-1 flex flex-col items-center justify-center gap-6 p-8 overflow-y-auto">
           {selectedClip ? (
-            <div className="w-full max-w-2xl space-y-3">
+            <div className="w-full max-w-3xl space-y-4">
               {/* Editing banner */}
               {selectedClip.editing && (
-                <div className="bg-amber-500/10 border border-amber-500/40 rounded-lg px-3 py-2 text-xs text-amber-300 flex items-center gap-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  {t('clip.editing')}
+                <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-2xl px-4 py-3 text-sm text-amber-300 flex items-center gap-3 backdrop-blur-xl">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="font-bold">{t('clip.editing')}</span>
                 </div>
               )}
 
               {selectedClip.editedPath && !selectedClip.editing && (
-                <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-lg px-3 py-2 text-xs text-emerald-300 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5" />
+                <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 rounded-2xl px-4 py-3 text-sm text-emerald-300 flex items-center justify-between backdrop-blur-xl">
+                  <span className="flex items-center gap-2 font-bold">
+                    <Check className="w-4 h-4" />
                     {t('clip.edited')}
                   </span>
-                  <span className="text-[10px] text-emerald-500/80">{t('clip.playing.edited')}</span>
+                  <span className="text-[11px] text-emerald-400/80 uppercase tracking-widest">{t('clip.playing.edited')}</span>
                 </div>
               )}
 
-              {/* Player */}
-              <video
-                key={playPath}
-                src={playPath ? `file://${playPath}` : undefined}
-                className="w-full rounded-xl border border-zinc-800 bg-black aspect-video"
-                controls
-                autoPlay
-              />
+              {/* Player with gradient border */}
+              <div className="relative rounded-2xl p-[1px] bg-gradient-to-br from-violet-500/40 via-blue-500/40 to-pink-500/40 shadow-[0_0_40px_rgba(168,85,247,0.15)]">
+                <video
+                  key={playPath}
+                  src={playPath ? `file://${playPath}` : undefined}
+                  className="w-full rounded-2xl bg-black aspect-video"
+                  controls
+                  autoPlay
+                />
+              </div>
 
               {/* Action row */}
               <div className="flex gap-2">
                 <button
                   onClick={handleUpload}
                   disabled={uploadState === 'uploading'}
-                  className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+                  className={`flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg ${
                     uploadState === 'success'
-                      ? 'bg-emerald-600 hover:bg-emerald-500'
+                      ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40'
                       : uploadState === 'failed'
-                      ? 'bg-amber-600 hover:bg-amber-500'
-                      : 'bg-violet-600 hover:bg-violet-500'
+                      ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-900/40'
+                      : 'bg-gradient-to-r from-blue-600 via-violet-600 to-pink-600 hover:from-blue-500 hover:via-violet-500 hover:to-pink-500 shadow-violet-900/40'
                   }`}
                 >
                   {uploadState === 'uploading' && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -289,22 +328,22 @@ export default function App() {
                 {!selectedClip.editedPath && !selectedClip.editing && (
                   <button
                     onClick={() => handleEdit(selectedClip.rawPath)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-semibold text-sm transition-colors"
+                    className="inline-flex items-center gap-2 px-5 py-3 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 rounded-xl font-bold text-sm transition-colors"
                   >
                     <Sparkles className="w-4 h-4 text-violet-300" />
-                    {locale === 'ja' ? 'AI編集' : 'AI Edit'}
+                    {locale === 'ja' ? 'AI 編集' : 'AI Edit'}
                   </button>
                 )}
                 <button
                   onClick={() => handleReveal(selectedClip.editedPath || selectedClip.rawPath)}
-                  className="p-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-colors"
+                  className="p-3 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 rounded-xl text-zinc-400 hover:text-white transition-colors"
                   title="Reveal in folder"
                 >
                   <FolderOpen className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => handleDelete(selectedClip.rawPath)}
-                  className="p-2.5 bg-zinc-800 hover:bg-red-900/40 hover:text-red-300 rounded-lg text-zinc-500 transition-colors"
+                  className="p-3 bg-white/[0.04] hover:bg-red-900/40 hover:text-red-300 border border-white/10 hover:border-red-500/40 rounded-xl text-zinc-500 transition-colors"
                   title="Delete clip"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -312,60 +351,73 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <div className="text-center space-y-3 max-w-md">
-              <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto">
-                <Gamepad2 className="w-7 h-7 text-zinc-600" strokeWidth={1.5} />
-              </div>
-              <p className="text-zinc-300 font-semibold text-base">{t('main.startRecording')}</p>
-              <p className="text-zinc-500 text-xs leading-relaxed">
-                {t('main.startRecordingDesc')}
-              </p>
-              {clips.length > 0 && (
-                <p className="text-zinc-600 text-[11px] mt-2">
-                  {t('main.selectClipHint')}
-                </p>
-              )}
-            </div>
+            <GameStatusHero
+              game={currentGame}
+              isRecording={isRecording}
+              clipsCount={clips.length}
+              locale={locale}
+            />
           )}
         </main>
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-zinc-800 bg-zinc-900/40 px-4 py-3 flex justify-between items-center">
+      <footer className="border-t border-white/5 bg-black/60 backdrop-blur-xl px-5 py-3 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSettings(true)}
-            className="inline-flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-semibold text-xs transition-colors text-zinc-300"
+            className="inline-flex items-center gap-2 px-3 py-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 rounded-lg font-bold text-[11px] uppercase tracking-widest transition-colors text-zinc-300"
           >
-            <SettingsIcon className="w-3.5 h-3.5" />
+            <SettingsIcon className="w-3 h-3" />
             {locale === 'ja' ? '設定' : 'Settings'}
           </button>
           <button
             onClick={() => setLocale(locale === 'ja' ? 'en' : 'ja')}
-            className="px-2.5 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-[10px] font-bold text-zinc-400 hover:text-white transition-colors uppercase tracking-wider"
+            className="px-3 py-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 rounded-lg text-[10px] font-black text-zinc-400 hover:text-white transition-colors uppercase tracking-widest"
             title="Toggle language"
           >
             {locale === 'ja' ? 'EN' : 'JA'}
           </button>
+          {authedEmail ? (
+            <button
+              onClick={() => window.electronAPI?.logout?.()}
+              className="inline-flex items-center gap-2 px-3 py-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 rounded-lg font-bold text-[11px] text-zinc-400 hover:text-white transition-colors"
+              title={authedEmail}
+            >
+              <LogOut className="w-3 h-3" />
+              {authedEmail.split('@')[0].slice(0, 12)}
+            </button>
+          ) : (
+            <button
+              onClick={() => window.electronAPI?.login?.()}
+              className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 rounded-lg font-bold text-[11px] text-blue-300 transition-colors"
+            >
+              <LogIn className="w-3 h-3" />
+              {locale === 'ja' ? 'ログイン' : 'Login'}
+            </button>
+          )}
         </div>
 
         <button
           onClick={toggleRecording}
-          className={`inline-flex items-center gap-2 px-8 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all shadow-lg ${
+          className={`inline-flex items-center gap-2 px-8 py-2.5 rounded-full font-black text-xs uppercase tracking-widest transition-all shadow-lg ${
             isRecording
               ? 'bg-red-600 hover:bg-red-500 shadow-red-900/40'
-              : 'bg-violet-600 hover:bg-violet-500 shadow-violet-900/40'
+              : 'bg-gradient-to-r from-blue-600 via-violet-600 to-pink-600 hover:from-blue-500 hover:via-violet-500 hover:to-pink-500 shadow-violet-900/40'
           }`}
         >
           {isRecording ? <Square className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-          {isRecording ? t('btn.stopRec').replace('⏹ ', '') : t('btn.startRec').replace('⏺ ', '')}
+          {isRecording ? (locale === 'ja' ? '停止' : 'Stop') : (locale === 'ja' ? '録画' : 'Record')}
         </button>
 
-        <div className="w-24 flex justify-end">
+        <div className="w-32 flex justify-end">
           {isRecording && (
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-red-400 uppercase tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              {t('btn.rec')}
+            <span className="inline-flex items-center gap-2 text-[10px] font-black text-red-400 uppercase tracking-widest">
+              <span className="inline-flex relative">
+                <span className="absolute inline-flex h-1.5 w-1.5 rounded-full bg-red-500 opacity-75 animate-ping" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500" />
+              </span>
+              REC
             </span>
           )}
         </div>
